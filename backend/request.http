@@ -1,0 +1,15 @@
+GET http://localhost:8080/api/trades
+
+###
+
+POST http://localhost:8080/api/trades
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "symbol": "NVDA",
+  "quantity": 5,
+  "price": 175.50,
+  "type": "BUY",
+  "tradeTime": "2026-08-24T19:50:00"
+}

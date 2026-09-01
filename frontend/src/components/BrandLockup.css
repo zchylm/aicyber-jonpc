@@ -1,0 +1,28 @@
+.brand-lockup {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  color: #f4f7f5;
+}
+
+.brand-product {
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1;
+}
+
+.brand-dot { color: #c3ef80; }
+
+.brand-company {
+  color: #8e9b98;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.brand-lockup-compact .brand-product { font-size: 14px; }
+.brand-lockup-compact .brand-company { font-size: 8px; }
