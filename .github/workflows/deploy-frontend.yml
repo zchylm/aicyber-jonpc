@@ -43,7 +43,7 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         env:
-          VITE_BASE_PATH: /aicyber-jonpc/
+          VITE_BASE_PATH: /
         run: npm run build
 
       - name: Upload Pages artifact
