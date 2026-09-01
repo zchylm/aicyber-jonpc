@@ -14,7 +14,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/ai")
-@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://jonpc.com.au",
+        "https://www.jonpc.com.au"
+})
 public class ChatController {
 
     private final ChatService chatService;

@@ -9,6 +9,8 @@ const welcomeReply: AssistantReply = {
   body: "Ask about a component, a workload or your next build decision. I will keep the answer practical.",
 };
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
 function AiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
@@ -27,7 +29,7 @@ function AiAssistant() {
     setQuestion("");
 
     try {
-      const response = await fetch("/api/ai/chat", {
+      const response = await fetch(`${apiBaseUrl}/api/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: trimmed }),
