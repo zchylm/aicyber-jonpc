@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConfiguratorQuoteServiceTest {
@@ -35,5 +36,13 @@ class ConfiguratorQuoteServiceTest {
 
         assertTrue(!response.compatible());
         assertEquals(3, response.validation().size());
+    }
+
+    @Test
+    void unknownCatalogIdsAreRejected() {
+        assertThrows(IllegalArgumentException.class, () -> service.quote(new ConfiguratorQuoteRequest(
+                "gaming", Map.of("budget", "$1,500–$2,000"), "ryzen-7-7700", "unknown-gpu", "32gb", "2tb",
+                "b850-wifi", "850-gold", "mid", "dual-tower-air", "ryzen-7-7700", "unknown-gpu", "32gb", "2tb",
+                "b850-wifi", "850-gold", "mid", "dual-tower-air")));
     }
 }

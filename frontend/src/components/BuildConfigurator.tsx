@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { fetchConfiguratorCatalog, fetchConfiguratorCompatibility, fetchConfiguratorQuote, fetchConfiguratorRecommendation, submitConfiguratorBuild, type ConfiguratorBuildResponse, type ConfiguratorCatalog, type ConfiguratorCatalogOption, type ConfiguratorCompatibility, type ConfiguratorQuote, type ConfiguratorQuoteRequest, type ConfiguratorRecommendation } from "../api/configurator";
 import { configuratorDirections, configuratorQuestions, type DirectionId } from "../data/configurator";
 import {
   cpuOptions,
@@ -26,6 +27,20 @@ function defaultsFor(direction: DirectionId) {
   );
 }
 
+function mergeCatalogOptions<T extends { id: string }>(localOptions: T[], remoteOptions?: ConfiguratorCatalogOption[]) {
+  if (!remoteOptions?.length) return localOptions;
+
+  return localOptions.map((localOption) => {
+    const remoteOption = remoteOptions.find((option) => option.id === localOption.id);
+    if (!remoteOption) return localOption;
+
+    const nonNullValues = Object.fromEntries(
+      Object.entries(remoteOption).filter(([, value]) => value !== null && value !== undefined),
+    );
+    return { ...localOption, ...nonNullValues } as T;
+  });
+}
+
 function BuildConfigurator() {
   const [direction, setDirection] = useState<DirectionId>("gaming");
   const [answers, setAnswers] = useState<Record<string, string>>(defaultsFor("gaming"));
@@ -42,54 +57,81 @@ function BuildConfigurator() {
   const [showMoreColours, setShowMoreColours] = useState(false);
   const [isReviewReady, setIsReviewReady] = useState(false);
   const [requestSubmitted, setRequestSubmitted] = useState(false);
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [submittedBuild, setSubmittedBuild] = useState<ConfiguratorBuildResponse | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
-  const requestReference = `JON-${direction.slice(0, 3).toUpperCase()}-2408`;
+  const [backendQuote, setBackendQuote] = useState<ConfiguratorQuote | null>(null);
+  const [backendRecommendation, setBackendRecommendation] = useState<ConfiguratorRecommendation | null>(null);
+  const [backendCompatibility, setBackendCompatibility] = useState<ConfiguratorCompatibility | null>(null);
+  const [backendCatalog, setBackendCatalog] = useState<ConfiguratorCatalog | null>(null);
+  const requestReference = submittedBuild?.requestReference ?? `JON-${direction.slice(0, 3).toUpperCase()}-DEMO`;
   const questions = useMemo(() => configuratorQuestions[direction], [direction]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchConfiguratorCatalog(controller.signal)
+      .then(setBackendCatalog)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setBackendCatalog(null);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const catalogGpuOptions = useMemo(() => mergeCatalogOptions(gpuOptions, backendCatalog?.options.gpu), [backendCatalog]);
+  const catalogCpuOptions = useMemo(() => mergeCatalogOptions(cpuOptions, backendCatalog?.options.cpu), [backendCatalog]);
+  const catalogMemoryOptions = useMemo(() => mergeCatalogOptions(memoryOptions, backendCatalog?.options.memory), [backendCatalog]);
+  const catalogStorageOptions = useMemo(() => mergeCatalogOptions(storageOptions, backendCatalog?.options.storage), [backendCatalog]);
   const recommendedPerformance = useMemo(() => recommendPerformance(direction, answers), [direction, answers]);
   const budgetRange = useMemo(() => getBudgetRange(direction, answers), [direction, answers]);
   const directionLabel = configuratorDirections.find((item) => item.id === direction)?.label ?? direction;
   const activePerformance: PerformanceSelection = performanceSelection ?? recommendedPerformance;
+  const recommendedPerformanceSelection: PerformanceSelection = backendRecommendation
+    ? { cpuId: backendRecommendation.cpuId, gpuId: backendRecommendation.gpuId }
+    : recommendedPerformance;
   const performanceOptions = getPerformanceOptions(activePerformance);
-  const recommendedCorePrice = estimateCorePrice(recommendedPerformance);
+  const recommendedCorePrice = estimateCorePrice(recommendedPerformanceSelection);
   const estimatedPrice = estimateCorePrice(activePerformance);
   const coreDelta = estimatedPrice - recommendedCorePrice;
-  const recommendedMemory = useMemo(() => recommendMemory(direction, answers), [direction, answers]);
+  const localRecommendedMemory = useMemo(() => recommendMemory(direction, answers), [direction, answers]);
+  const recommendedMemory = backendRecommendation?.memoryId ?? localRecommendedMemory;
   const activeMemory = memorySelection ?? recommendedMemory;
   const memoryOption = getMemoryOption(activeMemory);
   const recommendedMemoryOption = getMemoryOption(recommendedMemory);
   const memoryDelta = memoryOption.price - recommendedMemoryOption.price;
   const isRecommendedMemory = activeMemory === recommendedMemory;
   const estimatedBuildPrice = estimatedPrice + memoryDelta;
-  const recommendedStorage = useMemo(() => recommendStorage(direction, answers), [direction, answers]);
+  const localRecommendedStorage = useMemo(() => recommendStorage(direction, answers), [direction, answers]);
+  const recommendedStorage = backendRecommendation?.storageId ?? localRecommendedStorage;
   const activeStorage = storageSelection ?? recommendedStorage;
   const storageOption = getStorageOption(activeStorage);
   const recommendedStorageOption = getStorageOption(recommendedStorage);
   const storageDelta = storageOption.price - recommendedStorageOption.price;
   const isRecommendedStorage = activeStorage === recommendedStorage;
   const estimatedFullPrice = estimatedBuildPrice + storageDelta;
-  const compatibleMotherboards = getCompatibleMotherboards(performanceOptions.cpu);
-  const recommendedMotherboard = recommendMotherboard(performanceOptions.cpu);
+  const localCompatibleMotherboards = getCompatibleMotherboards(performanceOptions.cpu);
+  const recommendedMotherboard = backendRecommendation?.motherboardId ?? recommendMotherboard(performanceOptions.cpu);
   const [isPlatformReady, setIsPlatformReady] = useState(false);
   const [motherboardSelection, setMotherboardSelection] = useState<string | null>(null);
   const [psuSelection, setPsuSelection] = useState<string | null>(null);
   const activeMotherboard = getMotherboardOption(motherboardSelection ?? recommendedMotherboard, performanceOptions.cpu);
-  const compatiblePsus = getCompatiblePsus(performanceOptions.gpu);
-  const recommendedPsuId = recommendPsu(performanceOptions.gpu);
+  const localCompatiblePsus = getCompatiblePsus(performanceOptions.gpu);
+  const recommendedPsuId = backendRecommendation?.psuId ?? recommendPsu(performanceOptions.gpu);
   const activePsu = getPsuOption(psuSelection ?? recommendedPsuId, performanceOptions.gpu);
   const recommendedMotherboardOption = getMotherboardOption(recommendedMotherboard, performanceOptions.cpu);
   const recommendedPsuOption = getPsuOption(recommendedPsuId, performanceOptions.gpu);
   const motherboardDelta = activeMotherboard.price - recommendedMotherboardOption.price;
   const psuDelta = activePsu.price - recommendedPsuOption.price;
   const estimatedCompletePrice = estimatedFullPrice + motherboardDelta + psuDelta;
-  const compatibleCases = getCompatibleCases(activeMotherboard);
-  const recommendedCase = recommendCase(activeMotherboard);
+  const localCompatibleCases = getCompatibleCases(activeMotherboard);
+  const recommendedCase = backendRecommendation?.caseId ?? recommendCase(activeMotherboard);
   const activeCase = getCaseOption(caseSelection ?? recommendedCase, activeMotherboard);
   const visibleCaseColors = showMoreColours ? [...activeCase.colors, ...activeCase.moreColors] : activeCase.colors;
   const activeCaseColor = visibleCaseColors.find((color) => color.id === caseColorSelection) ?? activeCase.colors[0];
   const casePreviewImage = activeCaseColor.image ?? activeCase.colors[0].image;
   const casePreviewPending = !activeCaseColor.image;
-  const compatibleCooling = getCompatibleCooling(performanceOptions.cpu, activeCase.id);
-  const recommendedCooling = recommendCooling(performanceOptions.cpu, activeCase.id);
+  const localCompatibleCooling = getCompatibleCooling(performanceOptions.cpu, activeCase.id);
+  const recommendedCooling = backendRecommendation?.coolingId ?? recommendCooling(performanceOptions.cpu, activeCase.id);
   const activeCooling = getCoolingOption(coolingSelection ?? recommendedCooling, performanceOptions.cpu, activeCase.id);
   const recommendedCaseOption = getCaseOption(recommendedCase, activeMotherboard);
   const recommendedCoolingOption = getCoolingOption(recommendedCooling, performanceOptions.cpu, activeCase.id);
@@ -99,6 +141,120 @@ function BuildConfigurator() {
   const selectedAdjustments = coreDelta + memoryDelta + storageDelta + motherboardDelta + psuDelta + caseDelta + coolingDelta;
   const budgetStatus = estimatedPrice > budgetRange.max ? "Above selected budget" : estimatedPrice < budgetRange.min ? "Below selected range" : "Within selected budget";
   const performanceValidation = validatePerformance(direction, answers, activePerformance);
+  const serializedAnswers = JSON.stringify(answers);
+
+  const currentQuoteRequest: ConfiguratorQuoteRequest = {
+      direction,
+      answers: JSON.parse(serializedAnswers) as Record<string, string>,
+      recommendedCpuId: recommendedPerformanceSelection.cpuId,
+      recommendedGpuId: recommendedPerformanceSelection.gpuId,
+      recommendedMemoryId: recommendedMemory,
+      recommendedStorageId: recommendedStorage,
+      recommendedMotherboardId: recommendedMotherboard,
+      recommendedPsuId,
+      recommendedCaseId: recommendedCase,
+      recommendedCoolingId: recommendedCooling,
+      cpuId: performanceOptions.cpu.id,
+      gpuId: performanceOptions.gpu.id,
+      memoryId: activeMemory,
+      storageId: activeStorage,
+      motherboardId: activeMotherboard.id,
+      psuId: activePsu.id,
+      caseId: activeCase.id,
+      coolingId: activeCooling.id,
+  };
+  const serializedQuoteRequest = JSON.stringify(currentQuoteRequest);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    const controller = new AbortController();
+    fetchConfiguratorQuote(JSON.parse(serializedQuoteRequest) as ConfiguratorQuoteRequest, controller.signal)
+      .then(setBackendQuote)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setBackendQuote(null);
+      });
+
+    return () => controller.abort();
+  }, [
+    isReady,
+    serializedQuoteRequest,
+  ]);
+
+  async function submitBuildRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setRequestSubmitting(true);
+    setRequestError(null);
+    const form = new FormData(event.currentTarget);
+    try {
+      const response = await submitConfiguratorBuild({
+        name: String(form.get("name") ?? ""),
+        email: String(form.get("email") ?? ""),
+        phone: String(form.get("phone") ?? ""),
+        location: String(form.get("location") ?? ""),
+        notes: String(form.get("notes") ?? ""),
+        contact: form.get("contact") === "on",
+        configuration: currentQuoteRequest,
+      });
+      setSubmittedBuild(response);
+      setRequestSubmitted(true);
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : "Unable to submit this build request.");
+    } finally {
+      setRequestSubmitting(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    const controller = new AbortController();
+    fetchConfiguratorCompatibility({
+      cpuId: performanceOptions.cpu.id,
+      gpuId: performanceOptions.gpu.id,
+      motherboardId: activeMotherboard.id,
+      psuId: activePsu.id,
+      caseId: activeCase.id,
+      coolingId: activeCooling.id,
+    }, controller.signal)
+      .then(setBackendCompatibility)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setBackendCompatibility(null);
+      });
+
+    return () => controller.abort();
+  }, [
+    isReady,
+    performanceOptions.cpu.id,
+    performanceOptions.gpu.id,
+    activeMotherboard.id,
+    activePsu.id,
+    activeCase.id,
+    activeCooling.id,
+  ]);
+
+  const reviewPrice = backendQuote?.estimatedTotal ?? estimatedFinalPrice;
+  const reviewAdjustments = backendQuote?.selectedAdjustments ?? selectedAdjustments;
+  const reviewBaseline = backendQuote?.recommendedBaseline ?? recommendedCorePrice;
+  const backendValidation = backendQuote?.validation ?? [];
+  const compatibleMotherboards = backendCompatibility
+    ? localCompatibleMotherboards.filter((option) => backendCompatibility.motherboardIds.includes(option.id))
+    : localCompatibleMotherboards;
+  const compatiblePsus = backendCompatibility
+    ? localCompatiblePsus.filter((option) => backendCompatibility.psuIds.includes(option.id))
+    : localCompatiblePsus;
+  const compatibleCases = backendCompatibility
+    ? localCompatibleCases.filter((option) => backendCompatibility.caseIds.includes(option.id))
+    : localCompatibleCases;
+  const compatibleCooling = backendCompatibility
+    ? localCompatibleCooling.filter((option) => backendCompatibility.coolingIds.includes(option.id))
+    : localCompatibleCooling;
+  const catalogMotherboardOptions = mergeCatalogOptions(compatibleMotherboards, backendCatalog?.options.motherboard);
+  const catalogPsuOptions = mergeCatalogOptions(compatiblePsus, backendCatalog?.options.psu);
+  const catalogCaseOptions = mergeCatalogOptions(compatibleCases, backendCatalog?.options.case);
+  const catalogCoolingOptions = mergeCatalogOptions(compatibleCooling, backendCatalog?.options.cooling);
 
   function chooseDirection(nextDirection: DirectionId) {
     setDirection(nextDirection);
@@ -119,6 +275,9 @@ function BuildConfigurator() {
     setShowMoreColours(false);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setBackendRecommendation(null);
+    setBackendQuote(null);
+    setBackendCompatibility(null);
   }
 
   function chooseAnswer(questionId: string, value: string) {
@@ -139,11 +298,22 @@ function BuildConfigurator() {
     setShowMoreColours(false);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setBackendRecommendation(null);
+    setBackendQuote(null);
+    setBackendCompatibility(null);
   }
 
-  function continueToRecommendation() {
-    setPerformanceSelection(recommendedPerformance);
-    setIsReady(true);
+  async function continueToRecommendation() {
+    try {
+      const recommendation = await fetchConfiguratorRecommendation(direction, answers);
+      setBackendRecommendation(recommendation);
+      setPerformanceSelection({ cpuId: recommendation.cpuId, gpuId: recommendation.gpuId });
+    } catch {
+      setBackendRecommendation(null);
+      setPerformanceSelection(recommendedPerformance);
+    } finally {
+      setIsReady(true);
+    }
   }
 
   function choosePerformance(type: "cpuId" | "gpuId", id: string) {
@@ -162,6 +332,7 @@ function BuildConfigurator() {
     setShowMoreColours(false);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setBackendCompatibility(null);
   }
 
   function continueToMemory() {
@@ -224,6 +395,7 @@ function BuildConfigurator() {
     setShowMoreColours(false);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setBackendCompatibility(null);
   }
 
   function choosePsu(id: string) {
@@ -235,6 +407,7 @@ function BuildConfigurator() {
     setShowMoreColours(false);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setBackendCompatibility(null);
   }
 
   function continueToStyle() {
@@ -254,6 +427,7 @@ function BuildConfigurator() {
     setCoolingSelection(null);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setBackendCompatibility(null);
   }
 
   function chooseCaseColor(id: string) {
@@ -266,6 +440,7 @@ function BuildConfigurator() {
     setCoolingSelection(id);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setBackendCompatibility(null);
   }
 
   function continueToReview() {
@@ -415,7 +590,7 @@ function BuildConfigurator() {
                 <div className="performance-choice-panel">
                   <div className="performance-choice-heading"><span>GPU / Change GPU</span><small>Choose the graphics level that fits your work.</small></div>
                   <div className="performance-choice-list">
-                    {gpuOptions.map((option) => {
+                    {catalogGpuOptions.map((option) => {
                       const selected = option.id === activePerformance.gpuId;
                       const recommended = option.id === recommendedPerformance.gpuId;
                       const recommendedOption = gpuOptions.find((item) => item.id === recommendedPerformance.gpuId) ?? option;
@@ -433,7 +608,7 @@ function BuildConfigurator() {
                 <div className="performance-choice-panel">
                   <div className="performance-choice-heading"><span>CPU / Change CPU</span><small>Keep processing balanced with your GPU.</small></div>
                   <div className="performance-choice-list">
-                    {cpuOptions.map((option) => {
+                    {catalogCpuOptions.map((option) => {
                       const selected = option.id === activePerformance.cpuId;
                       const recommended = option.id === recommendedPerformance.cpuId;
                       const recommendedOption = cpuOptions.find((item) => item.id === recommendedPerformance.cpuId) ?? option;
@@ -482,7 +657,7 @@ function BuildConfigurator() {
               </div>
 
               <div className="memory-choice-grid">
-                {memoryOptions.map((option) => {
+                {catalogMemoryOptions.map((option) => {
                   const selected = option.id === activeMemory;
                   const recommended = option.id === recommendedMemory;
                   const delta = option.price - getMemoryOption(recommendedMemory).price;
@@ -524,7 +699,7 @@ function BuildConfigurator() {
               </div>
 
               <div className="storage-choice-grid">
-                {storageOptions.map((option) => {
+                {catalogStorageOptions.map((option) => {
                   const selected = option.id === activeStorage;
                   const recommended = option.id === recommendedStorage;
                   const delta = option.price - recommendedStorageOption.price;
@@ -560,7 +735,7 @@ function BuildConfigurator() {
                 <div className="platform-choice-panel">
                   <div className="platform-choice-heading"><span>Motherboard / Choose your platform</span><small>{performanceOptions.cpu.platform} / DDR5 compatible options only</small></div>
                   <div className="platform-choice-list">
-                    {compatibleMotherboards.map((option) => {
+                    {catalogMotherboardOptions.map((option) => {
                       const selected = option.id === activeMotherboard.id;
                       const recommended = option.id === recommendedMotherboard;
                       const delta = option.price - (getMotherboardOption(recommendedMotherboard, performanceOptions.cpu)?.price ?? 0);
@@ -577,7 +752,7 @@ function BuildConfigurator() {
                 <div className="platform-choice-panel">
                   <div className="platform-choice-heading"><span>PSU / Choose your power</span><small>Filtered for {performanceOptions.gpu.label}</small></div>
                   <div className="platform-choice-list">
-                    {compatiblePsus.map((option) => {
+                    {catalogPsuOptions.map((option) => {
                       const selected = option.id === activePsu.id;
                       const recommended = option.id === recommendedPsuId;
                       const delta = option.price - (getPsuOption(recommendedPsuId, performanceOptions.gpu)?.price ?? 0);
@@ -615,7 +790,7 @@ function BuildConfigurator() {
                 <div className="style-choice-panel cooling-panel">
                   <div className="style-choice-heading"><span>Cooling / Choose thermal performance</span><small>Filtered for {performanceOptions.cpu.label} and {activeCase.label}</small></div>
                   <div className="cooling-choice-list">
-                    {compatibleCooling.map((option) => {
+                    {catalogCoolingOptions.map((option) => {
                       const selected = option.id === activeCooling.id;
                       const recommended = option.id === recommendedCooling;
                       const delta = option.price - (getCoolingOption(recommendedCooling, performanceOptions.cpu, activeCase.id)?.price ?? 0);
@@ -637,7 +812,7 @@ function BuildConfigurator() {
                     <div><span className="case-preview-label">{activeCase.label} / {activeCaseColor.label}</span><strong>{activeCase.detail}</strong>{casePreviewPending && <small>Colour preview asset coming soon</small>}</div>
                   </div>
                   <div className="case-type-list">
-                    {compatibleCases.map((option) => {
+                    {catalogCaseOptions.map((option) => {
                       const selected = option.id === activeCase.id;
                       return <button className={selected ? "case-type case-type-selected" : "case-type"} type="button" key={option.id} onClick={() => chooseCase(option.id)} aria-pressed={selected}><strong>{option.label}</strong><small>{option.detail}</small></button>;
                     })}
@@ -675,7 +850,7 @@ function BuildConfigurator() {
                   <strong>JON. Custom / {directionLabel}</strong>
                   <p>{answers.resolution || answers.workload || answers.creativeWork || answers.use || "Configured for your direction"} / {budgetRange.label}</p>
                 </div>
-                <div className="review-price"><span>Estimated build</span><strong>${estimatedFinalPrice.toLocaleString("en-AU")} AUD</strong></div>
+                  <div className="review-price"><span>Estimated build</span><strong>${reviewPrice.toLocaleString("en-AU")} AUD</strong></div>
               </div>
 
               <div className="review-grid">
@@ -689,8 +864,8 @@ function BuildConfigurator() {
                 </div>
 
                 <div className="review-side-panel">
-                  <div className="review-side-section"><span>Price breakdown</span><div><small>Recommended baseline</small><strong>${recommendedCorePrice.toLocaleString("en-AU")} AUD</strong></div><div><small>Selected adjustments</small><strong>{selectedAdjustments >= 0 ? "+" : "-"}${Math.abs(selectedAdjustments).toLocaleString("en-AU")} AUD</strong></div><div className="review-total"><small>Estimated total</small><strong>${estimatedFinalPrice.toLocaleString("en-AU")} AUD</strong></div></div>
-                  <div className="review-side-section"><span>JON. validation</span><p><i /> All selected components are compatible.</p><p><i /> {activePsu.wattage}W power coverage for {performanceOptions.gpu.label}.</p><p><i /> {activeMotherboard.formFactor} case fit and {activeCooling.label.toLowerCase()} matched.</p></div>
+                  <div className="review-side-section"><span>Price breakdown</span><div><small>Recommended baseline</small><strong>${reviewBaseline.toLocaleString("en-AU")} AUD</strong></div><div><small>Selected adjustments</small><strong>{reviewAdjustments >= 0 ? "+" : "-"}${Math.abs(reviewAdjustments).toLocaleString("en-AU")} AUD</strong></div><div className="review-total"><small>Estimated total</small><strong>${reviewPrice.toLocaleString("en-AU")} AUD</strong></div></div>
+                  <div className="review-side-section"><span>JON. validation</span>{backendValidation.length > 0 ? backendValidation.map((message) => <p key={message}><i /> {message}</p>) : <p><i /> All selected components are compatible.</p>}<p><i /> {activePsu.wattage}W power coverage for {performanceOptions.gpu.label}.</p><p><i /> {activeMotherboard.formFactor} case fit and {activeCooling.label.toLowerCase()} matched.</p></div>
                 </div>
               </div>
 
@@ -737,11 +912,11 @@ function BuildConfigurator() {
           <div className="request-modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
             <button className="request-modal-close" type="button" onClick={() => setRequestOpen(false)} aria-label="Close request form">×</button>
             {!requestSubmitted ? (
-              <form onSubmit={(event) => { event.preventDefault(); setRequestSubmitted(true); }}>
+                <form onSubmit={submitBuildRequest}>
                 <span className="section-kicker">JON. PC / Build request</span>
                 <h3 id="request-modal-title">Let&apos;s make this build real.</h3>
                 <p className="request-modal-intro">Share your details and a JON. PC specialist will review this configuration, availability and the final local quote.</p>
-                <div className="request-build-chip"><span>{directionLabel} / {performanceOptions.gpu.label}</span><strong>${estimatedFinalPrice.toLocaleString("en-AU")} AUD estimated</strong></div>
+                <div className="request-build-chip"><span>{directionLabel} / {performanceOptions.gpu.label}</span><strong>${reviewPrice.toLocaleString("en-AU")} AUD estimated</strong></div>
                 <div className="request-form-grid">
                   <label><span>Name</span><input name="name" type="text" placeholder="Your name" required /></label>
                   <label><span>Email</span><input name="email" type="email" placeholder="you@example.com" required /></label>
@@ -750,7 +925,8 @@ function BuildConfigurator() {
                 </div>
                 <label className="request-form-wide"><span>Notes <em>Optional</em></span><textarea name="notes" rows={3} placeholder="Tell us anything useful about your setup or timing." /></label>
                 <label className="request-check"><input name="contact" type="checkbox" defaultChecked /><span>Contact me by email about this build request.</span></label>
-                <button className="button button-primary request-submit" type="submit">Send build request <span aria-hidden="true">↗</span></button>
+                {requestError && <p className="request-error" role="alert">{requestError}</p>}
+                <button className="button button-primary request-submit" type="submit" disabled={requestSubmitting}>{requestSubmitting ? "Validating build..." : "Send build request"} <span aria-hidden="true">↗</span></button>
                 <small className="request-disclaimer">Estimated pricing only. Final pricing depends on availability, assembly and component validation.</small>
               </form>
             ) : (

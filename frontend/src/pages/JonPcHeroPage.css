@@ -461,6 +461,8 @@
 .request-check { display: flex !important; grid-template-columns: auto 1fr; gap: 9px !important; align-items: center; margin-top: 17px; color: var(--muted) !important; font-family: inherit !important; font-size: 11px !important; letter-spacing: 0 !important; text-transform: none !important; }
 .request-check input { width: 15px; height: 15px; accent-color: var(--lime); }
 .request-submit { margin-top: 23px; }
+.request-submit:disabled { cursor: wait; opacity: .58; }
+.request-error { margin: 15px 0 0; color: #ff9b9b; font-size: 12px; line-height: 1.45; }
 .request-disclaimer { display: block; margin-top: 14px; color: #687572; font-size: 10px; line-height: 1.45; }
 .request-success { display: grid; gap: 0; }
 .request-success h3 { max-width: 430px; }
