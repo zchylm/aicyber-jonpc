@@ -13,16 +13,13 @@ public class DatabaseMigrationConfig {
     @Bean
     Flyway flyway(
             DataSource dataSource,
-            @Value("${spring.flyway.enabled:true}") boolean enabled,
             @Value("${spring.flyway.locations:classpath:db/migration}") String locations
     ) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)
                 .locations(locations)
                 .load();
-        if (enabled) {
-            flyway.migrate();
-        }
+        flyway.migrate();
         return flyway;
     }
 }
