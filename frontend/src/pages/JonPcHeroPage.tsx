@@ -21,12 +21,12 @@ function JonPcHeroPage() {
         </a>
 
         <nav className="nav-links" aria-label="Primary navigation">
-          {navigationItems.map((item) => <a href={item.href} key={item.label}>{item.label}</a>)}
+          {navigationItems.map((item) => <a href={item.href} key={item.label} onClick={item.href === "#build" ? () => window.dispatchEvent(new CustomEvent("jonpc:start-new-build")) : undefined}>{item.label}</a>)}
         </nav>
 
         <AuthPanel />
 
-        <a className="nav-cta" href="#build">
+        <a className="nav-cta" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>
           <span>Start new build</span>
           <span className="nav-cta-icon" aria-hidden="true">↗</span>
         </a>

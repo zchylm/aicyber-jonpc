@@ -114,7 +114,7 @@ function SystemsSection() {
                 {build.specs.map((spec) => <li key={spec}>{spec}</li>)}
               </ul>
               <div className="build-card-actions">
-                <a className="build-link build-link-primary" href="#build">Customise build <span aria-hidden="true">↗</span></a>
+                <a className="build-link build-link-primary" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>Customise build <span aria-hidden="true">↗</span></a>
                 <button className="build-link build-link-button" type="button" onClick={() => setSelectedBuild(build)}>
                   View details <span aria-hidden="true">↓</span>
                 </button>
@@ -167,7 +167,7 @@ function SystemDetail({ build, detail, image, onClose }: SystemDetailProps) {
             <span>Designed for</span>
             <strong>{detail.performance}</strong>
           </div>
-          <a className="button button-primary detail-cta" href="#build">Customise this build <span aria-hidden="true">↗</span></a>
+          <a className="button button-primary detail-cta" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>Customise this build <span aria-hidden="true">↗</span></a>
         </div>
 
         <div className="component-list">

@@ -52,6 +52,11 @@
 .my-builds-icon::before { top: 3px; left: 2px; }
 .my-builds-icon::after { top: 7px; left: 2px; }
 .my-builds-nav-button:hover, .my-builds-nav-button:focus-visible { color: var(--ink); }
+.order-history-entry { margin-left: 18px; padding-right: 24px; }
+.order-history-nav-button { display: inline-flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--cyan); background: transparent; border: 0; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.order-history-nav-button:hover, .order-history-nav-button:focus-visible { color: var(--ink); }
+.order-history-icon { position: relative; display: inline-block; width: 15px; height: 15px; border: 1px solid currentColor; border-radius: 50%; opacity: .9; }
+.order-history-icon::before { position: absolute; top: 3px; right: 3px; left: 3px; height: 1px; background: currentColor; box-shadow: 0 4px currentColor; content: ''; }
 .account-entry { position: relative; margin-left: auto; }
 .account-button { display: inline-flex; align-items: center; gap: 9px; min-height: 46px; padding: 9px 0; color: #d0d9d5; background: transparent; border: 0; font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: color 180ms ease, border-color 180ms ease; }
 .account-button:hover, .account-button:focus-visible { color: var(--ink); }
@@ -79,6 +84,17 @@
 .saved-build-row-actions button { padding: 0; color: var(--cyan); background: transparent; border: 0; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
 .saved-build-row-actions button:last-child { color: #74817e; }
 .saved-build-row-actions button:hover, .saved-build-row-actions button:focus-visible { color: var(--lime); }
+.order-history-modal { width: min(100%, 720px); }
+.order-history-list { display: grid; gap: 0; margin-top: 28px; max-height: 52vh; overflow-y: auto; }
+.order-history-row { display: grid; gap: 13px; padding: 18px 0; border-top: 1px solid var(--line); }
+.order-history-row-heading { display: flex; justify-content: space-between; gap: 18px; align-items: start; }
+.order-history-row-heading > div { display: grid; gap: 6px; min-width: 0; }
+.order-history-row-heading strong { color: var(--ink); font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: .04em; }
+.order-history-row-heading span, .order-history-row-details, .order-status { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+.order-history-row-heading b { flex-shrink: 0; color: var(--lime); font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; }
+.order-history-row-details { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #9da9a5; }
+.order-history-row-details span::before { margin-right: 6px; color: var(--cyan); content: '•'; }
+.order-status { justify-self: start; padding: 5px 8px; color: var(--lime); border: 1px solid rgba(195, 239, 128, .35); }
 .review-cta-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; width: min(100%, 680px); }
 .save-build-action { display: block; min-width: 0; }
 .review-cta-row > .button, .save-build-action .button { width: 100%; min-height: 64px; justify-content: space-between; }
@@ -612,6 +628,8 @@
   .account-button { padding-left: 12px; font-size: 10px; }
   .my-builds-entry { margin-left: 10px; padding-right: 14px; }
   .my-builds-nav-button { font-size: 9px; }
+  .order-history-entry { margin-left: 10px; padding-right: 14px; }
+  .order-history-nav-button { font-size: 9px; }
   .nav-cta { padding-left: 12px; font-size: 10px; }
   .logic-strip { margin-top: 22px; padding-top: 20px; }
   .logic-strip-heading { gap: 12px; padding: 0 0 20px; }
@@ -660,6 +678,7 @@
   .review-cta-row { grid-template-columns: 1fr; width: 100%; }
   .request-modal { padding: 29px 20px 24px; }
   .auth-modal { padding: 29px 20px 24px; }
+  .order-history-row-heading { display: grid; gap: 9px; }
   .request-form-grid { grid-template-columns: 1fr; }
   .request-build-chip { align-items: flex-start; flex-direction: column; }
   .request-build-chip strong { text-align: left; }

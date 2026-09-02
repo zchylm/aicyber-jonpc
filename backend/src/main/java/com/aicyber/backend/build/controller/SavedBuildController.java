@@ -37,6 +37,15 @@ public class SavedBuildController {
         }
     }
 
+    @PutMapping("/{buildId}")
+    public SavedBuildResponse update(Authentication authentication, @PathVariable UUID buildId, @RequestBody SaveBuildRequest request) {
+        try {
+            return service.update(userId(authentication), buildId, request);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
+    }
+
     @DeleteMapping("/{buildId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(Authentication authentication, @PathVariable UUID buildId) {

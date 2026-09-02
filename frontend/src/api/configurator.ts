@@ -101,6 +101,18 @@ export type SavedBuild = {
   updatedAt: string;
 };
 
+export type OrderHistoryItem = {
+  id: string;
+  requestReference: string;
+  direction: string;
+  estimatedPrice: number;
+  recommendedBaseline: number;
+  selectedAdjustments: number;
+  status: string;
+  createdAt: string;
+  configuration: ConfiguratorQuoteRequest;
+};
+
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 export async function fetchConfiguratorQuote(
@@ -164,10 +176,13 @@ export async function fetchConfiguratorCatalog(signal?: AbortSignal): Promise<Co
   return response.json() as Promise<ConfiguratorCatalog>;
 }
 
-export async function submitConfiguratorBuild(request: ConfiguratorBuildRequest, signal?: AbortSignal): Promise<ConfiguratorBuildResponse> {
+export async function submitConfiguratorBuild(request: ConfiguratorBuildRequest, token?: string, signal?: AbortSignal): Promise<ConfiguratorBuildResponse> {
   const response = await fetch(`${apiBaseUrl}/api/configurator/requests`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(request),
     signal,
   });
@@ -192,9 +207,10 @@ export async function saveBuild(token: string, request: {
   recommendedBaseline: number;
   selectedAdjustments: number;
   configuration: ConfiguratorQuoteRequest;
-}): Promise<SavedBuild> {
-  const response = await fetch(`${apiBaseUrl}/api/builds`, {
-    method: "POST",
+}, buildId?: string): Promise<SavedBuild> {
+  const path = buildId ? `/api/builds/${buildId}` : "/api/builds";
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: buildId ? "PUT" : "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(request),
   });
@@ -209,4 +225,13 @@ export async function deleteSavedBuild(token: string, buildId: string): Promise<
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error(`Delete build failed with status ${response.status}`);
+}
+
+export async function fetchOrderHistory(token: string): Promise<OrderHistoryItem[]> {
+  const response = await fetch(`${apiBaseUrl}/api/orders`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await response.json().catch(() => null) as { detail?: string; message?: string } | null;
+  if (!response.ok) throw new Error(body?.detail ?? body?.message ?? `Order history failed with status ${response.status}`);
+  return body as OrderHistoryItem[];
 }

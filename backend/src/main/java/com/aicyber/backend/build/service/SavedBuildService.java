@@ -20,6 +20,10 @@ public class SavedBuildService {
         return repository.create(userId, request);
     }
 
+    public SavedBuildResponse update(UUID userId, UUID buildId, SaveBuildRequest request) {
+        return repository.update(userId, buildId, request);
+    }
+
     public List<SavedBuildResponse> list(UUID userId) {
         return repository.findAllByUserId(userId);
     }

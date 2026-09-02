@@ -36,6 +36,19 @@ public class SavedBuildRepository {
         return findById(userId, id);
     }
 
+    public SavedBuildResponse update(UUID userId, UUID id, SaveBuildRequest request) {
+        validate(request);
+        int updated = jdbcTemplate.update(
+                "UPDATE saved_builds SET name = ?, direction = ?, budget_range = ?, estimated_price = ?, " +
+                        "recommended_baseline = ?, selected_adjustments = ?, configuration_snapshot = ?::jsonb, " +
+                        "updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status = 'ACTIVE'",
+                request.name().trim(), request.direction(), request.budgetRange(), request.estimatedPrice(),
+                request.recommendedBaseline(), request.selectedAdjustments(), toJson(request.configuration()), id, userId
+        );
+        if (updated == 0) throw new IllegalArgumentException("Saved build was not found");
+        return findById(userId, id);
+    }
+
     public List<SavedBuildResponse> findAllByUserId(UUID userId) {
         return jdbcTemplate.query(
                 "SELECT id, name, direction, budget_range, estimated_price, recommended_baseline, selected_adjustments, " +

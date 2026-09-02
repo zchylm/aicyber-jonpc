@@ -35,7 +35,7 @@ function HeroVisual() {
         <span className="hero-slide-kicker">{activeSlide.kicker}</span>
         <h1 id="hero-title">{activeSlide.title}</h1>
         <p>{activeSlide.description}</p>
-        <a className="button button-primary" href="#build">Find your system <span aria-hidden="true">↗</span></a>
+        <a className="button button-primary" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>Find your system <span aria-hidden="true">↗</span></a>
       </div>
       <div className="hero-carousel-controls">
         <div className="hero-carousel-counter"><strong>0{activeIndex + 1}</strong><span>/ 05</span></div>

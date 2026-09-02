@@ -10,6 +10,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class ConfiguratorRequestServiceTest {
 
@@ -33,6 +35,19 @@ class ConfiguratorRequestServiceTest {
                 quote("ai", "ryzen-7-7700", "rtx-4060", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air")));
 
         assertTrue(response.requestReference().matches("JON-AI-[A-Z0-9]{6}"));
+    }
+
+    @Test
+    void passesAuthenticatedUserIdToTheRequestStore() {
+        BuildRequestStore requestStore = mock(BuildRequestStore.class);
+        ConfiguratorRequestService authenticatedService = new ConfiguratorRequestService(new ConfiguratorQuoteService(), requestStore);
+        java.util.UUID userId = java.util.UUID.randomUUID();
+
+        authenticatedService.submit(new ConfiguratorBuildRequest(
+                "Jambo", "owner@example.com", "0400000000", "Melbourne", "", true,
+                quote("gaming", "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air")), userId);
+
+        verify(requestStore).create(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test

@@ -200,6 +200,43 @@ function BuildConfigurator() {
   };
   const serializedQuoteRequest = JSON.stringify(currentQuoteRequest);
 
+  function startNewBuild() {
+    const nextDirection: DirectionId = "gaming";
+    setDirection(nextDirection);
+    setAnswers(defaultsFor(nextDirection));
+    setIsReady(false);
+    setPerformanceSelection(null);
+    setIsMemoryReady(false);
+    setMemorySelection(null);
+    setIsStorageReady(false);
+    setStorageSelection(null);
+    setIsPlatformReady(false);
+    setMotherboardSelection(null);
+    setPsuSelection(null);
+    setIsStyleReady(false);
+    setCoolingSelection(null);
+    setCaseSelection(null);
+    setCaseColorSelection(null);
+    setShowMoreColours(false);
+    setIsReviewReady(false);
+    setRequestSubmitted(false);
+    setRequestOpen(false);
+    setRequestError(null);
+    setSubmittedBuild(null);
+    setBackendRecommendation(null);
+    setBackendQuote(null);
+    setBackendCompatibility(null);
+    setSavedBuildId(null);
+    setSaveState("idle");
+    window.requestAnimationFrame(() => document.getElementById("build")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  useEffect(() => {
+    const handleStartNewBuild = () => startNewBuild();
+    window.addEventListener("jonpc:start-new-build", handleStartNewBuild);
+    return () => window.removeEventListener("jonpc:start-new-build", handleStartNewBuild);
+  }, []);
+
   async function saveCurrentBuild() {
     const token = window.localStorage.getItem(authTokenKey);
     if (!token) {
@@ -207,7 +244,6 @@ function BuildConfigurator() {
       return;
     }
     if (saveState === "saved") return;
-    const previousSavedBuildId = savedBuildId;
     setSaveState("saving");
     try {
       const savedBuild = await saveBuild(token, {
@@ -218,10 +254,7 @@ function BuildConfigurator() {
         recommendedBaseline: reviewBaseline,
         selectedAdjustments: reviewAdjustments,
         configuration: currentQuoteRequest,
-      });
-      if (previousSavedBuildId && previousSavedBuildId !== savedBuild.id) {
-        await deleteSavedBuild(token, previousSavedBuildId).catch(() => undefined);
-      }
+      }, savedBuildId ?? undefined);
       setSavedBuildId(savedBuild.id);
       setSaveState("saved");
       window.dispatchEvent(new CustomEvent("jonpc:build-saved"));
@@ -252,6 +285,7 @@ function BuildConfigurator() {
     setRequestSubmitting(true);
     setRequestError(null);
     const form = new FormData(event.currentTarget);
+    const token = window.localStorage.getItem(authTokenKey);
     try {
       const response = await submitConfiguratorBuild({
         name: String(form.get("name") ?? ""),
@@ -261,16 +295,16 @@ function BuildConfigurator() {
         notes: String(form.get("notes") ?? ""),
         contact: form.get("contact") === "on",
         configuration: currentQuoteRequest,
-      });
+      }, token ?? undefined);
       setSubmittedBuild(response);
       setRequestSubmitted(true);
-      const token = window.localStorage.getItem(authTokenKey);
       if (token && savedBuildId) {
         await deleteSavedBuild(token, savedBuildId).catch(() => undefined);
         setSavedBuildId(null);
         setSaveState("idle");
         window.dispatchEvent(new CustomEvent("jonpc:build-saved"));
       }
+      window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : "Unable to submit this build request.");
     } finally {

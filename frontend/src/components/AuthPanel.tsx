@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { authTokenKey, fetchCurrentUser, login, register, type AuthUser } from "../api/auth";
-import { deleteSavedBuild, fetchSavedBuilds, type SavedBuild } from "../api/configurator";
+import { deleteSavedBuild, fetchOrderHistory, fetchSavedBuilds, type OrderHistoryItem, type SavedBuild } from "../api/configurator";
+import { cpuOptions, gpuOptions } from "../data/performance";
+import { memoryOptions } from "../data/memory";
+import { storageOptions } from "../data/storage";
 
 type AuthMode = "login" | "register";
 
@@ -13,8 +16,12 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isBuildsOpen, setIsBuildsOpen] = useState(false);
+  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [savedBuilds, setSavedBuilds] = useState<SavedBuild[]>([]);
+  const [orders, setOrders] = useState<OrderHistoryItem[]>([]);
   const [buildsLoading, setBuildsLoading] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,9 +52,24 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
       setBuildsLoading(true);
       fetchSavedBuilds(token).then(setSavedBuilds).catch(() => setSavedBuilds([])).finally(() => setBuildsLoading(false));
     };
+    const loadOrders = () => {
+      const token = window.localStorage.getItem(authTokenKey);
+      if (!token) return;
+      setOrdersLoading(true);
+      setOrdersError(null);
+      fetchOrderHistory(token).then(setOrders).catch((requestError) => {
+        setOrders([]);
+        setOrdersError(requestError instanceof Error ? requestError.message : "Unable to load order history.");
+      }).finally(() => setOrdersLoading(false));
+    };
     loadBuilds();
+    loadOrders();
     window.addEventListener("jonpc:build-saved", loadBuilds);
-    return () => window.removeEventListener("jonpc:build-saved", loadBuilds);
+    window.addEventListener("jonpc:order-requested", loadOrders);
+    return () => {
+      window.removeEventListener("jonpc:build-saved", loadBuilds);
+      window.removeEventListener("jonpc:order-requested", loadOrders);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -110,9 +132,12 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
     window.localStorage.removeItem(authTokenKey);
     setUser(null);
     setSavedBuilds([]);
+    setOrders([]);
+    setOrdersError(null);
     onAuthChange?.(null);
     setIsAccountOpen(false);
     setIsBuildsOpen(false);
+    setIsOrdersOpen(false);
   }
 
   return (
@@ -137,6 +162,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
         )}
       </div>
       {user && <div className="my-builds-entry"><button className="my-builds-nav-button" type="button" onClick={() => setIsBuildsOpen(true)}><span className="my-builds-icon" aria-hidden="true" />My builds</button></div>}
+      {user && <div className="order-history-entry"><button className="order-history-nav-button" type="button" onClick={() => setIsOrdersOpen(true)}><span className="order-history-icon" aria-hidden="true" />Order history</button></div>}
 
       {isOpen && (
         <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOpen(false); }}>
@@ -188,8 +214,56 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
           </section>
         </div>
       )}
+
+      {isOrdersOpen && user && (
+        <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOrdersOpen(false); }}>
+          <section className="auth-modal order-history-modal" role="dialog" aria-modal="true" aria-labelledby="order-history-title">
+            <button className="auth-modal-close" type="button" onClick={() => setIsOrdersOpen(false)} aria-label="Close order history">×</button>
+            <span className="section-kicker">JON. PC / Orders</span>
+            <h2 id="order-history-title">Order history.</h2>
+            <p className="auth-modal-intro">Track the configurations you have asked JON. PC to review.</p>
+            <div className="order-history-list">
+              {ordersLoading && <p className="saved-builds-empty">Loading your orders...</p>}
+              {!ordersLoading && ordersError && <p className="saved-builds-empty auth-error" role="alert">{ordersError}</p>}
+              {!ordersLoading && !ordersError && orders.length === 0 && <p className="saved-builds-empty">No build requests yet. Your submitted configurations will appear here.</p>}
+              {orders.map((order) => (
+                <article className="order-history-row" key={order.id}>
+                  <div className="order-history-row-heading">
+                    <div><strong>{order.requestReference}</strong><span>{order.direction} / {formatOrderDate(order.createdAt)}</span></div>
+                    <b>${order.estimatedPrice.toLocaleString("en-AU")} AUD</b>
+                  </div>
+                  <div className="order-history-row-details">
+                    <span>{getOptionLabel(cpuOptions, order.configuration.cpuId)}</span>
+                    <span>{getOptionLabel(gpuOptions, order.configuration.gpuId)}</span>
+                    <span>{getOptionLabel(memoryOptions, order.configuration.memoryId)}</span>
+                    <span>{getOptionLabel(storageOptions, order.configuration.storageId)}</span>
+                  </div>
+                  <span className="order-status">{formatOrderStatus(order.status)}</span>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
+}
+
+function formatOrderDate(value: string) {
+  return new Date(value).toLocaleDateString("en-AU", {
+    timeZone: "Australia/Melbourne",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatOrderStatus(value: string) {
+  return value.toLowerCase().replaceAll("_", " ");
+}
+
+function getOptionLabel(options: Array<{ id: string; label: string }>, id: string) {
+  return options.find((option) => option.id === id)?.label ?? id;
 }
 
 export default AuthPanel;
