@@ -87,6 +87,20 @@ export type ConfiguratorBuildResponse = {
   message: string;
 };
 
+export type SavedBuild = {
+  id: string;
+  name: string;
+  direction: string;
+  budgetRange: string | null;
+  estimatedPrice: number;
+  recommendedBaseline: number;
+  selectedAdjustments: number;
+  configuration: ConfiguratorQuoteRequest;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 export async function fetchConfiguratorQuote(
@@ -162,4 +176,37 @@ export async function submitConfiguratorBuild(request: ConfiguratorBuildRequest,
     throw new Error(body?.detail ?? `Build request failed with status ${response.status}`);
   }
   return response.json() as Promise<ConfiguratorBuildResponse>;
+}
+
+export async function fetchSavedBuilds(token: string): Promise<SavedBuild[]> {
+  const response = await fetch(`${apiBaseUrl}/api/builds`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error(`Saved builds failed with status ${response.status}`);
+  return response.json() as Promise<SavedBuild[]>;
+}
+
+export async function saveBuild(token: string, request: {
+  name: string;
+  direction: string;
+  budgetRange: string;
+  estimatedPrice: number;
+  recommendedBaseline: number;
+  selectedAdjustments: number;
+  configuration: ConfiguratorQuoteRequest;
+}): Promise<SavedBuild> {
+  const response = await fetch(`${apiBaseUrl}/api/builds`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(request),
+  });
+  const body = await response.json().catch(() => null) as { detail?: string; message?: string } | null;
+  if (!response.ok) throw new Error(body?.detail ?? body?.message ?? `Save build failed with status ${response.status}`);
+  return body as SavedBuild;
+}
+
+export async function deleteSavedBuild(token: string, buildId: string): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/builds/${buildId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`Delete build failed with status ${response.status}`);
 }

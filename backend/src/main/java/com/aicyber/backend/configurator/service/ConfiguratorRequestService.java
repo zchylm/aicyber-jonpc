@@ -12,20 +12,29 @@ import java.util.UUID;
 public class ConfiguratorRequestService {
 
     private final ConfiguratorQuoteService quoteService;
+    private final BuildRequestStore requestStore;
 
-    public ConfiguratorRequestService(ConfiguratorQuoteService quoteService) {
+    public ConfiguratorRequestService(ConfiguratorQuoteService quoteService, BuildRequestStore requestStore) {
         this.quoteService = quoteService;
+        this.requestStore = requestStore;
     }
 
     public ConfiguratorBuildResponse submit(ConfiguratorBuildRequest request) {
+        return submit(request, null);
+    }
+
+    public ConfiguratorBuildResponse submit(ConfiguratorBuildRequest request, UUID userId) {
         validateContactDetails(request);
         ConfiguratorQuoteResponse quote = quoteService.quote(request.configuration());
         if (!quote.compatible()) {
             throw new IllegalArgumentException("Build request contains incompatible component selections");
         }
 
-        String reference = "JON-" + request.configuration().direction().substring(0, 3).toUpperCase(Locale.ROOT)
+        String directionCode = request.configuration().direction().substring(0,
+                Math.min(3, request.configuration().direction().length())).toUpperCase(Locale.ROOT);
+        String reference = "JON-" + directionCode
                 + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
+        requestStore.create(userId, request, quote, reference);
         return new ConfiguratorBuildResponse(reference, "RECEIVED", quote,
                 "Your configuration has been received. A JON. PC specialist will confirm availability and the final quote.");
     }

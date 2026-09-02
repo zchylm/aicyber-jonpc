@@ -4,6 +4,7 @@ import AiAssistant from "../components/AiAssistant";
 import LogicStrip from "../components/LogicStrip";
 import HeroVisual from "../components/HeroVisual";
 import SystemsSection from "../components/SystemsSection";
+import AuthPanel from "../components/AuthPanel";
 import { navigationItems } from "../data/site";
 import "./JonPcHeroPage.css";
 
@@ -23,8 +24,10 @@ function JonPcHeroPage() {
           {navigationItems.map((item) => <a href={item.href} key={item.label}>{item.label}</a>)}
         </nav>
 
+        <AuthPanel />
+
         <a className="nav-cta" href="#build">
-          <span>Start your build</span>
+          <span>Start new build</span>
           <span className="nav-cta-icon" aria-hidden="true">↗</span>
         </a>
       </header>

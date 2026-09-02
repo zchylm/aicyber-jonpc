@@ -13,13 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConfiguratorRequestServiceTest {
 
-    private final ConfiguratorRequestService service = new ConfiguratorRequestService(new ConfiguratorQuoteService());
+    private final ConfiguratorRequestService service = new ConfiguratorRequestService(new ConfiguratorQuoteService(), (userId, request, quote, reference) -> { });
 
     @Test
     void acceptsCompatibleBuildAndRecalculatesServerPrice() {
         ConfiguratorBuildResponse response = service.submit(new ConfiguratorBuildRequest(
                 "Jambo", "jambo@example.com", "0400000000", "Melbourne", "", true,
-                quote("ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air")));
+                quote("gaming", "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air")));
 
         assertEquals("RECEIVED", response.status());
         assertTrue(response.requestReference().matches("JON-GAM-[A-Z0-9]{6}"));
@@ -27,21 +27,30 @@ class ConfiguratorRequestServiceTest {
     }
 
     @Test
+    void createsShortReferenceForAiDirection() {
+        ConfiguratorBuildResponse response = service.submit(new ConfiguratorBuildRequest(
+                "Jambo", "ai@example.com", "0400000000", "Melbourne", "", true,
+                quote("ai", "ryzen-7-7700", "rtx-4060", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air")));
+
+        assertTrue(response.requestReference().matches("JON-AI-[A-Z0-9]{6}"));
+    }
+
+    @Test
     void rejectsIncompatibleBuildBeforeItIsReceived() {
         assertThrows(IllegalArgumentException.class, () -> service.submit(new ConfiguratorBuildRequest(
                 "Jambo", "jambo@example.com", "", "Melbourne", "", true,
-                quote("ryzen-7-7700", "rtx-5080", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air"))));
+                quote("gaming", "ryzen-7-7700", "rtx-5080", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air"))));
     }
 
     @Test
     void rejectsInvalidContactDetails() {
         assertThrows(IllegalArgumentException.class, () -> service.submit(new ConfiguratorBuildRequest(
                 "", "not-an-email", "", "", "", false,
-                quote("ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air"))));
+                quote("gaming", "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air"))));
     }
 
-    private ConfiguratorQuoteRequest quote(String cpu, String gpu, String memory, String storage, String motherboard, String psu, String caseId, String cooling) {
-        return new ConfiguratorQuoteRequest("gaming", Map.of("budget", "$1,500–$2,000"),
+    private ConfiguratorQuoteRequest quote(String direction, String cpu, String gpu, String memory, String storage, String motherboard, String psu, String caseId, String cooling) {
+        return new ConfiguratorQuoteRequest(direction, Map.of("budget", "$1,500–$2,000"),
                 "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air",
                 cpu, gpu, memory, storage, motherboard, psu, caseId, cooling);
     }

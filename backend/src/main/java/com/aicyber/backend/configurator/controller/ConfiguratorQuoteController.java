@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.UUID;
+import org.springframework.security.core.Authentication;
+
 @RestController
 @RequestMapping("/api/configurator")
 @CrossOrigin(origins = {
@@ -84,11 +87,20 @@ public class ConfiguratorQuoteController {
 
     @PostMapping("/requests")
     @ResponseStatus(HttpStatus.OK)
-    public ConfiguratorBuildResponse submitRequest(@RequestBody ConfiguratorBuildRequest request) {
+    public ConfiguratorBuildResponse submitRequest(Authentication authentication, @RequestBody ConfiguratorBuildRequest request) {
         try {
-            return requestService.submit(request);
+            return requestService.submit(request, optionalUserId(authentication));
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
+    }
+
+    private UUID optionalUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) return null;
+        try {
+            return UUID.fromString(authentication.getName());
+        } catch (IllegalArgumentException exception) {
+            return null;
         }
     }
 }

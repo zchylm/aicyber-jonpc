@@ -20,3 +20,17 @@ The intended request flow is:
 ```text
 Frontend → Controller → Service → Knowledge / Prompt → Provider → Response
 ```
+
+## Local PostgreSQL
+
+The backend reads its database connection from environment variables. Copy the values from
+`.env.example` into the IntelliJ run configuration or your shell; do not commit a real password.
+
+```text
+JON_PC_DB_URL=jdbc:postgresql://localhost:5432/jonpc
+JON_PC_DB_USERNAME=postgres
+JON_PC_DB_PASSWORD=your-local-password
+```
+
+At this stage the PostgreSQL driver and connection pool are configured, but no application tables
+are created yet. The next step is to add the first persistence slice for users and build requests.

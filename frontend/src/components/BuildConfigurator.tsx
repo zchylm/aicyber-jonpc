@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { fetchConfiguratorCatalog, fetchConfiguratorCompatibility, fetchConfiguratorQuote, fetchConfiguratorRecommendation, submitConfiguratorBuild, type ConfiguratorBuildResponse, type ConfiguratorCatalog, type ConfiguratorCatalogOption, type ConfiguratorCompatibility, type ConfiguratorQuote, type ConfiguratorQuoteRequest, type ConfiguratorRecommendation } from "../api/configurator";
+import { deleteSavedBuild, fetchConfiguratorCatalog, fetchConfiguratorCompatibility, fetchConfiguratorQuote, fetchConfiguratorRecommendation, saveBuild, submitConfiguratorBuild, type ConfiguratorBuildResponse, type ConfiguratorCatalog, type ConfiguratorCatalogOption, type ConfiguratorCompatibility, type ConfiguratorQuote, type ConfiguratorQuoteRequest, type ConfiguratorRecommendation } from "../api/configurator";
+import { authTokenKey } from "../api/auth";
 import { configuratorDirections, configuratorQuestions, type DirectionId } from "../data/configurator";
 import {
   cpuOptions,
@@ -61,6 +62,8 @@ function BuildConfigurator() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [submittedBuild, setSubmittedBuild] = useState<ConfiguratorBuildResponse | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [savedBuildId, setSavedBuildId] = useState<string | null>(null);
   const [backendQuote, setBackendQuote] = useState<ConfiguratorQuote | null>(null);
   const [backendRecommendation, setBackendRecommendation] = useState<ConfiguratorRecommendation | null>(null);
   const [backendCompatibility, setBackendCompatibility] = useState<ConfiguratorCompatibility | null>(null);
@@ -114,6 +117,38 @@ function BuildConfigurator() {
   const [isPlatformReady, setIsPlatformReady] = useState(false);
   const [motherboardSelection, setMotherboardSelection] = useState<string | null>(null);
   const [psuSelection, setPsuSelection] = useState<string | null>(null);
+  useEffect(() => {
+    const handleLoadBuild = (event: Event) => {
+      const build = (event as CustomEvent<{ id?: string; direction: string; configuration: ConfiguratorQuoteRequest }>).detail;
+      if (!build?.configuration || !configuratorDirections.some((item) => item.id === build.direction)) return;
+      const configuration = build.configuration;
+      const nextDirection = build.direction as DirectionId;
+      setDirection(nextDirection);
+      setAnswers(configuration.answers ?? defaultsFor(nextDirection));
+      setPerformanceSelection({ cpuId: configuration.cpuId, gpuId: configuration.gpuId });
+      setMemorySelection(configuration.memoryId);
+      setStorageSelection(configuration.storageId);
+      setMotherboardSelection(configuration.motherboardId);
+      setPsuSelection(configuration.psuId);
+      setCaseSelection(configuration.caseId as CaseOption["id"]);
+      setCoolingSelection(configuration.coolingId);
+      setIsReady(true);
+      setIsMemoryReady(true);
+      setIsStorageReady(true);
+      setIsPlatformReady(true);
+      setIsStyleReady(true);
+      setIsReviewReady(true);
+      setRequestSubmitted(false);
+      setRequestOpen(false);
+      setSavedBuildId(build.id ?? null);
+      setSaveState(build.id ? "saved" : "idle");
+      window.requestAnimationFrame(() => {
+        document.getElementById("build-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    window.addEventListener("jonpc:load-build", handleLoadBuild);
+    return () => window.removeEventListener("jonpc:load-build", handleLoadBuild);
+  }, []);
   const activeMotherboard = getMotherboardOption(motherboardSelection ?? recommendedMotherboard, performanceOptions.cpu);
   const localCompatiblePsus = getCompatiblePsus(performanceOptions.gpu);
   const recommendedPsuId = backendRecommendation?.psuId ?? recommendPsu(performanceOptions.gpu);
@@ -165,6 +200,36 @@ function BuildConfigurator() {
   };
   const serializedQuoteRequest = JSON.stringify(currentQuoteRequest);
 
+  async function saveCurrentBuild() {
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token) {
+      setSaveState("error");
+      return;
+    }
+    if (saveState === "saved") return;
+    const previousSavedBuildId = savedBuildId;
+    setSaveState("saving");
+    try {
+      const savedBuild = await saveBuild(token, {
+        name: `${directionLabel} / ${performanceOptions.gpu.label}`,
+        direction,
+        budgetRange: budgetRange.label,
+        estimatedPrice: reviewPrice,
+        recommendedBaseline: reviewBaseline,
+        selectedAdjustments: reviewAdjustments,
+        configuration: currentQuoteRequest,
+      });
+      if (previousSavedBuildId && previousSavedBuildId !== savedBuild.id) {
+        await deleteSavedBuild(token, previousSavedBuildId).catch(() => undefined);
+      }
+      setSavedBuildId(savedBuild.id);
+      setSaveState("saved");
+      window.dispatchEvent(new CustomEvent("jonpc:build-saved"));
+    } catch {
+      setSaveState("error");
+    }
+  }
+
   useEffect(() => {
     if (!isReady) return;
 
@@ -199,6 +264,13 @@ function BuildConfigurator() {
       });
       setSubmittedBuild(response);
       setRequestSubmitted(true);
+      const token = window.localStorage.getItem(authTokenKey);
+      if (token && savedBuildId) {
+        await deleteSavedBuild(token, savedBuildId).catch(() => undefined);
+        setSavedBuildId(null);
+        setSaveState("idle");
+        window.dispatchEvent(new CustomEvent("jonpc:build-saved"));
+      }
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : "Unable to submit this build request.");
     } finally {
@@ -278,6 +350,7 @@ function BuildConfigurator() {
     setBackendRecommendation(null);
     setBackendQuote(null);
     setBackendCompatibility(null);
+    setSaveState("idle");
   }
 
   function chooseAnswer(questionId: string, value: string) {
@@ -301,6 +374,7 @@ function BuildConfigurator() {
     setBackendRecommendation(null);
     setBackendQuote(null);
     setBackendCompatibility(null);
+    setSaveState("idle");
   }
 
   async function continueToRecommendation() {
@@ -313,6 +387,7 @@ function BuildConfigurator() {
       setPerformanceSelection(recommendedPerformance);
     } finally {
       setIsReady(true);
+      setSaveState("idle");
     }
   }
 
@@ -333,11 +408,13 @@ function BuildConfigurator() {
     setIsReviewReady(false);
     setRequestSubmitted(false);
     setBackendCompatibility(null);
+    setSaveState("idle");
   }
 
   function continueToMemory() {
     setMemorySelection(recommendedMemory);
     setIsMemoryReady(true);
+    setSaveState("idle");
   }
 
   function chooseMemory(id: string) {
@@ -354,11 +431,13 @@ function BuildConfigurator() {
     setShowMoreColours(false);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setSaveState("idle");
   }
 
   function continueToStorage() {
     setStorageSelection(recommendedStorage);
     setIsStorageReady(true);
+    setSaveState("idle");
   }
 
   function continueToPlatform() {
@@ -370,6 +449,7 @@ function BuildConfigurator() {
     setCaseSelection(null);
     setCaseColorSelection(null);
     setShowMoreColours(false);
+    setSaveState("idle");
   }
 
   function chooseStorage(id: string) {
@@ -384,6 +464,7 @@ function BuildConfigurator() {
     setShowMoreColours(false);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setSaveState("idle");
   }
 
   function chooseMotherboard(id: string) {
@@ -396,6 +477,7 @@ function BuildConfigurator() {
     setIsReviewReady(false);
     setRequestSubmitted(false);
     setBackendCompatibility(null);
+    setSaveState("idle");
   }
 
   function choosePsu(id: string) {
@@ -408,6 +490,7 @@ function BuildConfigurator() {
     setIsReviewReady(false);
     setRequestSubmitted(false);
     setBackendCompatibility(null);
+    setSaveState("idle");
   }
 
   function continueToStyle() {
@@ -418,6 +501,7 @@ function BuildConfigurator() {
     setIsStyleReady(true);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setSaveState("idle");
   }
 
   function chooseCase(id: CaseOption["id"]) {
@@ -428,12 +512,14 @@ function BuildConfigurator() {
     setIsReviewReady(false);
     setRequestSubmitted(false);
     setBackendCompatibility(null);
+    setSaveState("idle");
   }
 
   function chooseCaseColor(id: string) {
     setCaseColorSelection(id);
     setIsReviewReady(false);
     setRequestSubmitted(false);
+    setSaveState("idle");
   }
 
   function chooseCooling(id: string) {
@@ -441,6 +527,7 @@ function BuildConfigurator() {
     setIsReviewReady(false);
     setRequestSubmitted(false);
     setBackendCompatibility(null);
+    setSaveState("idle");
   }
 
   function continueToReview() {
@@ -837,7 +924,7 @@ function BuildConfigurator() {
           )}
 
           {isReviewReady && (
-            <div className="configurator-block configurator-review">
+            <div className="configurator-block configurator-review" id="build-review">
               <div className="configurator-block-heading">
                 <span className="section-kicker">Step 08 / Review</span>
                 <h3>Your JON. PC, ready to review.</h3>
@@ -870,7 +957,13 @@ function BuildConfigurator() {
               </div>
 
               <div className="review-actions">
-                <button className="button button-primary" type="button" onClick={() => { setRequestOpen(true); setRequestSubmitted(false); }}>Request this build <span aria-hidden="true">↗</span></button>
+                <div className="review-cta-row">
+                  <div className="save-build-action">
+                    <button className="button button-primary" type="button" onClick={saveCurrentBuild}>{saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save this build"} <span aria-hidden="true">↓</span></button>
+                    {saveState === "error" && <small>{window.localStorage.getItem(authTokenKey) ? "Unable to save this build." : "Log in to save your build."}</small>}
+                  </div>
+                  <button className="button button-primary" type="button" onClick={() => { setRequestOpen(true); setRequestSubmitted(false); setSubmittedBuild(null); setRequestError(null); }}>Request this build <span aria-hidden="true">↗</span></button>
+                </div>
                 <span>{requestSubmitted ? "Request noted. A JON. PC specialist will confirm the final quote." : "Estimated pricing is a starting point. Final availability and quote will be confirmed locally."}</span>
               </div>
             </div>
