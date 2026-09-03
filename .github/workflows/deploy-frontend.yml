@@ -44,7 +44,7 @@ jobs:
         working-directory: frontend
         env:
           VITE_BASE_PATH: /
-          VITE_API_BASE_URL: https://aicyber-jonpc.onrender.com
+          VITE_API_BASE_URL: https://jonpc-backend.prouddesert-f3cf5e65.australiaeast.azurecontainerapps.io
         run: npm run build
 
       - name: Upload Pages artifact
