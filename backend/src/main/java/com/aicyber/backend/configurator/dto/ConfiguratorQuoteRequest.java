@@ -20,6 +20,7 @@ public record ConfiguratorQuoteRequest(
         String motherboardId,
         String psuId,
         String caseId,
-        String coolingId
+        String coolingId,
+        String caseColorId
 ) {
 }

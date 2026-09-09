@@ -17,6 +17,7 @@ export type ConfiguratorQuoteRequest = {
   psuId: string;
   caseId: string;
   coolingId: string;
+  caseColorId?: string;
 };
 
 export type ConfiguratorQuote = {
@@ -111,6 +112,10 @@ export type OrderHistoryItem = {
   status: string;
   createdAt: string;
   configuration: ConfiguratorQuoteRequest;
+  salesOrderId: string | null;
+  orderReference: string | null;
+  orderStatus: string | null;
+  paymentStatus: string | null;
 };
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");

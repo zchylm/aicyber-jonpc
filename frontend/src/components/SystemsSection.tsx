@@ -54,6 +54,24 @@ function SystemsSection() {
   const [selectedBuild, setSelectedBuild] = useState<Build | null>(null);
   const recommendation = systemRecommendations[activeFocus];
 
+  function openBuild(build: Build) {
+    if ("configuration" in build) {
+      window.dispatchEvent(new CustomEvent("jonpc:load-build", {
+        detail: {
+          name: build.name,
+          direction: build.direction,
+          configuration: build.configuration,
+          source: "preset",
+        },
+      }));
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent("jonpc:start-directed-build", {
+      detail: { direction: build.direction },
+    }));
+  }
+
   return (
     <section className="systems-section" id="systems" aria-labelledby="systems-title">
       <div className="systems-heading">
@@ -108,13 +126,13 @@ function SystemsSection() {
                   <h4>{build.name}</h4>
                   <span>{build.tier}</span>
                 </div>
-                <strong>{build.price}</strong>
+                <strong>{"priceLabel" in build ? build.priceLabel : build.price}</strong>
               </div>
               <ul className="build-specs">
                 {build.specs.map((spec) => <li key={spec}>{spec}</li>)}
               </ul>
               <div className="build-card-actions">
-                <a className="build-link build-link-primary" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>Customise build <span aria-hidden="true">↗</span></a>
+                <a className="build-link build-link-primary" href="#build" onClick={() => openBuild(build)}>{"configuration" in build ? "Review build" : "Start custom build"} <span aria-hidden="true">↗</span></a>
                 <button className="build-link build-link-button" type="button" onClick={() => setSelectedBuild(build)}>
                   View details <span aria-hidden="true">↓</span>
                 </button>
@@ -127,8 +145,11 @@ function SystemsSection() {
       {selectedBuild && (
         <SystemDetail
           build={selectedBuild}
-          detail={systemDetails[selectedBuild.name as keyof typeof systemDetails]}
+          detail={"configuration" in selectedBuild
+            ? { summary: selectedBuild.summary, performance: selectedBuild.performance, components: selectedBuild.components }
+            : systemDetails[selectedBuild.name as keyof typeof systemDetails]}
           image={visualMap[selectedBuild.image]}
+          onBuild={() => openBuild(selectedBuild)}
           onClose={() => setSelectedBuild(null)}
         />
       )}
@@ -140,12 +161,17 @@ function SystemsSection() {
 
 type SystemDetailProps = {
   build: Build;
-  detail: (typeof systemDetails)[keyof typeof systemDetails];
+  detail: {
+    summary: string;
+    performance: string;
+    components: Array<{ label: string; value: string; role: string; reason: string }>;
+  };
   image: string;
+  onBuild: () => void;
   onClose: () => void;
 };
 
-function SystemDetail({ build, detail, image, onClose }: SystemDetailProps) {
+function SystemDetail({ build, detail, image, onBuild, onClose }: SystemDetailProps) {
   return (
     <section className="system-detail" aria-labelledby="system-detail-title">
       <div className="system-detail-header">
@@ -161,13 +187,13 @@ function SystemDetail({ build, detail, image, onClose }: SystemDetailProps) {
           <div className="system-detail-image"><img src={image} alt={`${build.name} configuration`} /></div>
           <div className="system-detail-price">
             <span>Indicative build price</span>
-            <strong>{build.price}</strong>
+            <strong>{"priceLabel" in build ? build.priceLabel : build.price}</strong>
           </div>
           <div className="system-detail-performance">
             <span>Designed for</span>
             <strong>{detail.performance}</strong>
           </div>
-          <a className="button button-primary detail-cta" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>Customise this build <span aria-hidden="true">↗</span></a>
+          <a className="button button-primary detail-cta" href="#build" onClick={onBuild}>{"configuration" in build ? "Review this build" : "Start custom build"} <span aria-hidden="true">↗</span></a>
         </div>
 
         <div className="component-list">

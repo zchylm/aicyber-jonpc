@@ -1,3 +1,5 @@
+import { presetBuilds } from "./presetBuilds";
+
 export const focusAreas = [
   { label: "Gaming", id: "gaming" },
   { label: "AI", id: "ai" },
@@ -8,6 +10,7 @@ export const focusAreas = [
 
 export const navigationItems = [
   { label: "Systems", href: "#systems" },
+  { label: "Rewards", href: "#queue-rewards" },
   { label: "Customize", href: "#build" },
   { label: "Support", href: "#support" },
 ];
@@ -19,21 +22,16 @@ export const systemRecommendations = {
     description: "Balanced systems for fast, fluid play, from everyday 1080p to high-refresh 1440p gaming.",
     builds: [
       {
-        name: "Core Gaming",
-        tier: "1080p performance",
-        price: "$1,599 AUD",
+        ...presetBuilds["core-gaming"],
         image: "gaming01",
-        specs: ["Ryzen 5 7500F", "RTX 5060 8GB", "16GB DDR5", "1TB NVMe"],
       },
       {
-        name: "Performance Gaming",
-        tier: "1440p ready",
-        price: "$2,099 AUD",
+        ...presetBuilds["performance-gaming"],
         image: "gaming02",
-        specs: ["Ryzen 7 7700", "RTX 5070 12GB", "32GB DDR5", "1TB NVMe"],
       },
       {
         name: "Custom Gaming",
+        direction: "gaming",
         tier: "You choose, we balance the build",
         price: "Configure for price",
         image: "gaming03",
@@ -47,21 +45,16 @@ export const systemRecommendations = {
     description: "Quiet, upgrade-ready systems for local models, data workflows and AI-assisted production.",
     builds: [
       {
-        name: "AI Starter",
-        tier: "Local tools and inference",
-        price: "From $1,899 AUD",
+        ...presetBuilds["ai-starter"],
         image: "ai01",
-        specs: ["Ryzen 7 platform", "RTX GPU", "32GB DDR5", "1TB NVMe"],
       },
       {
-        name: "AI Creator",
-        tier: "Larger local workloads",
-        price: "From $2,799 AUD",
+        ...presetBuilds["ai-creator"],
         image: "ai02",
-        specs: ["High VRAM GPU", "64GB memory", "2TB NVMe", "Cooling tuned"],
       },
       {
         name: "AI Custom",
+        direction: "ai",
         tier: "You choose the workload target",
         price: "Configure for price",
         image: "ai03",
@@ -75,21 +68,16 @@ export const systemRecommendations = {
     description: "Responsive systems for editing, design, 3D work and the applications that keep your ideas moving.",
     builds: [
       {
-        name: "Creator Core",
-        tier: "Photo and video workflow",
-        price: "From $1,899 AUD",
+        ...presetBuilds["creator-core"],
         image: "creator01",
-        specs: ["8-core CPU", "RTX graphics", "32GB DDR5", "1TB NVMe"],
       },
       {
-        name: "Creator Pro",
-        tier: "4K editing and 3D",
-        price: "From $2,599 AUD",
+        ...presetBuilds["creator-pro"],
         image: "creator02",
-        specs: ["High-core CPU", "RTX 5070 class", "64GB DDR5", "2TB NVMe"],
       },
       {
         name: "Studio Custom",
+        direction: "creator",
         tier: "Your apps, your budget, your setup",
         price: "Configure for price",
         image: "creator03",
@@ -103,21 +91,16 @@ export const systemRecommendations = {
     description: "Stable, expandable systems designed around demanding professional workloads and long sessions.",
     builds: [
       {
-        name: "Workstation Core",
-        tier: "Professional productivity",
-        price: "From $2,199 AUD",
+        ...presetBuilds["workstation-core"],
         image: "workstation01",
-        specs: ["Multi-core CPU", "Professional GPU", "64GB DDR5", "2TB NVMe"],
       },
       {
-        name: "Workstation Pro",
-        tier: "Heavy production workloads",
-        price: "From $3,299 AUD",
+        ...presetBuilds["workstation-pro"],
         image: "workstation02",
-        specs: ["High-core CPU", "High VRAM GPU", "128GB memory", "Fast storage"],
       },
       {
         name: "Custom Workstation",
+        direction: "workstation",
         tier: "Specified around your priorities",
         price: "Configure for price",
         image: "workstation03",
@@ -131,21 +114,16 @@ export const systemRecommendations = {
     description: "Purpose-built desktop systems for teams that need repeatable performance, support and a clear upgrade path.",
     builds: [
       {
-        name: "Team Core",
-        tier: "Everyday business power",
-        price: "From $1,499 AUD",
+        ...presetBuilds["team-core"],
         image: "custom01",
-        specs: ["Efficient CPU", "Integrated or RTX GPU", "16GB DDR5", "1TB NVMe"],
       },
       {
-        name: "Team Performance",
-        tier: "Data and production teams",
-        price: "From $2,399 AUD",
+        ...presetBuilds["team-performance"],
         image: "custom02",
-        specs: ["8-core CPU", "Dedicated GPU", "32GB DDR5", "2TB NVMe"],
       },
       {
         name: "Business Custom",
+        direction: "enterprise",
         tier: "Choose the right level for your team",
         price: "Configure for price",
         image: "custom03",
@@ -158,36 +136,6 @@ export const systemRecommendations = {
 const componentRows = (rows: Array<[string, string, string, string]>) => rows.map(([label, value, role, reason]) => ({ label, value, role, reason }));
 
 export const systemDetails = {
-  "Core Gaming": {
-    summary: "A focused 1080p gaming system with a clean upgrade path.",
-    performance: "1080p high settings / esports high refresh",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 5 7600", "The processor", "6 cores and 12 threads keep games responsive while leaving room for streaming."],
-      ["GPU", "NVIDIA GeForce RTX 5060 8GB", "Graphics and AI", "The main gaming component, selected for modern 1080p graphics and ray tracing."],
-      ["RAM", "Corsair Vengeance 16GB DDR5 6000MHz", "Working memory", "Fast dual-channel memory for games, browsers and everyday multitasking."],
-      ["Storage", "Crucial P310 1TB Gen4 NVMe", "Long-term storage", "Quick boot and load times with enough space for a core game library."],
-      ["Motherboard", "B650M Wi-Fi motherboard", "The connection platform", "AM5 support, Wi-Fi and a practical upgrade path for future processors."],
-      ["PSU", "650W 80+ Bronze", "Power delivery", "Provides stable power for the build with sensible headroom."],
-      ["CPU Cooler", "Tower air cooler", "CPU thermals", "Keeps sustained gaming temperatures controlled without unnecessary complexity."],
-      ["Case", "Airflow-focused ATX case", "The chassis", "Balanced airflow and clear access for future component upgrades."],
-      ["Fans", "3 x 120mm PWM fans", "System airflow", "Moves cool air through the case while keeping fan noise predictable."],
-    ]),
-  },
-  "Performance Gaming": {
-    summary: "A balanced 1440p system for high-refresh play and streaming.",
-    performance: "1440p high settings / high-refresh gaming",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 7 7700", "The processor", "8 cores and 16 threads provide strong gaming, streaming and multitasking headroom."],
-      ["GPU", "NVIDIA GeForce RTX 5070 12GB", "Graphics and AI", "The performance anchor for high-refresh 1440p gaming and modern ray-traced titles."],
-      ["RAM", "Corsair Vengeance 32GB DDR5 6000MHz", "Working memory", "A comfortable capacity for games, streaming, creative apps and background tools."],
-      ["Storage", "Crucial P310 1TB Gen4 NVMe", "Long-term storage", "Fast system response with room for a focused game and application library."],
-      ["Motherboard", "B650 Wi-Fi motherboard", "The connection platform", "AM5 compatibility and expansion for memory, storage and future CPU upgrades."],
-      ["PSU", "750W 80+ Gold", "Power delivery", "Efficient, stable power for the RTX 5070 class graphics card."],
-      ["CPU Cooler", "240mm liquid cooler", "CPU thermals", "Maintains consistent temperatures through long gaming and streaming sessions."],
-      ["Case", "Tempered-glass airflow case", "The chassis", "Combines visible hardware presentation with a clear airflow path."],
-      ["Fans", "4 x 120mm PWM fans", "System airflow", "Provides balanced intake and exhaust without turning the build into a light show."],
-    ]),
-  },
   "Custom Gaming": {
     summary: "Choose the parts that matter to you. We balance the rest around your budget.",
     performance: "Configured around your games, display and budget",
@@ -201,36 +149,6 @@ export const systemDetails = {
       ["CPU Cooler", "Air or liquid, workload matched", "CPU thermals", "Chosen around the selected CPU, noise preference and case size."],
       ["Case", "Your choice of airflow chassis", "The chassis", "You choose the look and footprint; we check clearance and airflow."],
       ["Fans", "PWM airflow setup", "System airflow", "Tuned to keep the selected configuration cool without unnecessary noise."],
-    ]),
-  },
-  "AI Starter": {
-    summary: "A practical entry point for local AI tools, automation and inference.",
-    performance: "Local inference / AI-assisted productivity",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 7 7700", "The processor", "Strong general compute for preprocessing, development tools and multitasking."],
-      ["GPU", "NVIDIA GeForce RTX 5070 12GB", "Accelerated compute", "CUDA and Tensor acceleration for a wide range of local AI workflows."],
-      ["RAM", "Corsair Vengeance 32GB DDR5", "Working memory", "Enough capacity for development environments, datasets and normal desktop use."],
-      ["Storage", "1TB Gen4 NVMe", "Long-term storage", "Fast model loading and application startup with a clear path to more storage."],
-      ["Motherboard", "B650 Wi-Fi motherboard", "The connection platform", "Provides a flexible AM5 foundation with modern connectivity."],
-      ["PSU", "750W 80+ Gold", "Power delivery", "Efficient headroom for sustained GPU compute sessions."],
-      ["CPU Cooler", "240mm liquid cooler", "CPU thermals", "Keeps long-running workloads stable and predictable."],
-      ["Case", "Quiet airflow workstation case", "The chassis", "Prioritises GPU clearance, service access and controlled acoustics."],
-      ["Fans", "4 x low-noise PWM fans", "System airflow", "Balances cooling for long inference sessions with a quieter working environment."],
-    ]),
-  },
-  "AI Creator": {
-    summary: "More memory and storage headroom for larger local models and creative workflows.",
-    performance: "Local models / 4K creation / GPU compute",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 9 7900", "The processor", "12 cores and 24 threads help with rendering, data preparation and parallel tasks."],
-      ["GPU", "NVIDIA GeForce RTX 5070 Ti 16GB", "Accelerated compute", "Additional VRAM gives local AI and creative applications more room to work."],
-      ["RAM", "64GB DDR5 6000MHz", "Working memory", "Reduces friction when working with heavier scenes, datasets and multiple applications."],
-      ["Storage", "2TB Gen4 NVMe", "Long-term storage", "Keeps project files, assets and model weights close to the applications using them."],
-      ["Motherboard", "X670E Wi-Fi motherboard", "The connection platform", "More I/O and expansion for storage, memory and specialist peripherals."],
-      ["PSU", "850W 80+ Gold", "Power delivery", "Stable capacity for a high-end GPU and sustained creative workloads."],
-      ["CPU Cooler", "360mm liquid cooler", "CPU thermals", "Designed for long rendering and encoding sessions."],
-      ["Case", "Large quiet workstation case", "The chassis", "Creates room for airflow, expansion and clean internal serviceability."],
-      ["Fans", "5 x low-noise PWM fans", "System airflow", "Moves heat efficiently while keeping the studio environment comfortable."],
     ]),
   },
   "AI Custom": {
@@ -248,36 +166,6 @@ export const systemDetails = {
       ["Fans", "Pressure-balanced PWM setup", "System airflow", "Configured to move heat reliably through the chosen workload."],
     ]),
   },
-  "Creator Core": {
-    summary: "A responsive editing and design system for everyday creative production.",
-    performance: "Photo / 1080p-4K editing / design apps",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 7 7700", "The processor", "A balanced core count for editing, design, export and multitasking."],
-      ["GPU", "NVIDIA GeForce RTX 5060 Ti 16GB", "Graphics and compute", "Supports GPU-accelerated creative applications and larger timelines."],
-      ["RAM", "32GB DDR5 6000MHz", "Working memory", "Keeps editing applications, assets and browser tools responsive together."],
-      ["Storage", "1TB Gen4 NVMe", "Long-term storage", "Fast project access with room to add a dedicated media drive."],
-      ["Motherboard", "B650 Wi-Fi motherboard", "The connection platform", "Modern connectivity with a practical upgrade path."],
-      ["PSU", "650W 80+ Gold", "Power delivery", "Efficient power for the CPU and GPU combination."],
-      ["CPU Cooler", "Tower air cooler", "CPU thermals", "Quiet, low-maintenance cooling for daily creative workloads."],
-      ["Case", "Quiet tempered-glass case", "The chassis", "Keeps the build presentable without compromising airflow."],
-      ["Fans", "4 x PWM fans", "System airflow", "Creates stable airflow during exports and long sessions."],
-    ]),
-  },
-  "Creator Pro": {
-    summary: "A higher-headroom creator system for 4K, 3D and demanding production tools.",
-    performance: "4K editing / 3D / motion graphics",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 9 7900X", "The processor", "More cores reduce export and render wait times across multi-threaded tools."],
-      ["GPU", "NVIDIA GeForce RTX 5070 Ti 16GB", "Graphics and compute", "Accelerates 3D viewport work, effects, encoding and GPU renderers."],
-      ["RAM", "64GB DDR5 6000MHz", "Working memory", "Makes larger scenes, timelines and simultaneous applications more comfortable."],
-      ["Storage", "2TB Gen4 NVMe", "Long-term storage", "Gives active projects and cache files useful high-speed capacity."],
-      ["Motherboard", "X670E Wi-Fi motherboard", "The connection platform", "Adds expansion and high-speed storage flexibility for a studio setup."],
-      ["PSU", "850W 80+ Gold", "Power delivery", "Efficient overhead for sustained CPU and GPU workloads."],
-      ["CPU Cooler", "360mm liquid cooler", "CPU thermals", "Supports long exports without aggressive thermal throttling."],
-      ["Case", "Large airflow-focused case", "The chassis", "Provides GPU clearance, storage access and clean cable routing."],
-      ["Fans", "5 x PWM fans", "System airflow", "Keeps a high-performance studio system thermally consistent."],
-    ]),
-  },
   "Studio Custom": {
     summary: "Choose the applications and budget first. We build a system that supports the way you create.",
     performance: "Application-matched creative workflow and budget",
@@ -293,36 +181,6 @@ export const systemDetails = {
       ["Fans", "Tuned PWM airflow", "System airflow", "Keeps the system steady without distracting fan noise."],
     ]),
   },
-  "Workstation Core": {
-    summary: "A dependable professional desktop for demanding daily workloads.",
-    performance: "Professional productivity / data / development",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 9 7900", "The processor", "High multi-core throughput for professional applications and parallel tasks."],
-      ["GPU", "NVIDIA RTX 5070 12GB", "Graphics and compute", "Adds dedicated graphics and acceleration for technical workloads."],
-      ["RAM", "64GB DDR5", "Working memory", "Supports larger files, virtual machines and multitasking."],
-      ["Storage", "2TB Gen4 NVMe", "Long-term storage", "Fast primary storage for applications, project files and local data."],
-      ["Motherboard", "X670E workstation platform", "The connection platform", "Expansion and reliability for long-term professional use."],
-      ["PSU", "850W 80+ Gold", "Power delivery", "Stable and efficient power for sustained workloads."],
-      ["CPU Cooler", "Quiet 240mm liquid cooler", "CPU thermals", "Controls thermals during long professional sessions."],
-      ["Case", "Quiet serviceable workstation case", "The chassis", "Prioritises low distraction, access and component clearance."],
-      ["Fans", "Low-noise PWM array", "System airflow", "Maintains consistent cooling without excessive acoustic output."],
-    ]),
-  },
-  "Workstation Pro": {
-    summary: "A high-capacity workstation for technical production and heavy computation.",
-    performance: "Simulation / 3D / engineering / large datasets",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 9 9950X", "The processor", "16 cores and 32 threads provide substantial parallel compute capacity."],
-      ["GPU", "NVIDIA GeForce RTX 5080 16GB", "Graphics and compute", "High-end GPU acceleration for demanding visual and technical workloads."],
-      ["RAM", "128GB DDR5", "Working memory", "Keeps large scenes, datasets and professional tools in active memory."],
-      ["Storage", "4TB Gen4 NVMe", "Long-term storage", "High capacity and speed for large active projects and local data."],
-      ["Motherboard", "X870E workstation platform", "The connection platform", "Modern expansion, connectivity and memory capacity for a long service life."],
-      ["PSU", "1000W 80+ Gold", "Power delivery", "Provides stable overhead for a high-performance GPU and sustained load."],
-      ["CPU Cooler", "360mm liquid cooler", "CPU thermals", "Designed for heavy multi-core workloads over long periods."],
-      ["Case", "Full-size workstation chassis", "The chassis", "Leaves space for expansion, service and high-end cooling."],
-      ["Fans", "6 x PWM fans", "System airflow", "Moves heat through the system while retaining controlled fan curves."],
-    ]),
-  },
   "Custom Workstation": {
     summary: "Start with the work you need to do and the budget you want to keep. We make the parts work together.",
     performance: "Specified for your professional workload and budget",
@@ -336,36 +194,6 @@ export const systemDetails = {
       ["CPU Cooler", "Thermal design matched", "CPU thermals", "Built for predictable temperatures in the target environment."],
       ["Case", "Serviceable professional chassis", "The chassis", "Prioritises access, reliability, acoustics and physical compatibility."],
       ["Fans", "Redundant PWM airflow", "System airflow", "Keeps the system stable and easier to maintain."],
-    ]),
-  },
-  "Team Core": {
-    summary: "A reliable everyday system for teams that need repeatable deployment.",
-    performance: "Business productivity / office workloads",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 5 7600", "The processor", "Responsive everyday performance with efficient power use."],
-      ["GPU", "Integrated Radeon graphics", "Graphics and display", "Suitable for business displays, collaboration and standard productivity."],
-      ["RAM", "16GB DDR5", "Working memory", "A practical baseline for office tools, browsers and communication apps."],
-      ["Storage", "1TB Gen4 NVMe", "Long-term storage", "Fast boot and application response with useful local capacity."],
-      ["Motherboard", "B650 business-ready platform", "The connection platform", "Modern connectivity with room for straightforward upgrades."],
-      ["PSU", "550W 80+ Bronze", "Power delivery", "Efficient power for a dependable office system."],
-      ["CPU Cooler", "Low-noise tower cooler", "CPU thermals", "Quiet cooling for long working days."],
-      ["Case", "Compact serviceable case", "The chassis", "Fits common desks and keeps internal access simple."],
-      ["Fans", "2 x PWM fans", "System airflow", "Quiet airflow with minimal maintenance."],
-    ]),
-  },
-  "Team Performance": {
-    summary: "A stronger team system for data, production and specialist business software.",
-    performance: "Data workflows / production teams / development",
-    components: componentRows([
-      ["CPU", "AMD Ryzen 7 7700", "The processor", "Extra cores support heavier multitasking and team applications."],
-      ["GPU", "NVIDIA GeForce RTX 5060 8GB", "Graphics and compute", "Adds dedicated acceleration for visual, data and specialist workloads."],
-      ["RAM", "32GB DDR5", "Working memory", "Comfortable multitasking for larger files and professional applications."],
-      ["Storage", "2TB Gen4 NVMe", "Long-term storage", "Fast capacity for local project files and team tools."],
-      ["Motherboard", "B650 Wi-Fi platform", "The connection platform", "A stable, upgradeable platform for repeatable team builds."],
-      ["PSU", "650W 80+ Gold", "Power delivery", "Efficient power with headroom for dedicated graphics."],
-      ["CPU Cooler", "Quiet tower cooler", "CPU thermals", "Keeps performance consistent during longer work sessions."],
-      ["Case", "Professional airflow case", "The chassis", "Clean, serviceable and suitable for a shared work environment."],
-      ["Fans", "3 x PWM fans", "System airflow", "Reliable cooling with controlled noise."],
     ]),
   },
   "Business Custom": {

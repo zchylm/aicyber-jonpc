@@ -14,6 +14,10 @@ public record OrderHistoryResponse(
         int selectedAdjustments,
         String status,
         OffsetDateTime createdAt,
-        ConfiguratorQuoteRequest configuration
+        ConfiguratorQuoteRequest configuration,
+        UUID salesOrderId,
+        String orderReference,
+        String orderStatus,
+        String paymentStatus
 ) {
 }

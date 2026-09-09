@@ -1,0 +1,19 @@
+package com.aicyber.backend.payment.dto;
+
+import com.aicyber.backend.reward.dto.RewardEntryResponse;
+
+import java.util.UUID;
+
+public record MockPaymentResponse(
+        UUID paymentId,
+        String paymentReference,
+        UUID orderId,
+        String orderReference,
+        long amountCents,
+        String currency,
+        String status,
+        String failureReason,
+        String rewardState,
+        RewardEntryResponse reward
+) {
+}

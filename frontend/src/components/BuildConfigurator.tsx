@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { deleteSavedBuild, fetchConfiguratorCatalog, fetchConfiguratorCompatibility, fetchConfiguratorQuote, fetchConfiguratorRecommendation, saveBuild, submitConfiguratorBuild, type ConfiguratorBuildResponse, type ConfiguratorCatalog, type ConfiguratorCatalogOption, type ConfiguratorCompatibility, type ConfiguratorQuote, type ConfiguratorQuoteRequest, type ConfiguratorRecommendation } from "../api/configurator";
-import { authTokenKey } from "../api/auth";
+import { authTokenKey, type AuthUser } from "../api/auth";
 import { configuratorDirections, configuratorQuestions, type DirectionId } from "../data/configurator";
 import {
   cpuOptions,
@@ -42,7 +42,13 @@ function mergeCatalogOptions<T extends { id: string }>(localOptions: T[], remote
   });
 }
 
-function BuildConfigurator() {
+type BuildConfiguratorProps = {
+  user: AuthUser | null;
+};
+
+const paymentDemoEnabled = import.meta.env.DEV;
+
+function BuildConfigurator({ user }: BuildConfiguratorProps) {
   const [direction, setDirection] = useState<DirectionId>("gaming");
   const [answers, setAnswers] = useState<Record<string, string>>(defaultsFor("gaming"));
   const [isReady, setIsReady] = useState(false);
@@ -62,12 +68,14 @@ function BuildConfigurator() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [submittedBuild, setSubmittedBuild] = useState<ConfiguratorBuildResponse | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
+  const resumeRequestAfterLogin = useRef(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedBuildId, setSavedBuildId] = useState<string | null>(null);
   const [backendQuote, setBackendQuote] = useState<ConfiguratorQuote | null>(null);
   const [backendRecommendation, setBackendRecommendation] = useState<ConfiguratorRecommendation | null>(null);
   const [backendCompatibility, setBackendCompatibility] = useState<ConfiguratorCompatibility | null>(null);
   const [backendCatalog, setBackendCatalog] = useState<ConfiguratorCatalog | null>(null);
+  const [buildOrigin, setBuildOrigin] = useState<{ name: string; modified: boolean } | null>(null);
   const requestReference = submittedBuild?.requestReference ?? `JON-${direction.slice(0, 3).toUpperCase()}-DEMO`;
   const questions = useMemo(() => configuratorQuestions[direction], [direction]);
   useEffect(() => {
@@ -80,6 +88,31 @@ function BuildConfigurator() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const resumeRequest = () => {
+      if (!resumeRequestAfterLogin.current) return;
+      resumeRequestAfterLogin.current = false;
+      setRequestSubmitted(false);
+      setSubmittedBuild(null);
+      setRequestError(null);
+      setRequestOpen(true);
+    };
+    window.addEventListener("jonpc:authenticated", resumeRequest);
+    return () => window.removeEventListener("jonpc:authenticated", resumeRequest);
+  }, []);
+
+  function openBuildRequest() {
+    if (paymentDemoEnabled && !user) {
+      resumeRequestAfterLogin.current = true;
+      window.dispatchEvent(new CustomEvent("jonpc:open-account"));
+      return;
+    }
+    setRequestOpen(true);
+    setRequestSubmitted(false);
+    setSubmittedBuild(null);
+    setRequestError(null);
+  }
 
   const catalogGpuOptions = useMemo(() => mergeCatalogOptions(gpuOptions, backendCatalog?.options.gpu), [backendCatalog]);
   const catalogCpuOptions = useMemo(() => mergeCatalogOptions(cpuOptions, backendCatalog?.options.cpu), [backendCatalog]);
@@ -119,7 +152,7 @@ function BuildConfigurator() {
   const [psuSelection, setPsuSelection] = useState<string | null>(null);
   useEffect(() => {
     const handleLoadBuild = (event: Event) => {
-      const build = (event as CustomEvent<{ id?: string; direction: string; configuration: ConfiguratorQuoteRequest }>).detail;
+      const build = (event as CustomEvent<{ id?: string; name?: string; source?: "preset"; direction: string; configuration: ConfiguratorQuoteRequest }>).detail;
       if (!build?.configuration || !configuratorDirections.some((item) => item.id === build.direction)) return;
       const configuration = build.configuration;
       const nextDirection = build.direction as DirectionId;
@@ -131,7 +164,19 @@ function BuildConfigurator() {
       setMotherboardSelection(configuration.motherboardId);
       setPsuSelection(configuration.psuId);
       setCaseSelection(configuration.caseId as CaseOption["id"]);
+      setCaseColorSelection(configuration.caseColorId ?? null);
       setCoolingSelection(configuration.coolingId);
+      setBackendRecommendation({
+        cpuId: configuration.recommendedCpuId,
+        gpuId: configuration.recommendedGpuId,
+        memoryId: configuration.recommendedMemoryId,
+        storageId: configuration.recommendedStorageId,
+        motherboardId: configuration.recommendedMotherboardId,
+        psuId: configuration.recommendedPsuId,
+        caseId: configuration.recommendedCaseId as CaseOption["id"],
+        coolingId: configuration.recommendedCoolingId,
+      });
+      setBuildOrigin(build.source === "preset" && build.name ? { name: build.name, modified: false } : null);
       setIsReady(true);
       setIsMemoryReady(true);
       setIsStorageReady(true);
@@ -197,11 +242,11 @@ function BuildConfigurator() {
       psuId: activePsu.id,
       caseId: activeCase.id,
       coolingId: activeCooling.id,
+      caseColorId: activeCaseColor.id,
   };
   const serializedQuoteRequest = JSON.stringify(currentQuoteRequest);
 
-  function startNewBuild() {
-    const nextDirection: DirectionId = "gaming";
+  function startNewBuild(nextDirection: DirectionId = "gaming") {
     setDirection(nextDirection);
     setAnswers(defaultsFor(nextDirection));
     setIsReady(false);
@@ -228,14 +273,27 @@ function BuildConfigurator() {
     setBackendCompatibility(null);
     setSavedBuildId(null);
     setSaveState("idle");
+    setBuildOrigin(null);
     window.requestAnimationFrame(() => document.getElementById("build")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   useEffect(() => {
     const handleStartNewBuild = () => startNewBuild();
+    const handleStartDirectedBuild = (event: Event) => {
+      const nextDirection = (event as CustomEvent<{ direction?: DirectionId }>).detail?.direction;
+      startNewBuild(nextDirection && configuratorDirections.some((item) => item.id === nextDirection) ? nextDirection : "gaming");
+    };
     window.addEventListener("jonpc:start-new-build", handleStartNewBuild);
-    return () => window.removeEventListener("jonpc:start-new-build", handleStartNewBuild);
+    window.addEventListener("jonpc:start-directed-build", handleStartDirectedBuild);
+    return () => {
+      window.removeEventListener("jonpc:start-new-build", handleStartNewBuild);
+      window.removeEventListener("jonpc:start-directed-build", handleStartDirectedBuild);
+    };
   }, []);
+
+  function markPresetModified() {
+    setBuildOrigin((current) => current ? { ...current, modified: true } : null);
+  }
 
   async function saveCurrentBuild() {
     const token = window.localStorage.getItem(authTokenKey);
@@ -247,7 +305,7 @@ function BuildConfigurator() {
     setSaveState("saving");
     try {
       const savedBuild = await saveBuild(token, {
-        name: `${directionLabel} / ${performanceOptions.gpu.label}`,
+        name: buildOrigin ? `${buildOrigin.modified ? "Customised from " : ""}${buildOrigin.name}` : `${directionLabel} / ${performanceOptions.gpu.label}`,
         direction,
         budgetRange: budgetRange.label,
         estimatedPrice: reviewPrice,
@@ -363,6 +421,7 @@ function BuildConfigurator() {
   const catalogCoolingOptions = mergeCatalogOptions(compatibleCooling, backendCatalog?.options.cooling);
 
   function chooseDirection(nextDirection: DirectionId) {
+    setBuildOrigin(null);
     setDirection(nextDirection);
     setAnswers(defaultsFor(nextDirection));
     setIsReady(false);
@@ -388,6 +447,7 @@ function BuildConfigurator() {
   }
 
   function chooseAnswer(questionId: string, value: string) {
+    markPresetModified();
     setAnswers((current) => ({ ...current, [questionId]: value }));
     setIsReady(false);
     setPerformanceSelection(null);
@@ -426,6 +486,7 @@ function BuildConfigurator() {
   }
 
   function choosePerformance(type: "cpuId" | "gpuId", id: string) {
+    markPresetModified();
     setPerformanceSelection((current) => ({ ...(current ?? recommendedPerformance), [type]: id }));
     setIsMemoryReady(false);
     setMemorySelection(null);
@@ -452,6 +513,7 @@ function BuildConfigurator() {
   }
 
   function chooseMemory(id: string) {
+    markPresetModified();
     setMemorySelection(id);
     setIsStorageReady(false);
     setStorageSelection(null);
@@ -487,6 +549,7 @@ function BuildConfigurator() {
   }
 
   function chooseStorage(id: string) {
+    markPresetModified();
     setStorageSelection(id);
     setIsPlatformReady(false);
     setMotherboardSelection(null);
@@ -502,6 +565,7 @@ function BuildConfigurator() {
   }
 
   function chooseMotherboard(id: string) {
+    markPresetModified();
     setMotherboardSelection(id);
     setIsStyleReady(false);
     setCoolingSelection(null);
@@ -515,6 +579,7 @@ function BuildConfigurator() {
   }
 
   function choosePsu(id: string) {
+    markPresetModified();
     setPsuSelection(id);
     setIsStyleReady(false);
     setCoolingSelection(null);
@@ -539,6 +604,7 @@ function BuildConfigurator() {
   }
 
   function chooseCase(id: CaseOption["id"]) {
+    markPresetModified();
     setCaseSelection(id);
     setCaseColorSelection(null);
     setShowMoreColours(false);
@@ -550,6 +616,7 @@ function BuildConfigurator() {
   }
 
   function chooseCaseColor(id: string) {
+    markPresetModified();
     setCaseColorSelection(id);
     setIsReviewReady(false);
     setRequestSubmitted(false);
@@ -557,6 +624,7 @@ function BuildConfigurator() {
   }
 
   function chooseCooling(id: string) {
+    markPresetModified();
     setCoolingSelection(id);
     setIsReviewReady(false);
     setRequestSubmitted(false);
@@ -967,8 +1035,8 @@ function BuildConfigurator() {
 
               <div className="review-hero">
                 <div>
-                  <span className="section-kicker">Your configuration</span>
-                  <strong>JON. Custom / {directionLabel}</strong>
+                  <span className="section-kicker">{buildOrigin ? buildOrigin.modified ? "Customised preset" : "JON. PC preset" : "Your configuration"}</span>
+                  <strong>{buildOrigin ? buildOrigin.modified ? `Customised from ${buildOrigin.name}` : buildOrigin.name : `JON. Custom / ${directionLabel}`}</strong>
                   <p>{answers.resolution || answers.workload || answers.creativeWork || answers.use || "Configured for your direction"} / {budgetRange.label}</p>
                 </div>
                   <div className="review-price"><span>Estimated build</span><strong>${reviewPrice.toLocaleString("en-AU")} AUD</strong></div>
@@ -996,7 +1064,7 @@ function BuildConfigurator() {
                     <button className="button button-primary" type="button" onClick={saveCurrentBuild}>{saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save this build"} <span aria-hidden="true">↓</span></button>
                     {saveState === "error" && <small>{window.localStorage.getItem(authTokenKey) ? "Unable to save this build." : "Log in to save your build."}</small>}
                   </div>
-                  <button className="button button-primary" type="button" onClick={() => { setRequestOpen(true); setRequestSubmitted(false); setSubmittedBuild(null); setRequestError(null); }}>Request this build <span aria-hidden="true">↗</span></button>
+                  <button className="button button-primary" type="button" onClick={openBuildRequest}>Request this build <span aria-hidden="true">↗</span></button>
                 </div>
                 <span>{requestSubmitted ? "Request noted. A JON. PC specialist will confirm the final quote." : "Estimated pricing is a starting point. Final availability and quote will be confirmed locally."}</span>
               </div>
@@ -1045,8 +1113,8 @@ function BuildConfigurator() {
                 <p className="request-modal-intro">Share your details and a JON. PC specialist will review this configuration, availability and the final local quote.</p>
                 <div className="request-build-chip"><span>{directionLabel} / {performanceOptions.gpu.label}</span><strong>${reviewPrice.toLocaleString("en-AU")} AUD estimated</strong></div>
                 <div className="request-form-grid">
-                  <label><span>Name</span><input name="name" type="text" placeholder="Your name" required /></label>
-                  <label><span>Email</span><input name="email" type="email" placeholder="you@example.com" required /></label>
+                  <label><span>Name</span><input name="name" type="text" defaultValue={user?.displayName ?? ""} placeholder="Your name" required /></label>
+                  <label><span>Email</span><input name="email" type="email" defaultValue={user?.email ?? ""} placeholder="you@example.com" required /></label>
                   <label><span>Phone <em>Optional</em></span><input name="phone" type="tel" placeholder="0400 000 000" /></label>
                   <label><span>Suburb / Location</span><input name="location" type="text" placeholder="Melbourne" required /></label>
                 </div>
@@ -1060,10 +1128,17 @@ function BuildConfigurator() {
               <div className="request-success">
                 <span className="section-kicker">Request received</span>
                 <h3 id="request-modal-title">Your build is with JON. PC.</h3>
-                <p>Thanks. We&apos;ve recorded your configuration for a local review.</p>
+                <p>{paymentDemoEnabled ? "Your configuration is saved and the backend has locked the demo checkout amount." : "Thanks. We&apos;ve recorded your configuration for a local review."}</p>
                 <div className="request-reference"><span>Reference</span><strong>{requestReference}</strong></div>
-                <div className="request-success-checks"><span><i /> Configuration captured</span><span><i /> Compatibility checked</span><span><i /> Final quote to be confirmed</span></div>
-                <button className="button button-primary request-submit" type="button" onClick={() => setRequestOpen(false)}>Back to your build <span aria-hidden="true">↗</span></button>
+                <div className="request-success-checks"><span><i /> Configuration captured</span><span><i /> Compatibility checked</span><span><i /> {paymentDemoEnabled ? "Demo amount confirmed by backend" : "Final quote to be confirmed"}</span></div>
+                {paymentDemoEnabled ? (
+                  <div className="request-success-actions">
+                    <button className="button button-primary request-submit" type="button" onClick={() => { setRequestOpen(false); window.dispatchEvent(new CustomEvent("jonpc:open-checkout", { detail: { requestReference } })); }}>Continue to checkout <span aria-hidden="true">↗</span></button>
+                    <button className="request-success-back" type="button" onClick={() => setRequestOpen(false)}>Pay later</button>
+                  </div>
+                ) : (
+                  <button className="button button-primary request-submit" type="button" onClick={() => setRequestOpen(false)}>Back to your build <span aria-hidden="true">↗</span></button>
+                )}
               </div>
             )}
           </div>

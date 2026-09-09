@@ -11,6 +11,8 @@ type AuthPanelProps = {
   onAuthChange?: (user: AuthUser | null) => void;
 };
 
+const paymentDemoEnabled = import.meta.env.DEV;
+
 function AuthPanel({ onAuthChange }: AuthPanelProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -97,6 +99,12 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
     };
   }, [isAccountOpen]);
 
+  useEffect(() => {
+    const openAccount = () => openPanel("login");
+    window.addEventListener("jonpc:open-account", openAccount);
+    return () => window.removeEventListener("jonpc:open-account", openAccount);
+  }, []);
+
   function openPanel(nextMode: AuthMode = "login") {
     setMode(nextMode);
     setError(null);
@@ -119,6 +127,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
       window.localStorage.setItem(authTokenKey, response.accessToken);
       setUser(response.user);
       onAuthChange?.(response.user);
+      window.dispatchEvent(new CustomEvent("jonpc:authenticated"));
       setPassword("");
       setIsOpen(false);
     } catch (requestError) {
@@ -162,7 +171,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
         )}
       </div>
       {user && <div className="my-builds-entry"><button className="my-builds-nav-button" type="button" onClick={() => setIsBuildsOpen(true)}><span className="my-builds-icon" aria-hidden="true" />My builds</button></div>}
-      {user && <div className="order-history-entry"><button className="order-history-nav-button" type="button" onClick={() => setIsOrdersOpen(true)}><span className="order-history-icon" aria-hidden="true" />Order history</button></div>}
+      {user && <div className="order-history-entry"><button className="order-history-nav-button" type="button" onClick={() => { setIsOrdersOpen(true); window.dispatchEvent(new CustomEvent("jonpc:order-requested")); }}><span className="order-history-icon" aria-hidden="true" />My orders</button></div>}
 
       {isOpen && (
         <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOpen(false); }}>
@@ -220,12 +229,12 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
           <section className="auth-modal order-history-modal" role="dialog" aria-modal="true" aria-labelledby="order-history-title">
             <button className="auth-modal-close" type="button" onClick={() => setIsOrdersOpen(false)} aria-label="Close order history">×</button>
             <span className="section-kicker">JON. PC / Orders</span>
-            <h2 id="order-history-title">Order history.</h2>
-            <p className="auth-modal-intro">Track the configurations you have asked JON. PC to review.</p>
+            <h2 id="order-history-title">My orders.</h2>
+            <p className="auth-modal-intro">Track your requested builds, payment status and reward eligibility.</p>
             <div className="order-history-list">
               {ordersLoading && <p className="saved-builds-empty">Loading your orders...</p>}
               {!ordersLoading && ordersError && <p className="saved-builds-empty auth-error" role="alert">{ordersError}</p>}
-              {!ordersLoading && !ordersError && orders.length === 0 && <p className="saved-builds-empty">No build requests yet. Your submitted configurations will appear here.</p>}
+              {!ordersLoading && !ordersError && orders.length === 0 && <p className="saved-builds-empty">No orders yet. Your submitted configurations will appear here.</p>}
               {orders.map((order) => (
                 <article className="order-history-row" key={order.id}>
                   <div className="order-history-row-heading">
@@ -238,7 +247,16 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                     <span>{getOptionLabel(memoryOptions, order.configuration.memoryId)}</span>
                     <span>{getOptionLabel(storageOptions, order.configuration.storageId)}</span>
                   </div>
-                  <span className="order-status">{formatOrderStatus(order.status)}</span>
+                  <div className="order-history-row-footer">
+                    <span className="order-status">{formatOrderStatus(order.paymentStatus ?? order.orderStatus ?? order.status)}</span>
+                    {order.paymentStatus === "SUCCEEDED" || order.orderStatus === "REWARD_ELIGIBLE" ? (
+                      <button type="button" onClick={() => { setIsOrdersOpen(false); window.dispatchEvent(new CustomEvent("jonpc:open-rewards")); }}>View rewards →</button>
+                    ) : paymentDemoEnabled ? (
+                      <button type="button" onClick={() => { setIsOrdersOpen(false); window.dispatchEvent(new CustomEvent("jonpc:open-checkout", { detail: { requestReference: order.requestReference } })); }}>Continue to checkout →</button>
+                    ) : (
+                      <span className="order-next-step">Awaiting final quote</span>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>

@@ -44,7 +44,7 @@ class SavedBuildServiceTest {
         ConfiguratorQuoteRequest configuration = new ConfiguratorQuoteRequest(
                 "gaming", Map.of("budget", "$1,500-$2,000"),
                 "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air",
-                "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air"
+                "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air", "black"
         );
         return new SaveBuildRequest("Gaming / Arc B580", "gaming", "$1,500-$2,000", 1747, 1747, 0, configuration);
     }

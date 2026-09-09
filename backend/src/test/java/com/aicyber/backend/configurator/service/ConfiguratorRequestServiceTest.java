@@ -67,6 +67,6 @@ class ConfiguratorRequestServiceTest {
     private ConfiguratorQuoteRequest quote(String direction, String cpu, String gpu, String memory, String storage, String motherboard, String psu, String caseId, String cooling) {
         return new ConfiguratorQuoteRequest(direction, Map.of("budget", "$1,500–$2,000"),
                 "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air",
-                cpu, gpu, memory, storage, motherboard, psu, caseId, cooling);
+                cpu, gpu, memory, storage, motherboard, psu, caseId, cooling, "black");
     }
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import BrandLockup from "../components/BrandLockup";
 import BuildConfigurator from "../components/BuildConfigurator";
 import AiAssistant from "../components/AiAssistant";
@@ -5,10 +6,15 @@ import LogicStrip from "../components/LogicStrip";
 import HeroVisual from "../components/HeroVisual";
 import SystemsSection from "../components/SystemsSection";
 import AuthPanel from "../components/AuthPanel";
+import QueueRewardsSection from "../components/QueueRewardsSection";
+import PaymentCheckout from "../components/PaymentCheckout";
+import type { AuthUser } from "../api/auth";
 import { navigationItems } from "../data/site";
 import "./JonPcHeroPage.css";
 
 function JonPcHeroPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+
   return (
     <main className="site-shell">
       <div className="hero-grid" aria-hidden="true" />
@@ -21,10 +27,27 @@ function JonPcHeroPage() {
         </a>
 
         <nav className="nav-links" aria-label="Primary navigation">
-          {navigationItems.map((item) => <a href={item.href} key={item.label} onClick={item.href === "#build" ? () => window.dispatchEvent(new CustomEvent("jonpc:start-new-build")) : undefined}>{item.label}</a>)}
+          {navigationItems.map((item) => {
+            const isRewards = item.href === "#queue-rewards";
+            return (
+              <a
+                href={item.href}
+                key={item.label}
+                onClick={(event) => {
+                  if (item.href === "#build") window.dispatchEvent(new CustomEvent("jonpc:start-new-build"));
+                  if (isRewards && user) {
+                    event.preventDefault();
+                    window.dispatchEvent(new CustomEvent("jonpc:open-rewards"));
+                  }
+                }}
+              >
+                {isRewards && user ? "My rewards" : item.label}
+              </a>
+            );
+          })}
         </nav>
 
-        <AuthPanel />
+        <AuthPanel onAuthChange={setUser} />
 
         <a className="nav-cta" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>
           <span>Start new build</span>
@@ -37,11 +60,15 @@ function JonPcHeroPage() {
 
       </section>
 
+      <QueueRewardsSection user={user} />
+
+      {import.meta.env.DEV && <PaymentCheckout user={user} />}
+
       <LogicStrip />
 
       <SystemsSection />
 
-      <BuildConfigurator />
+      <BuildConfigurator user={user} />
       <span id="support" className="anchor-target" />
       <AiAssistant />
     </main>
