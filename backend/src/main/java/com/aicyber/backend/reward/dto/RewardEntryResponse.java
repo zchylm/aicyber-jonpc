@@ -6,16 +6,21 @@ import java.util.UUID;
 public record RewardEntryResponse(
         UUID id,
         String orderReference,
-        long queueSequence,
-        Long currentPosition,
-        long targetAmountCents,
-        long allocatedAmountCents,
-        long remainingAmountCents,
-        double progressPercent,
+        long founderNumber,
+        String tierName,
+        int rateBasisPoints,
+        long capCents,
+        long purchaseAmountCents,
+        long cashbackAmountCents,
+        long effectivePriceCents,
         String status,
-        OffsetDateTime joinedAt,
-        OffsetDateTime completedAt,
-        Long latestAllocationAmountCents,
-        OffsetDateTime latestAllocationAt
+        OffsetDateTime lockedAt,
+        OffsetDateTime payableAt,
+        OffsetDateTime payoutDueAt,
+        OffsetDateTime processingAt,
+        OffsetDateTime paidAt,
+        String payoutMethod,
+        String payoutReference,
+        String payoutFailureReason
 ) {
 }

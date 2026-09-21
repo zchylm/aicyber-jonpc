@@ -19,8 +19,8 @@ class ConfiguratorRecommendationServiceTest {
                 Map.of("resolution", "1440p", "games", "Mixed", "budget", "$1,500-$2,000")
         ));
 
-        assertEquals("ryzen-7-7700", response.cpuId());
-        assertEquals("arc-b580", response.gpuId());
+        assertEquals("ryzen-5-9600x", response.cpuId());
+        assertEquals("rtx-5070", response.gpuId());
         assertEquals("32gb", response.memoryId());
         assertEquals("2tb", response.storageId());
     }
@@ -33,10 +33,10 @@ class ConfiguratorRecommendationServiceTest {
         ));
 
         assertEquals("rtx-5080", response.gpuId());
-        assertEquals("ryzen-5-7600", response.cpuId());
+        assertEquals("ryzen-9-9950x3d", response.cpuId());
         assertEquals("128gb", response.memoryId());
         assertEquals("4tb", response.storageId());
-        assertEquals("b850-wifi", response.motherboardId());
+        assertEquals("x870-wifi", response.motherboardId());
         assertEquals("850-gold", response.psuId());
     }
 }

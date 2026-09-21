@@ -67,7 +67,7 @@ const definitions: PresetDefinition[] = [
     summary: "A focused 1080p gaming system with a clean upgrade path.",
     performance: "1080p high settings / esports high refresh",
     answers: { resolution: "1080p", games: "Mixed", budget: "$1,500–$2,000" },
-    selection: { cpuId: "ryzen-5-7600", gpuId: "rtx-4060", memoryId: "16gb", storageId: "1tb", motherboardId: "b650m-no-wifi", psuId: "650-bronze", caseId: "compact", coolingId: "tower-air", caseColorId: "white" },
+    selection: { cpuId: "ryzen-5-7500f", gpuId: "rtx-5060", memoryId: "16gb", storageId: "1tb", motherboardId: "b850m-wifi", psuId: "650-bronze", caseId: "compact", coolingId: "tower-air", caseColorId: "white" },
   },
   {
     id: "performance-gaming",
@@ -77,7 +77,7 @@ const definitions: PresetDefinition[] = [
     summary: "A balanced 1440p system for high-refresh play and streaming.",
     performance: "1440p high settings / high-refresh gaming",
     answers: { resolution: "1440p", games: "Mixed", budget: "$2,000–$3,000" },
-    selection: { cpuId: "ryzen-7-7700", gpuId: "rtx-5070", memoryId: "32gb", storageId: "2tb", motherboardId: "b850-wifi", psuId: "750-gold", caseId: "mid", coolingId: "240-liquid", caseColorId: "black" },
+    selection: { cpuId: "ryzen-5-9600x", gpuId: "rtx-5070", memoryId: "32gb", storageId: "2tb", motherboardId: "b850-wifi", psuId: "750-gold", caseId: "mid", coolingId: "dual-tower-air", caseColorId: "black" },
   },
   {
     id: "ai-starter",
@@ -87,7 +87,7 @@ const definitions: PresetDefinition[] = [
     summary: "A practical entry point for local AI tools, automation and inference.",
     performance: "Local inference / AI-assisted productivity",
     answers: { workload: "AI development", scale: "Medium", budget: "$2,000–$3,500" },
-    selection: { cpuId: "ryzen-7-7700", gpuId: "rtx-5070", memoryId: "32gb", storageId: "2tb", motherboardId: "b850-wifi", psuId: "850-gold", caseId: "mid", coolingId: "240-liquid", caseColorId: "black" },
+    selection: { cpuId: "ryzen-7-9700x", gpuId: "rtx-5070", memoryId: "64gb", storageId: "2tb", motherboardId: "b850-wifi", psuId: "750-gold", caseId: "mid", coolingId: "240-liquid", caseColorId: "black" },
   },
   {
     id: "ai-creator",
@@ -97,7 +97,7 @@ const definitions: PresetDefinition[] = [
     summary: "More memory and storage headroom for larger local models and creative workflows.",
     performance: "Larger local models / 4K creation / GPU compute",
     answers: { workload: "Image generation", scale: "Heavy", budget: "$3,500+" },
-    selection: { cpuId: "ryzen-9-7900", gpuId: "rtx-5080", memoryId: "64gb", storageId: "4tb", motherboardId: "x870-wifi", psuId: "1000-platinum", caseId: "full", coolingId: "360-liquid", caseColorId: "black" },
+    selection: { cpuId: "ryzen-9-9950x3d", gpuId: "rtx-5080", memoryId: "128gb", storageId: "4tb", motherboardId: "x870-wifi", psuId: "1000-platinum", caseId: "full", coolingId: "360-liquid", caseColorId: "black" },
   },
   {
     id: "creator-core",
@@ -107,7 +107,7 @@ const definitions: PresetDefinition[] = [
     summary: "A responsive editing and design system for everyday creative production.",
     performance: "Photo / 1080p-4K editing / design apps",
     answers: { creativeWork: "Photo and design", resolution: "4K", budget: "$2,000–$3,500" },
-    selection: { cpuId: "ryzen-7-7700", gpuId: "rtx-5070", memoryId: "32gb", storageId: "2tb", motherboardId: "b650-wifi", psuId: "750-gold", caseId: "mid", coolingId: "tower-air", caseColorId: "white" },
+    selection: { cpuId: "ryzen-7-9700x", gpuId: "rtx-5070", memoryId: "32gb", storageId: "2tb", motherboardId: "b850-wifi", psuId: "750-gold", caseId: "mid", coolingId: "dual-tower-air", caseColorId: "white" },
   },
   {
     id: "creator-pro",
@@ -117,7 +117,7 @@ const definitions: PresetDefinition[] = [
     summary: "A higher-headroom creator system for 4K, 3D and demanding production tools.",
     performance: "4K-8K editing / 3D / motion graphics",
     answers: { creativeWork: "3D and motion", resolution: "8K", budget: "$3,500+" },
-    selection: { cpuId: "ryzen-9-7900", gpuId: "rtx-5080", memoryId: "64gb", storageId: "4tb", motherboardId: "x870-wifi", psuId: "1000-platinum", caseId: "full", coolingId: "360-liquid", caseColorId: "silver" },
+    selection: { cpuId: "ryzen-9-9900x", gpuId: "rtx-5080", memoryId: "64gb", storageId: "4tb", motherboardId: "x870-wifi", psuId: "1000-platinum", caseId: "full", coolingId: "360-liquid", caseColorId: "white" },
   },
   {
     id: "workstation-core",
@@ -127,7 +127,7 @@ const definitions: PresetDefinition[] = [
     summary: "A dependable professional desktop for demanding daily workloads.",
     performance: "Professional productivity / data / development",
     answers: { workload: "Development", reliability: "Maximum performance", budget: "$2,000–$3,000" },
-    selection: { cpuId: "ryzen-9-7900", gpuId: "rtx-5070", memoryId: "64gb", storageId: "2tb", motherboardId: "x870-wifi", psuId: "850-gold", caseId: "mid", coolingId: "240-liquid", caseColorId: "black" },
+    selection: { cpuId: "core-ultra-7-265k", gpuId: "rtx-5070", memoryId: "64gb", storageId: "2tb", motherboardId: "z890-wifi", psuId: "750-gold", caseId: "mid", coolingId: "240-liquid", caseColorId: "black" },
   },
   {
     id: "workstation-pro",
@@ -137,7 +137,7 @@ const definitions: PresetDefinition[] = [
     summary: "A high-capacity workstation for technical production and heavy computation.",
     performance: "Simulation / 3D / engineering / large datasets",
     answers: { workload: "Simulation", reliability: "Maximum performance", budget: "$3,000–$5,000" },
-    selection: { cpuId: "ryzen-9-7900", gpuId: "rtx-5080", memoryId: "128gb", storageId: "4tb", motherboardId: "x870e-wifi", psuId: "1000-platinum", caseId: "full", coolingId: "360-liquid", caseColorId: "black" },
+    selection: { cpuId: "ryzen-9-9950x3d", gpuId: "rtx-5080", memoryId: "128gb", storageId: "4tb", motherboardId: "x870e-wifi", psuId: "1000-platinum", caseId: "full", coolingId: "360-liquid", caseColorId: "black" },
   },
   {
     id: "team-core",
@@ -147,7 +147,7 @@ const definitions: PresetDefinition[] = [
     summary: "A reliable everyday system for teams that need repeatable deployment.",
     performance: "Business productivity / office workloads",
     answers: { use: "Office productivity", priority: "Standardised builds", budget: "$1,000–$1,500" },
-    selection: { cpuId: "ryzen-5-7600", gpuId: "integrated", memoryId: "16gb", storageId: "1tb", motherboardId: "b650m-no-wifi", psuId: "550-bronze", caseId: "compact", coolingId: "tower-air", caseColorId: "white" },
+    selection: { cpuId: "core-ultra-5-245k", gpuId: "integrated", memoryId: "16gb", storageId: "1tb", motherboardId: "b860-wifi", psuId: "650-bronze", caseId: "mid", coolingId: "tower-air", caseColorId: "no-preference" },
   },
   {
     id: "team-performance",
@@ -157,7 +157,7 @@ const definitions: PresetDefinition[] = [
     summary: "A stronger team system for data, production and specialist business software.",
     performance: "Data workflows / production teams / development",
     answers: { use: "Production", priority: "Performance", budget: "$1,500–$2,500" },
-    selection: { cpuId: "ryzen-7-7700", gpuId: "rtx-4060", memoryId: "32gb", storageId: "2tb", motherboardId: "b650-wifi", psuId: "650-silver", caseId: "mid", coolingId: "tower-air", caseColorId: "black" },
+    selection: { cpuId: "core-ultra-7-265k", gpuId: "rtx-5060", memoryId: "32gb", storageId: "2tb", motherboardId: "z890-wifi", psuId: "650-bronze", caseId: "mid", coolingId: "240-liquid", caseColorId: "black" },
   },
 ];
 
@@ -190,7 +190,8 @@ function buildPreset(definition: PresetDefinition): PresetBuild {
   if (!getCompatibleCooling(cpu, buildCase.id).some((option) => option.id === cooling.id)) {
     throw new Error(`Cooling is incompatible with CPU or case in preset build: ${definition.id}`);
   }
-  const price = estimateCorePrice({ cpuId: cpu.id, gpuId: gpu.id });
+  const price = estimateCorePrice({ cpuId: cpu.id, gpuId: gpu.id }) + memory.price + storage.price
+    + motherboard.price + psu.price + buildCase.price + cooling.price;
   const configuration: ConfiguratorQuoteRequest = {
     direction: definition.direction,
     answers: definition.answers,

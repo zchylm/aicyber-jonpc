@@ -3,7 +3,9 @@ package com.aicyber.backend.configurator.service;
 import com.aicyber.backend.configurator.dto.ConfiguratorBuildRequest;
 import com.aicyber.backend.configurator.dto.ConfiguratorBuildResponse;
 import com.aicyber.backend.configurator.dto.ConfiguratorQuoteResponse;
+import com.aicyber.backend.email.service.CustomerEmailService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 import java.util.UUID;
@@ -13,16 +15,20 @@ public class ConfiguratorRequestService {
 
     private final ConfiguratorQuoteService quoteService;
     private final BuildRequestStore requestStore;
+    private final CustomerEmailService customerEmails;
 
-    public ConfiguratorRequestService(ConfiguratorQuoteService quoteService, BuildRequestStore requestStore) {
+    public ConfiguratorRequestService(ConfiguratorQuoteService quoteService, BuildRequestStore requestStore,
+                                      CustomerEmailService customerEmails) {
         this.quoteService = quoteService;
         this.requestStore = requestStore;
+        this.customerEmails = customerEmails;
     }
 
     public ConfiguratorBuildResponse submit(ConfiguratorBuildRequest request) {
         return submit(request, null);
     }
 
+    @Transactional
     public ConfiguratorBuildResponse submit(ConfiguratorBuildRequest request, UUID userId) {
         validateContactDetails(request);
         ConfiguratorQuoteResponse quote = quoteService.quote(request.configuration());
@@ -34,7 +40,8 @@ public class ConfiguratorRequestService {
                 Math.min(3, request.configuration().direction().length())).toUpperCase(Locale.ROOT);
         String reference = "JON-" + directionCode
                 + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
-        requestStore.create(userId, request, quote, reference);
+        UUID requestId = requestStore.create(userId, request, quote, reference);
+        customerEmails.buildReceived(requestId, request, reference);
         return new ConfiguratorBuildResponse(reference, "RECEIVED", quote,
                 "Your configuration has been received. A JON. PC specialist will confirm availability and the final quote.");
     }

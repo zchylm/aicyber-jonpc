@@ -8,6 +8,7 @@ import SystemsSection from "../components/SystemsSection";
 import AuthPanel from "../components/AuthPanel";
 import QueueRewardsSection from "../components/QueueRewardsSection";
 import PaymentCheckout from "../components/PaymentCheckout";
+import SiteSupport from "../components/SiteSupport";
 import type { AuthUser } from "../api/auth";
 import { navigationItems } from "../data/site";
 import "./JonPcHeroPage.css";
@@ -16,7 +17,7 @@ function JonPcHeroPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   return (
-    <main className="site-shell">
+    <main className="site-shell" id="top">
       <div className="hero-grid" aria-hidden="true" />
       <div className="hero-glow hero-glow-left" aria-hidden="true" />
       <div className="hero-glow hero-glow-bottom" aria-hidden="true" />
@@ -55,21 +56,21 @@ function JonPcHeroPage() {
         </a>
       </header>
 
-      <section className="hero" id="top" aria-labelledby="hero-title">
+      <section className="hero" aria-labelledby="hero-title">
         <HeroVisual />
 
       </section>
 
       <QueueRewardsSection user={user} />
 
-      {import.meta.env.DEV && <PaymentCheckout user={user} />}
+      {import.meta.env.DEV && <PaymentCheckout user={user} onUserChange={setUser} />}
 
       <LogicStrip />
 
       <SystemsSection />
 
       <BuildConfigurator user={user} />
-      <span id="support" className="anchor-target" />
+      <SiteSupport user={user} />
       <AiAssistant />
     </main>
   );

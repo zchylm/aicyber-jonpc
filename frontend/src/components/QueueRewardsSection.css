@@ -8,9 +8,17 @@
 .reward-banner h2 em { color: var(--cyan); font-style: normal; }
 .reward-banner-copy > p { max-width: 570px; margin: 0; color: #b5c0bc; font-size: 16px; line-height: 1.6; }
 .reward-banner-actions { display: flex; flex-wrap: wrap; gap: 25px; align-items: center; margin-top: 31px; }
-.reward-banner-actions .button { min-height: 52px; }
+.reward-banner-actions .button { justify-content: space-between; min-width: 250px; min-height: 56px; font-size: 12px; }
 .reward-text-link { display: inline-flex; gap: 13px; align-items: center; min-height: 44px; padding: 0 0 3px; color: var(--cyan); background: transparent; border: 0; border-bottom: 1px solid var(--line); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
 .reward-text-link:hover, .reward-text-link:focus-visible { color: var(--lime); border-color: var(--lime); }
+.reward-explanation { display: grid; grid-template-columns: 185px minmax(0, 1fr) 220px; gap: 24px; margin-top: 18px; padding: 29px 31px; background: #0b1414; border: 1px solid rgba(143, 232, 226, .4); border-left: 3px solid var(--lime); }
+.reward-explanation h3 { margin: 14px 0 0; color: var(--ink); font-size: 27px; font-weight: 500; letter-spacing: -.04em; line-height: 1.1; }
+.reward-explanation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+.reward-explanation-grid p { margin: 0; color: #bac9c4; font-size: 13px; line-height: 1.55; }
+.reward-explanation-grid strong { display: block; margin-bottom: 6px; color: var(--cyan); font: 10px 'DM Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
+.reward-explanation-limit { padding: 19px; background: rgba(195, 239, 128, .055); border: 1px solid rgba(195, 239, 128, .3); }
+.reward-explanation-limit strong { color: var(--lime); font: 10px 'DM Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
+.reward-explanation-limit p { margin: 11px 0 0; color: #bac9c4; font-size: 12px; line-height: 1.55; }
 
 .reward-live { position: relative; z-index: 1; display: grid; align-content: center; padding: 44px 40px; background: rgba(2, 6, 7, .44); border-left: 1px solid var(--line); }
 .reward-live-heading { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 15px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .07em; line-height: 1.5; text-transform: uppercase; }
@@ -46,6 +54,7 @@
 .reward-rules article:last-child { border-right: 0; }
 .reward-rules span { color: var(--cyan); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .reward-rules h3 { margin: 16px 0 0; color: var(--ink); font-family: 'Manrope', Arial, sans-serif; font-size: 17px; font-weight: 500; letter-spacing: -.025em; line-height: 1.3; }
+.reward-rules small { display: block; margin-top: 8px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
 
 .reward-demo-tools { margin-top: 22px; background: rgba(8, 14, 15, .7); border: 1px solid var(--line); border-top-color: rgba(195, 239, 128, .55); }
 .reward-demo-tools summary { display: flex; justify-content: space-between; gap: 20px; align-items: center; min-height: 58px; padding: 0 20px; color: var(--lime); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; list-style: none; }
@@ -57,7 +66,7 @@
 .reward-demo-copy { display: grid; align-content: start; gap: 7px; }
 .reward-demo-copy strong { color: var(--ink); font-size: 15px; font-weight: 500; }
 .reward-demo-copy span { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.reward-demo-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.reward-demo-actions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .reward-demo-actions button { min-height: 48px; padding: 0 14px; color: var(--ink); background: transparent; border: 1px solid var(--line); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .04em; line-height: 1.4; text-transform: uppercase; cursor: pointer; }
 .reward-demo-actions button:first-child { color: #0b100c; background: var(--lime); border-color: var(--lime); }
 .reward-demo-actions button:hover:not(:disabled), .reward-demo-actions button:focus-visible:not(:disabled) { color: var(--cyan); border-color: var(--cyan); }
@@ -94,11 +103,16 @@
 .reward-order-amounts strong { display: block; margin-top: 7px; color: var(--ink); font-size: 16px; font-weight: 500; }
 .reward-order-amounts div:first-child strong { color: var(--cyan); }
 .reward-order-card .reward-progress { margin-top: 13px; }
+.reward-order-payout { margin-top: 12px; padding: 12px 14px; background: rgba(143, 232, 226, .05); border-left: 2px solid var(--cyan); }
+.reward-order-payout span { color: var(--cyan); font: 9px 'DM Mono', monospace; letter-spacing: .05em; text-transform: uppercase; }
+.reward-order-payout p { margin: 6px 0 0; color: #8d9b96; font-size: 11px; line-height: 1.5; }
 .reward-order-progress-label { display: block; margin-top: 9px; color: #82908c; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
 .reward-centre-empty { margin: 30px 0 0; padding: 25px 0; color: #c6d0cc; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 16px; line-height: 1.5; }
 .reward-centre-note { margin: 12px 0 0; padding-top: 17px; color: #74817d; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 980px) {
+  .reward-explanation { grid-template-columns: 170px minmax(0, 1fr); }
+  .reward-explanation-limit { grid-column: 2; }
   .reward-banner { grid-template-columns: 1fr; }
   .reward-banner-copy { min-height: 0; }
   .reward-live { border-top: 1px solid var(--line); border-left: 0; }
@@ -109,6 +123,7 @@
   .reward-rules article:nth-child(2) { border-right: 0; }
   .reward-rules article:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .reward-demo-body { grid-template-columns: 1fr; }
+  .reward-demo-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .reward-demo-message, .reward-demo-error { grid-column: 1; }
 }
 
@@ -119,6 +134,9 @@
   .reward-banner-copy > p { font-size: 14px; }
   .reward-banner-actions { align-items: stretch; }
   .reward-banner-actions .button, .reward-text-link { width: 100%; justify-content: space-between; }
+  .reward-explanation { grid-template-columns: 1fr; padding: 23px; }
+  .reward-explanation-grid { grid-template-columns: 1fr; }
+  .reward-explanation-limit { grid-column: 1; }
   .reward-live-metrics { grid-template-columns: repeat(2, 1fr); }
   .reward-live-metrics div:last-child { grid-column: 1 / -1; }
   .reward-position-heading, .reward-position-detail { align-items: flex-start; flex-direction: column; gap: 9px; }

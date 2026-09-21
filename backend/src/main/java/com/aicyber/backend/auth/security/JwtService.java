@@ -29,12 +29,13 @@ public class JwtService {
         this.expirationHours = expirationHours;
     }
 
-    public String createToken(UUID userId, String email, String role) {
+    public String createToken(UUID userId, String email, String role, int authVersion) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
                 .claim("role", role)
+                .claim("authVersion", authVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(expirationHours * 3600)))
                 .signWith(signingKey)

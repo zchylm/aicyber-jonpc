@@ -1,28 +1,10 @@
-.brand-lockup {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  color: #f4f7f5;
+.brand-lockup { display: inline-flex; align-items: center; line-height: 0; }
+.brand-logo { display: block; width: 172px; height: auto; filter: invert(1); mix-blend-mode: screen; }
+.brand-lockup-compact .brand-logo { width: 120px; }
+.company-footer-brand .brand-logo { width: 238px; }
+.admin-sidebar .brand-logo { width: 195px; }
+.admin-login-page .brand-logo, .admin-access-page .brand-logo { filter: none; mix-blend-mode: multiply; }
+
+@media (max-width: 620px) {
+  .site-nav .brand-logo { width: 126px; }
 }
-
-.brand-product {
-  font-size: 23px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  line-height: 1;
-}
-
-.brand-dot { color: #c3ef80; }
-
-.brand-company {
-  color: #8e9b98;
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.11em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.brand-lockup-compact .brand-product { font-size: 14px; }
-.brand-lockup-compact .brand-company { font-size: 8px; }

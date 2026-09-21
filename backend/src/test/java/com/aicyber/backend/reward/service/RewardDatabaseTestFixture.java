@@ -2,31 +2,24 @@ package com.aicyber.backend.reward.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
 final class RewardDatabaseTestFixture {
     private final JdbcTemplate jdbcTemplate;
-    private final UUID userId = UUID.randomUUID();
+    private final List<UUID> userIds = new ArrayList<>();
     private final UUID programId = UUID.randomUUID();
 
     RewardDatabaseTestFixture(JdbcTemplate jdbcTemplate, long nextQueueSequence) {
         this.jdbcTemplate = jdbcTemplate;
-        UUID policyId = UUID.randomUUID();
         jdbcTemplate.update(
-                "INSERT INTO users (id, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
-                userId, userId + "@example.com", "test-password-hash", "Committed Reward Test User"
-        );
-        jdbcTemplate.update(
-                "INSERT INTO reward_programs (id, code, name, next_queue_sequence) VALUES (?, ?, ?, ?)",
+                "INSERT INTO reward_programs (id, code, name, next_founder_sequence) VALUES (?, ?, ?, ?)",
                 programId, "TEST-" + programId, "Committed Test Reward Program", nextQueueSequence
         );
-        jdbcTemplate.update(
-                "INSERT INTO reward_policy_versions " +
-                        "(id, program_id, version, calculation_type, rate_basis_points, status, effective_from) " +
-                        "VALUES (?, ?, 1, 'ORDER_TOTAL_PERCENT', 2500, 'ACTIVE', ?)",
-                policyId, programId, OffsetDateTime.now().minusMinutes(1)
-        );
+        insertTier("LAUNCH", "Launch Founder", 1, 10, 1500, 50_000);
+        insertTier("EARLY", "Early Founder", 11, 25, 1200, 50_000);
+        insertTier("FOUNDER", "Founder", 26, 50, 1000, 50_000);
     }
 
     UUID programId() {
@@ -34,6 +27,12 @@ final class RewardDatabaseTestFixture {
     }
 
     UUID createOrder(long amountCents) {
+        UUID userId = UUID.randomUUID();
+        userIds.add(userId);
+        jdbcTemplate.update(
+                "INSERT INTO users (id, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
+                userId, userId + "@example.com", "test-password-hash", "Founder Test User"
+        );
         UUID orderId = UUID.randomUUID();
         jdbcTemplate.update(
                 "INSERT INTO sales_orders " +
@@ -44,14 +43,13 @@ final class RewardDatabaseTestFixture {
         return orderId;
     }
 
-    UUID createQueueEntry(UUID orderId, long sequence, long targetAmountCents) {
-        UUID entryId = UUID.randomUUID();
+    private void insertTier(String code, String name, int start, int end, int rate, long cap) {
         jdbcTemplate.update(
-                "INSERT INTO reward_queue_entries " +
-                        "(id, program_id, order_id, queue_sequence, target_amount_cents) VALUES (?, ?, ?, ?, ?)",
-                entryId, programId, orderId, sequence, targetAmountCents
+                "INSERT INTO reward_founder_tiers " +
+                        "(id, program_id, tier_code, display_name, position_start, position_end, rate_basis_points, cap_cents) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(), programId, code, name, start, end, rate, cap
         );
-        return entryId;
     }
 
     UUID createEvent(UUID orderId) {
@@ -66,6 +64,7 @@ final class RewardDatabaseTestFixture {
     }
 
     void cleanUp() {
+        jdbcTemplate.update("DELETE FROM reward_commitments WHERE program_id = ?", programId);
         jdbcTemplate.update(
                 "DELETE FROM reward_allocations WHERE contribution_id IN " +
                         "(SELECT id FROM reward_contributions WHERE program_id = ?) " +
@@ -77,8 +76,11 @@ final class RewardDatabaseTestFixture {
         jdbcTemplate.update("DELETE FROM reward_inbox_events WHERE program_id = ?", programId);
         jdbcTemplate.update("DELETE FROM reward_queue_entries WHERE program_id = ?", programId);
         jdbcTemplate.update("DELETE FROM reward_policy_versions WHERE program_id = ?", programId);
+        jdbcTemplate.update("DELETE FROM reward_founder_tiers WHERE program_id = ?", programId);
         jdbcTemplate.update("DELETE FROM reward_programs WHERE id = ?", programId);
-        jdbcTemplate.update("DELETE FROM sales_orders WHERE user_id = ?", userId);
-        jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
+        for (UUID userId : userIds) {
+            jdbcTemplate.update("DELETE FROM sales_orders WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
+        }
     }
 }

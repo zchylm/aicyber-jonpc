@@ -31,9 +31,19 @@ public class RewardDemoController {
         return execute(() -> demoService.qualifyLatestBuildRequest(userId(authentication)));
     }
 
-    @PostMapping("/simulate-order")
-    public RewardDemoResponse simulateOrder(Authentication authentication) {
-        return execute(() -> demoService.simulateIncomingOrder(userId(authentication)));
+    @PostMapping("/create-founder-order")
+    public RewardDemoResponse createFounderOrder(Authentication authentication) {
+        return execute(() -> demoService.createFounderOrder(userId(authentication)));
+    }
+
+    @PostMapping("/make-cashback-payable")
+    public RewardDemoResponse makeCashbackPayable(Authentication authentication) {
+        return execute(() -> demoService.makeLatestCashbackPayable(userId(authentication)));
+    }
+
+    @PostMapping("/mark-cashback-paid")
+    public RewardDemoResponse markCashbackPaid(Authentication authentication) {
+        return execute(() -> demoService.markLatestCashbackPaid(userId(authentication)));
     }
 
     @PostMapping("/reset")

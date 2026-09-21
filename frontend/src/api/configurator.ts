@@ -1,3 +1,5 @@
+import type { RewardEntry } from "./rewards";
+
 export type ConfiguratorQuoteRequest = {
   direction: string;
   answers: Record<string, string>;
@@ -115,7 +117,17 @@ export type OrderHistoryItem = {
   salesOrderId: string | null;
   orderReference: string | null;
   orderStatus: string | null;
+  paymentReference: string | null;
   paymentStatus: string | null;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  invoiceIssuedAt: string | null;
+  quoteId: string | null;
+  quoteStatus: string | null;
+  quoteTotalCents: number | null;
+  quoteValidUntil: string | null;
+  quoteNote: string | null;
+  reward: RewardEntry | null;
 };
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -239,4 +251,24 @@ export async function fetchOrderHistory(token: string): Promise<OrderHistoryItem
   const body = await response.json().catch(() => null) as { detail?: string; message?: string } | null;
   if (!response.ok) throw new Error(body?.detail ?? body?.message ?? `Order history failed with status ${response.status}`);
   return body as OrderHistoryItem[];
+}
+
+export async function cancelOrderRequest(token: string, requestId: string): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/orders/requests/${encodeURIComponent(requestId)}/cancel`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string; message?: string } | null;
+    throw new Error(body?.detail ?? body?.message ?? `Unable to cancel request (${response.status})`);
+  }
+}
+
+export async function acceptCustomQuote(token: string, quoteId: string): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/quotes/${quoteId}/accept`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string; message?: string } | null;
+    throw new Error(body?.detail ?? body?.message ?? `Unable to accept quote (${response.status})`);
+  }
 }

@@ -10,7 +10,10 @@ import com.aicyber.backend.auth.security.JwtService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -20,13 +23,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailVerificationService emailVerificationService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
+                       EmailVerificationService emailVerificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.emailVerificationService = emailVerificationService;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
         String email = normaliseEmail(request.email());
         String password = requirePassword(request.password());
@@ -35,7 +42,13 @@ public class AuthService {
             throw new IllegalArgumentException("An account with this email already exists");
         }
         try {
-            User user = userRepository.create(UUID.randomUUID(), email, passwordEncoder.encode(password), displayName);
+            OffsetDateTime verifiedAt = emailVerificationService.enabled() ? null : OffsetDateTime.now(ZoneOffset.UTC);
+            User user = userRepository.create(
+                    UUID.randomUUID(), email, passwordEncoder.encode(password), displayName, verifiedAt
+            );
+            if (emailVerificationService.enabled()) {
+                emailVerificationService.send(user.id());
+            }
             return responseFor(user);
         } catch (DuplicateKeyException exception) {
             throw new IllegalArgumentException("An account with this email already exists", exception);
@@ -60,11 +73,14 @@ public class AuthService {
     }
 
     private AuthResponse responseFor(User user) {
-        return new AuthResponse(jwtService.createToken(user.id(), user.email(), user.role()), userResponse(user));
+        return new AuthResponse(
+                jwtService.createToken(user.id(), user.email(), user.role(), user.authVersion()),
+                userResponse(user)
+        );
     }
 
     private UserResponse userResponse(User user) {
-        return new UserResponse(user.id(), user.email(), user.displayName(), user.role());
+        return new UserResponse(user.id(), user.email(), user.displayName(), user.role(), user.emailVerifiedAt() != null);
     }
 
     private String normaliseEmail(String email) {

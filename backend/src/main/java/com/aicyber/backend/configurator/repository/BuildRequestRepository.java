@@ -21,15 +21,17 @@ public class BuildRequestRepository implements BuildRequestStore {
     }
 
     @Override
-    public void create(UUID userId, ConfiguratorBuildRequest request, ConfiguratorQuoteResponse quote, String reference) {
+    public UUID create(UUID userId, ConfiguratorBuildRequest request, ConfiguratorQuoteResponse quote, String reference) {
+        UUID id = UUID.randomUUID();
         jdbcTemplate.update(
                 "INSERT INTO build_requests (id, user_id, request_reference, name, email, phone, location, notes, " +
                         "contact_requested, direction, estimated_price, recommended_baseline, selected_adjustments, " +
                         "configuration_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)",
-                UUID.randomUUID(), userId, reference, request.name().trim(), request.email().trim(), nullable(request.phone()),
+                id, userId, reference, request.name().trim(), request.email().trim(), nullable(request.phone()),
                 request.location().trim(), nullable(request.notes()), request.contact(), request.configuration().direction(),
                 quote.estimatedTotal(), quote.recommendedBaseline(), quote.selectedAdjustments(), toJson(request.configuration())
         );
+        return id;
     }
 
     private String nullable(String value) {

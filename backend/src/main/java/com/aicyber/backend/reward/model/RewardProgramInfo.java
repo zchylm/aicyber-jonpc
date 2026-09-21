@@ -8,6 +8,7 @@ public record RewardProgramInfo(
         String name,
         String currency,
         String status,
-        Integer rateBasisPoints
+        int maxPositions,
+        long maxLiabilityCents
 ) {
 }

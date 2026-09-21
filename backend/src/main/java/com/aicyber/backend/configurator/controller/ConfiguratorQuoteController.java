@@ -12,6 +12,7 @@ import com.aicyber.backend.configurator.service.ConfiguratorCompatibilityService
 import com.aicyber.backend.configurator.service.ConfiguratorRecommendationService;
 import com.aicyber.backend.configurator.service.ConfiguratorRequestService;
 import com.aicyber.backend.configurator.service.ConfiguratorQuoteService;
+import com.aicyber.backend.auth.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,12 +42,14 @@ public class ConfiguratorQuoteController {
     private final ConfiguratorRecommendationService recommendationService;
     private final ConfiguratorCompatibilityService compatibilityService;
     private final ConfiguratorRequestService requestService;
+    private final UserRepository users;
 
-    public ConfiguratorQuoteController(ConfiguratorQuoteService quoteService, ConfiguratorRecommendationService recommendationService, ConfiguratorCompatibilityService compatibilityService, ConfiguratorRequestService requestService) {
+    public ConfiguratorQuoteController(ConfiguratorQuoteService quoteService, ConfiguratorRecommendationService recommendationService, ConfiguratorCompatibilityService compatibilityService, ConfiguratorRequestService requestService, UserRepository users) {
         this.quoteService = quoteService;
         this.recommendationService = recommendationService;
         this.compatibilityService = compatibilityService;
         this.requestService = requestService;
+        this.users = users;
     }
 
     @PostMapping("/quote")
@@ -89,18 +92,16 @@ public class ConfiguratorQuoteController {
     @ResponseStatus(HttpStatus.OK)
     public ConfiguratorBuildResponse submitRequest(Authentication authentication, @RequestBody ConfiguratorBuildRequest request) {
         try {
-            return requestService.submit(request, optionalUserId(authentication));
+            if (request.configuration() != null && request.configuration().answers() != null
+                    && request.configuration().answers().containsKey("systemSku"))
+                throw new IllegalArgumentException("A custom build cannot be submitted as a preconfigured system");
+            UUID userId = UUID.fromString(authentication.getName());
+            var user = users.findById(userId).orElseThrow(() -> new IllegalArgumentException("Account not found"));
+            return requestService.submit(new ConfiguratorBuildRequest(user.displayName(), user.email(),
+                    request.phone(), "Online", request.notes(), request.contact(), request.configuration()), userId);
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
         }
     }
 
-    private UUID optionalUserId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) return null;
-        try {
-            return UUID.fromString(authentication.getName());
-        } catch (IllegalArgumentException exception) {
-            return null;
-        }
-    }
 }

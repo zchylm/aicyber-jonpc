@@ -1,5 +1,6 @@
 package com.aicyber.backend.reward.repository;
 
+import com.aicyber.backend.reward.dto.RewardCheckoutPreviewResponse;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 import com.aicyber.backend.reward.dto.RewardPublicSummaryResponse;
 import com.aicyber.backend.reward.model.RewardProgramInfo;
@@ -20,80 +21,96 @@ public class RewardQueryRepository {
 
     public Optional<RewardProgramInfo> findProgram(String code) {
         return jdbcTemplate.query(
-                "SELECT p.id, p.code, p.name, p.currency, p.status, v.rate_basis_points " +
-                        "FROM reward_programs p LEFT JOIN reward_policy_versions v " +
-                        "ON v.program_id = p.id AND v.status = 'ACTIVE' " +
-                        "WHERE p.code = ?",
+                "SELECT id, code, name, currency, status, max_positions, max_liability_cents " +
+                        "FROM reward_programs WHERE code = ?",
                 (resultSet, rowNumber) -> new RewardProgramInfo(
-                        resultSet.getObject("id", UUID.class),
-                        resultSet.getString("code"),
-                        resultSet.getString("name"),
-                        resultSet.getString("currency").trim(),
-                        resultSet.getString("status"),
-                        (Integer) resultSet.getObject("rate_basis_points")
-                ),
-                code
+                        resultSet.getObject("id", UUID.class), resultSet.getString("code"),
+                        resultSet.getString("name"), resultSet.getString("currency").trim(),
+                        resultSet.getString("status"), resultSet.getInt("max_positions"),
+                        resultSet.getLong("max_liability_cents")
+                ), code
         ).stream().findFirst();
     }
 
     public RewardPublicSummaryResponse loadSummary(RewardProgramInfo program) {
-        return jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FILTER (WHERE status = 'WAITING') AS waiting_count, " +
-                        "COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed_count, " +
-                        "COALESCE(SUM(allocated_amount_cents), 0) AS total_allocated_cents " +
-                        "FROM reward_queue_entries WHERE program_id = ?",
+        long confirmed = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM reward_commitments WHERE program_id = ? AND status <> 'VOID'",
+                Long.class, program.id());
+        long remaining = Math.max(0, program.maxPositions() - confirmed);
+        return jdbcTemplate.query(
+                "SELECT display_name, rate_basis_points, cap_cents, position_end - ? + 1 AS tier_remaining " +
+                        "FROM reward_founder_tiers WHERE program_id = ? AND ? BETWEEN position_start AND position_end",
                 (resultSet, rowNumber) -> new RewardPublicSummaryResponse(
-                        true,
-                        program.name(),
-                        program.status(),
-                        program.currency(),
-                        program.rateBasisPoints(),
-                        resultSet.getLong("waiting_count"),
-                        resultSet.getLong("completed_count"),
-                        resultSet.getLong("total_allocated_cents")
-                ),
-                program.id()
-        );
+                        true, program.name(), remaining == 0 ? "CLOSED" : program.status(), program.currency(),
+                        program.maxPositions(), confirmed, remaining, resultSet.getString("display_name"),
+                        resultSet.getInt("rate_basis_points"), resultSet.getLong("cap_cents"),
+                        resultSet.getLong("tier_remaining")
+                ), confirmed + 1, program.id(), confirmed + 1
+        ).stream().findFirst().orElseGet(() -> new RewardPublicSummaryResponse(
+                true, program.name(), "CLOSED", program.currency(), program.maxPositions(), confirmed, remaining,
+                null, null, null, 0
+        ));
+    }
+
+    public RewardCheckoutPreviewResponse checkoutPreview(RewardProgramInfo program, UUID userId, long purchaseAmountCents) {
+        long confirmed = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM reward_commitments WHERE program_id = ? AND status <> 'VOID'",
+                Long.class, program.id());
+        long remaining = Math.max(0, program.maxPositions() - confirmed);
+        if (!"ACTIVE".equals(program.status()) || remaining == 0) {
+            return RewardCheckoutPreviewResponse.unavailable("The Founder release is fully claimed.", remaining);
+        }
+        long existing = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM reward_commitments WHERE program_id = ? AND user_id = ? AND status <> 'VOID'",
+                Long.class, program.id(), userId);
+        if (existing > 0) {
+            return RewardCheckoutPreviewResponse.unavailable("One Founder reward is available per customer.", remaining);
+        }
+        long position = confirmed + 1;
+        return jdbcTemplate.query(
+                "SELECT display_name, rate_basis_points, cap_cents FROM reward_founder_tiers " +
+                        "WHERE program_id = ? AND ? BETWEEN position_start AND position_end",
+                (resultSet, rowNumber) -> {
+                    int rate = resultSet.getInt("rate_basis_points");
+                    long cap = resultSet.getLong("cap_cents");
+                    long eligibleSpend = purchaseAmountCents * 10 / 11;
+                    long cashback = Math.min(eligibleSpend * rate / 10_000, cap);
+                    return new RewardCheckoutPreviewResponse(
+                            true, null, resultSet.getString("display_name"), rate, cap, cashback,
+                            purchaseAmountCents - cashback, remaining
+                    );
+                }, program.id(), position
+        ).stream().findFirst().orElseGet(() ->
+                RewardCheckoutPreviewResponse.unavailable("The Founder release is fully claimed.", remaining));
     }
 
     public List<RewardEntryResponse> findEntries(UUID programId, UUID userId) {
-        return jdbcTemplate.query(
-                "SELECT q.id, s.order_reference, q.queue_sequence, q.target_amount_cents, " +
-                        "q.allocated_amount_cents, q.status, q.joined_at, q.completed_at, " +
-                        "CASE WHEN q.status = 'WAITING' THEN " +
-                        "(SELECT COUNT(*) + 1 FROM reward_queue_entries ahead " +
-                        "WHERE ahead.program_id = q.program_id AND ahead.status = 'WAITING' " +
-                        "AND ahead.queue_sequence < q.queue_sequence) END AS current_position, " +
-                        "latest.amount_cents AS latest_allocation_amount_cents, latest.created_at AS latest_allocation_at " +
-                        "FROM reward_queue_entries q JOIN sales_orders s ON s.id = q.order_id " +
-                        "LEFT JOIN LATERAL (SELECT a.amount_cents, a.created_at FROM reward_allocations a " +
-                        "WHERE a.recipient_queue_entry_id = q.id ORDER BY a.created_at DESC LIMIT 1) latest ON TRUE " +
-                        "WHERE q.program_id = ? AND s.user_id = ? ORDER BY q.joined_at DESC",
-                (resultSet, rowNumber) -> {
-                    long target = resultSet.getLong("target_amount_cents");
-                    long allocated = resultSet.getLong("allocated_amount_cents");
-                    return new RewardEntryResponse(
-                            resultSet.getObject("id", UUID.class),
-                            resultSet.getString("order_reference"),
-                            resultSet.getLong("queue_sequence"),
-                            (Long) resultSet.getObject("current_position"),
-                            target,
-                            allocated,
-                            target - allocated,
-                            percentage(allocated, target),
-                            resultSet.getString("status"),
-                            resultSet.getObject("joined_at", java.time.OffsetDateTime.class),
-                            resultSet.getObject("completed_at", java.time.OffsetDateTime.class),
-                            (Long) resultSet.getObject("latest_allocation_amount_cents"),
-                            resultSet.getObject("latest_allocation_at", java.time.OffsetDateTime.class)
-                    );
-                },
-                programId,
-                userId
-        );
-    }
-
-    private double percentage(long allocated, long target) {
-        return target == 0 ? 0 : Math.round(allocated * 10_000.0 / target) / 100.0;
+        return jdbcTemplate.query("""
+                SELECT c.id, s.order_reference, c.founder_sequence, t.display_name, c.rate_basis_points,
+                       c.cap_cents, c.purchase_amount_cents, c.cashback_amount_cents, c.status,
+                       c.locked_at, c.payable_at, c.payout_due_at, c.processing_at, c.paid_at,
+                       c.payout_method, c.payout_reference, c.payout_failure_reason
+                FROM reward_commitments c
+                JOIN reward_founder_tiers t ON t.id = c.tier_id
+                JOIN sales_orders s ON s.id = c.order_id
+                WHERE c.program_id = ? AND c.user_id = ? AND c.status <> 'VOID'
+                ORDER BY c.locked_at DESC
+                """, (resultSet, rowNumber) -> {
+            long purchase = resultSet.getLong("purchase_amount_cents");
+            long cashback = resultSet.getLong("cashback_amount_cents");
+            return new RewardEntryResponse(
+                    resultSet.getObject("id", UUID.class), resultSet.getString("order_reference"),
+                    resultSet.getLong("founder_sequence"), resultSet.getString("display_name"),
+                    resultSet.getInt("rate_basis_points"), resultSet.getLong("cap_cents"), purchase,
+                    cashback, purchase - cashback, resultSet.getString("status"),
+                    resultSet.getObject("locked_at", java.time.OffsetDateTime.class),
+                    resultSet.getObject("payable_at", java.time.OffsetDateTime.class),
+                    resultSet.getObject("payout_due_at", java.time.OffsetDateTime.class),
+                    resultSet.getObject("processing_at", java.time.OffsetDateTime.class),
+                    resultSet.getObject("paid_at", java.time.OffsetDateTime.class),
+                    resultSet.getString("payout_method"), resultSet.getString("payout_reference"),
+                    resultSet.getString("payout_failure_reason")
+            );
+        }, programId, userId);
     }
 }

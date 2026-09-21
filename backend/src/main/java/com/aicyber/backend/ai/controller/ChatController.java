@@ -32,7 +32,7 @@ public class ChatController {
     @ResponseStatus(HttpStatus.OK)
     public ChatResponse chat(@RequestBody ChatRequest request) {
         try {
-            return chatService.answer(request == null ? null : request.message());
+            return chatService.answer(request == null ? null : request.message(), request == null ? null : request.history());
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
         } catch (IllegalStateException exception) {

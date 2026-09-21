@@ -10,6 +10,8 @@ public record User(
         String displayName,
         String role,
         String status,
+        OffsetDateTime emailVerifiedAt,
+        int authVersion,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

@@ -21,15 +21,18 @@ public class SalesOrderRepository {
 
     public Optional<BuildRequestOrderSource> findLatestUnconvertedBuildRequest(UUID userId) {
         return jdbcTemplate.query(
-                "SELECT b.id, b.user_id, b.request_reference, b.estimated_price " +
+                "SELECT b.id, b.user_id, b.request_reference, " +
+                        "COALESCE(q.total_cents, b.estimated_price * 100::bigint) AS price_cents " +
                         "FROM build_requests b LEFT JOIN sales_orders s ON s.build_request_id = b.id " +
+                        "LEFT JOIN custom_build_quotes q ON q.build_request_id = b.id AND q.status = 'ACCEPTED' " +
                         "WHERE b.user_id = ? AND b.status <> 'CANCELLED' AND s.id IS NULL " +
+                        "AND (b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL OR q.id IS NOT NULL) " +
                         "ORDER BY b.created_at DESC LIMIT 1",
                 (resultSet, rowNumber) -> new BuildRequestOrderSource(
                         resultSet.getObject("id", UUID.class),
                         resultSet.getObject("user_id", UUID.class),
                         resultSet.getString("request_reference"),
-                        Math.multiplyExact(resultSet.getLong("estimated_price"), 100L)
+                        resultSet.getLong("price_cents")
                 ),
                 userId
         ).stream().findFirst();
@@ -37,13 +40,17 @@ public class SalesOrderRepository {
 
     public Optional<BuildRequestOrderSource> findBuildRequest(UUID userId, String requestReference) {
         return jdbcTemplate.query(
-                "SELECT id, user_id, request_reference, estimated_price FROM build_requests " +
-                        "WHERE user_id = ? AND request_reference = ? AND status <> 'CANCELLED'",
+                "SELECT b.id, b.user_id, b.request_reference, " +
+                        "COALESCE(q.total_cents, b.estimated_price * 100::bigint) AS price_cents " +
+                        "FROM build_requests b " +
+                        "LEFT JOIN custom_build_quotes q ON q.build_request_id = b.id AND q.status = 'ACCEPTED' " +
+                        "WHERE b.user_id = ? AND b.request_reference = ? AND b.status <> 'CANCELLED' " +
+                        "AND (b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL OR q.id IS NOT NULL)",
                 (resultSet, rowNumber) -> new BuildRequestOrderSource(
                         resultSet.getObject("id", UUID.class),
                         resultSet.getObject("user_id", UUID.class),
                         resultSet.getString("request_reference"),
-                        Math.multiplyExact(resultSet.getLong("estimated_price"), 100L)
+                        resultSet.getLong("price_cents")
                 ),
                 userId,
                 requestReference
@@ -63,7 +70,15 @@ public class SalesOrderRepository {
                 orderReference,
                 source.estimatedPriceCents()
         );
-        return findByBuildRequestId(source.id()).orElseThrow();
+        SalesOrder order = findByBuildRequestId(source.id()).orElseThrow();
+        jdbcTemplate.update("""
+                INSERT INTO sales_order_delivery
+                    (sales_order_id, recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country)
+                SELECT ?, recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country
+                FROM build_delivery_details WHERE build_request_id = ?
+                ON CONFLICT (sales_order_id) DO NOTHING
+                """, order.id(), source.id());
+        return order;
     }
 
     public SalesOrder createDirect(UUID userId, long amountCents, String orderReference) {

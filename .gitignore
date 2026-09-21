@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Local generated previews and temporary exports
+/output/
+/tmp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

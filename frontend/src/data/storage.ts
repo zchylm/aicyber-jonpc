@@ -9,10 +9,9 @@ export type StorageOption = {
 };
 
 export const storageOptions: StorageOption[] = [
-  { id: "512gb", label: "512GB Gen4 NVMe", detail: "A focused drive for office apps, light gaming and everyday files", price: -160, recommendedFor: "Essential capacity" },
-  { id: "1tb", label: "1TB Gen4 NVMe", detail: "Fast everyday storage for apps, games and active projects", price: -90, recommendedFor: "Focused starting point" },
-  { id: "2tb", label: "2TB Gen4 NVMe", detail: "More space for modern games, media libraries and project files", price: 0, recommendedFor: "Recommended balance" },
-  { id: "4tb", label: "4TB Gen4 NVMe", detail: "Large capacity for datasets, footage and specialist workflows", price: 160, recommendedFor: "More working room" },
+  { id: "1tb", label: "1TB Gen4 NVMe", detail: "Fast everyday storage for apps, games and active projects", price: 100, recommendedFor: "Focused starting point" },
+  { id: "2tb", label: "2TB Gen4 NVMe", detail: "More space for modern games, media libraries and project files", price: 200, recommendedFor: "Recommended balance" },
+  { id: "4tb", label: "4TB Gen4 NVMe", detail: "Large capacity for datasets, footage and specialist workflows", price: 400, recommendedFor: "More working room" },
 ];
 
 export function recommendStorage(direction: DirectionId, answers: Record<string, string>) {

@@ -34,10 +34,24 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/me").authenticated()
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/email-verification/confirm",
+                                "/api/auth/password-reset/request",
+                                "/api/auth/password-reset/confirm",
+                                "/api/email/webhooks/resend"
+                        ).permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/auth/me", "/api/auth/email-verification/send").authenticated()
                         .requestMatchers("/api/builds/**").authenticated()
                         .requestMatchers("/api/orders").authenticated()
+                        .requestMatchers("/api/orders/requests/**").authenticated()
+                        .requestMatchers("/api/orders/delivery/**").authenticated()
+                        .requestMatchers("/api/configurator/requests").authenticated()
+                        .requestMatchers("/api/quotes/**").authenticated()
+                        .requestMatchers("/api/systems/local-requests").authenticated()
+                        .requestMatchers("/api/invoices/**").authenticated()
                         .requestMatchers("/api/payments/**").authenticated()
                         .requestMatchers("/api/rewards/me").authenticated()
                         .requestMatchers("/api/rewards/demo/**").authenticated()

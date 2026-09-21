@@ -1,5 +1,6 @@
 package com.aicyber.backend.auth.security;
 
+import com.aicyber.backend.auth.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,9 +20,11 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -32,9 +35,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtService.parse(header.substring(7));
                 UUID userId = UUID.fromString(claims.getSubject());
-                String role = claims.get("role", String.class);
+                Integer tokenAuthVersion = claims.get("authVersion", Integer.class);
+                int expectedAuthVersion = tokenAuthVersion == null ? 1 : tokenAuthVersion;
+                var user = userRepository.findById(userId)
+                        .filter(account -> "ACTIVE".equals(account.status()))
+                        .filter(account -> account.authVersion() == expectedAuthVersion)
+                        .orElseThrow(() -> new IllegalArgumentException("Authentication token is no longer valid"));
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        userId.toString(), null, List.of(new SimpleGrantedAuthority("ROLE_" + role)
+                        userId.toString(), null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role())
                 ));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (RuntimeException ignored) {

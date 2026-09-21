@@ -5,12 +5,15 @@ public record RewardPublicSummaryResponse(
         String programName,
         String programStatus,
         String currency,
-        Integer contributionRateBasisPoints,
-        long waitingCount,
-        long completedCount,
-        long totalAllocatedCents
+        int maxPositions,
+        long confirmedCount,
+        long remainingPositions,
+        String currentTierName,
+        Integer currentRateBasisPoints,
+        Long currentCapCents,
+        long currentTierRemaining
 ) {
     public static RewardPublicSummaryResponse unavailable() {
-        return new RewardPublicSummaryResponse(false, null, null, "AUD", null, 0, 0, 0);
+        return new RewardPublicSummaryResponse(false, null, null, "AUD", 0, 0, 0, null, null, null, 0);
     }
 }

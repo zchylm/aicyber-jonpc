@@ -12,13 +12,13 @@ class ConfiguratorCatalogTest {
     void exposesEveryConfiguratorCategoryAndStableBaseline() {
         ConfiguratorCatalogResponse catalog = ConfiguratorCatalog.response();
 
-        assertEquals(899, catalog.systemBasePrice());
-        assertEquals(6, catalog.options().get("cpu").size());
-        assertEquals(6, catalog.options().get("gpu").size());
+        assertEquals(650, catalog.systemBasePrice());
+        assertEquals(8, catalog.options().get("cpu").size());
+        assertEquals(7, catalog.options().get("gpu").size());
         assertEquals(4, catalog.options().get("memory").size());
-        assertEquals(4, catalog.options().get("storage").size());
-        assertEquals(8, catalog.options().get("motherboard").size());
-        assertEquals(8, catalog.options().get("psu").size());
+        assertEquals(3, catalog.options().get("storage").size());
+        assertEquals(6, catalog.options().get("motherboard").size());
+        assertEquals(4, catalog.options().get("psu").size());
         assertEquals(3, catalog.options().get("case").size());
         assertEquals(4, catalog.options().get("cooling").size());
     }
@@ -28,7 +28,7 @@ class ConfiguratorCatalogTest {
         ConfiguratorCatalogResponse catalog = ConfiguratorCatalog.response();
 
         var noWifiBoard = catalog.options().get("motherboard").stream()
-                .filter(option -> option.id().equals("b650m-no-wifi"))
+                .filter(option -> option.id().equals("b850m-wifi"))
                 .findFirst()
                 .orElseThrow();
         var highPowerPsu = catalog.options().get("psu").stream()
@@ -40,7 +40,7 @@ class ConfiguratorCatalogTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals(false, noWifiBoard.wifi());
+        assertEquals(true, noWifiBoard.wifi());
         assertEquals(850, highPowerPsu.wattage());
         assertTrue(cooling.supportedCases().contains("full"));
         assertTrue(catalog.options().values().stream().flatMap(java.util.Collection::stream)

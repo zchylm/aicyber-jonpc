@@ -9,6 +9,8 @@ import java.util.List;
 @Service
 public class ConfiguratorQuoteService {
 
+    private final ConfiguratorCompatibilityService compatibilityService = new ConfiguratorCompatibilityService();
+
     public ConfiguratorQuoteResponse quote(ConfiguratorQuoteRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Quote request must not be null");
@@ -34,21 +36,20 @@ public class ConfiguratorQuoteService {
 
         int recommendedCpuPrice = ConfiguratorCatalog.CPU_PRICES.get(request.recommendedCpuId());
         int recommendedGpuPrice = ConfiguratorCatalog.GPU_PRICES.get(request.recommendedGpuId());
-        int recommendedMemoryPrice = ConfiguratorCatalog.MEMORY_PRICES.get(request.recommendedMemoryId());
-        int recommendedStoragePrice = ConfiguratorCatalog.STORAGE_PRICES.get(request.recommendedStorageId());
-        int recommendedMotherboardPrice = ConfiguratorCatalog.MOTHERBOARD_PRICES.get(request.recommendedMotherboardId());
-        int recommendedPsuPrice = ConfiguratorCatalog.PSU_PRICES.get(request.recommendedPsuId());
-        int recommendedCasePrice = ConfiguratorCatalog.CASE_PRICES.get(request.recommendedCaseId());
-        int recommendedCoolingPrice = ConfiguratorCatalog.COOLING_PRICES.get(request.recommendedCoolingId());
-
-        int baseline = ConfiguratorCatalog.SYSTEM_BASE_PRICE + recommendedCpuPrice + recommendedGpuPrice;
+        int baseline = ConfiguratorCatalog.SYSTEM_BASE_PRICE + recommendedCpuPrice + recommendedGpuPrice
+                + ConfiguratorCatalog.MEMORY_PRICES.get(request.recommendedMemoryId())
+                + ConfiguratorCatalog.STORAGE_PRICES.get(request.recommendedStorageId())
+                + ConfiguratorCatalog.MOTHERBOARD_PRICES.get(request.recommendedMotherboardId())
+                + ConfiguratorCatalog.PSU_PRICES.get(request.recommendedPsuId())
+                + ConfiguratorCatalog.CASE_PRICES.get(request.recommendedCaseId())
+                + ConfiguratorCatalog.COOLING_PRICES.get(request.recommendedCoolingId());
         int selectedTotal = ConfiguratorCatalog.SYSTEM_BASE_PRICE + ConfiguratorCatalog.CPU_PRICES.get(request.cpuId()) + ConfiguratorCatalog.GPU_PRICES.get(request.gpuId())
-                + (ConfiguratorCatalog.MEMORY_PRICES.get(request.memoryId()) - recommendedMemoryPrice)
-                + (ConfiguratorCatalog.STORAGE_PRICES.get(request.storageId()) - recommendedStoragePrice)
-                + (ConfiguratorCatalog.MOTHERBOARD_PRICES.get(request.motherboardId()) - recommendedMotherboardPrice)
-                + (ConfiguratorCatalog.PSU_PRICES.get(request.psuId()) - recommendedPsuPrice)
-                + (ConfiguratorCatalog.CASE_PRICES.get(request.caseId()) - recommendedCasePrice)
-                + (ConfiguratorCatalog.COOLING_PRICES.get(request.coolingId()) - recommendedCoolingPrice);
+                + ConfiguratorCatalog.MEMORY_PRICES.get(request.memoryId())
+                + ConfiguratorCatalog.STORAGE_PRICES.get(request.storageId())
+                + ConfiguratorCatalog.MOTHERBOARD_PRICES.get(request.motherboardId())
+                + ConfiguratorCatalog.PSU_PRICES.get(request.psuId())
+                + ConfiguratorCatalog.CASE_PRICES.get(request.caseId())
+                + ConfiguratorCatalog.COOLING_PRICES.get(request.coolingId());
         int adjustments = selectedTotal - baseline;
 
         List<String> validation = validate(request);
@@ -58,34 +59,11 @@ public class ConfiguratorQuoteService {
     }
 
     private List<String> validate(ConfiguratorQuoteRequest request) {
-        String cpuPlatform = request.cpuId().startsWith("core-") ? "LGA1700" : "AM5";
-        boolean intelBoard = request.motherboardId().startsWith("b760") || request.motherboardId().startsWith("z790");
-        boolean motherboardMatches = ("LGA1700".equals(cpuPlatform) && intelBoard)
-                || ("AM5".equals(cpuPlatform) && !intelBoard);
-        int minimumPsu = switch (request.gpuId()) {
-            case "rtx-5080" -> 850;
-            case "rtx-5070", "rx-7800-xt" -> 750;
-            case "rtx-4060", "arc-b580" -> 550;
-            default -> 450;
-        };
-        int psuWattage = psuWattage(request.psuId());
-        boolean compactCase = "compact".equals(request.caseId());
-        boolean microAtxBoard = "b650m-no-wifi".equals(request.motherboardId());
-        boolean caseMatches = !compactCase || microAtxBoard;
-        boolean coolingMatches = switch (request.coolingId()) {
-            case "tower-air" -> !highHeatCpu(request.cpuId()) && !"full".equals(request.caseId());
-            case "dual-tower-air", "240-liquid" -> !"compact".equals(request.caseId());
-            case "360-liquid" -> "full".equals(request.caseId());
-            default -> false;
-        };
-
-        return java.util.stream.Stream.of(
-                        motherboardMatches ? null : "Selected motherboard does not match the CPU platform.",
-                        psuWattage >= minimumPsu ? null : "Selected PSU wattage is below the GPU power requirement.",
-                        caseMatches ? null : "Compact case requires the Micro-ATX motherboard option.",
-                        coolingMatches ? null : "Selected cooling option is not supported by the CPU and case combination."
-                )
-                .filter(java.util.Objects::nonNull)
+        List<String> compatibility = compatibilityService.compatibleOptions(new com.aicyber.backend.configurator.dto.ConfiguratorCompatibilityRequest(
+                request.cpuId(), request.gpuId(), request.motherboardId(), request.psuId(), request.caseId(), request.coolingId()
+        )).validation();
+        if (List.of("black", "white", "no-preference").contains(request.caseColorId())) return compatibility;
+        return java.util.stream.Stream.concat(compatibility.stream(), java.util.stream.Stream.of("Selected case finish is not available."))
                 .toList();
     }
 
@@ -115,9 +93,6 @@ public class ConfiguratorQuoteService {
         }
         return new int[]{0, Integer.MAX_VALUE};
     }
-
-    private int psuWattage(String id) { return Integer.parseInt(id.substring(0, id.indexOf('-'))); }
-    private boolean highHeatCpu(String id) { return "ryzen-9-7900".equals(id) || "core-i7-14700k".equals(id); }
 
     private void requireKnown(String id, java.util.Map<String, Integer> options, String label) {
         if (id == null || !options.containsKey(id)) throw new IllegalArgumentException("Unknown " + label + " option");

@@ -1,5 +1,6 @@
 package com.aicyber.backend.reward.service;
 
+import com.aicyber.backend.reward.dto.RewardCheckoutPreviewResponse;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 import com.aicyber.backend.reward.dto.RewardMeResponse;
 import com.aicyber.backend.reward.dto.RewardPublicSummaryResponse;
@@ -13,7 +14,7 @@ import java.util.UUID;
 
 @Service
 public class RewardQueryService {
-    public static final String PROGRAM_CODE = "JON_QUEUE_REWARDS";
+    public static final String PROGRAM_CODE = "JON_FOUNDERS_CASHBACK";
 
     private final RewardQueryRepository repository;
 
@@ -37,5 +38,14 @@ public class RewardQueryService {
         List<RewardEntryResponse> entries = repository.findEntries(activeProgram.id(), userId);
         String state = entries.isEmpty() ? "NO_ENTRY" : "ACTIVE";
         return new RewardMeResponse(state, activeProgram.status(), activeProgram.currency(), entries);
+    }
+
+    public RewardCheckoutPreviewResponse checkoutPreview(UUID userId, long purchaseAmountCents) {
+        if (purchaseAmountCents <= 0) {
+            return RewardCheckoutPreviewResponse.unavailable("This order is not eligible for Founder cashback.", 0);
+        }
+        return repository.findProgram(PROGRAM_CODE)
+                .map(program -> repository.checkoutPreview(program, userId, purchaseAmountCents))
+                .orElseGet(() -> RewardCheckoutPreviewResponse.unavailable("The Founder release is unavailable.", 0));
     }
 }

@@ -72,7 +72,7 @@ class SalesOrderServiceIntegrationTest {
                 "INSERT INTO build_requests " +
                         "(id, user_id, request_reference, name, email, location, direction, estimated_price, " +
                         "recommended_baseline, configuration_snapshot) " +
-                        "VALUES (?, ?, ?, 'Test User', ?, 'Melbourne', 'gaming', ?, ?, '{}'::jsonb)",
+                        "VALUES (?, ?, ?, 'Test User', ?, 'Melbourne', 'gaming', ?, ?, '{\"answers\":{\"systemSku\":\"TEST-DEMO\"}}'::jsonb)",
                 requestId,
                 userId,
                 "REQ-" + requestId,

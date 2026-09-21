@@ -28,7 +28,7 @@ public class RewardDemoRepository {
         UUID proposedProgramId = UUID.randomUUID();
         jdbcTemplate.update(
                 "INSERT INTO reward_programs (id, code, name, currency, status) " +
-                        "VALUES (?, ?, 'JON. Queue Rewards', 'AUD', 'ACTIVE') " +
+                        "VALUES (?, ?, 'JON. PC Founders Cashback', 'AUD', 'ACTIVE') " +
                         "ON CONFLICT (code) DO NOTHING",
                 proposedProgramId,
                 RewardQueryService.PROGRAM_CODE
@@ -39,17 +39,26 @@ public class RewardDemoRepository {
                 RewardQueryService.PROGRAM_CODE
         );
         jdbcTemplate.update(
-                "INSERT INTO reward_policy_versions " +
-                        "(id, program_id, version, calculation_type, rate_basis_points, status, effective_from) " +
-                        "SELECT ?, ?, 1, 'ORDER_TOTAL_PERCENT', 2500, 'ACTIVE', ? " +
-                        "WHERE NOT EXISTS (SELECT 1 FROM reward_policy_versions " +
-                        "WHERE program_id = ? AND status = 'ACTIVE')",
-                UUID.randomUUID(),
-                programId,
-                OffsetDateTime.now().minusMinutes(1),
+                "UPDATE reward_programs SET max_positions = 50, max_liability_cents = 2500000, " +
+                        "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 programId
         );
+        insertTier(programId, "LAUNCH", "Launch Founder", 1, 10, 1500, 50_000);
+        insertTier(programId, "EARLY", "Early Founder", 11, 25, 1200, 50_000);
+        insertTier(programId, "FOUNDER", "Founder", 26, 50, 1000, 50_000);
         return programId;
+    }
+
+    private void insertTier(UUID programId, String code, String name, int start, int end, int rate, long cap) {
+        jdbcTemplate.update(
+                "INSERT INTO reward_founder_tiers " +
+                        "(id, program_id, tier_code, display_name, position_start, position_end, rate_basis_points, cap_cents) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (program_id, tier_code) DO UPDATE SET " +
+                        "display_name = EXCLUDED.display_name, position_start = EXCLUDED.position_start, " +
+                        "position_end = EXCLUDED.position_end, rate_basis_points = EXCLUDED.rate_basis_points, " +
+                        "cap_cents = EXCLUDED.cap_cents",
+                UUID.randomUUID(), programId, code, name, start, end, rate, cap
+        );
     }
 
     public UUID createSyntheticCustomer() {
@@ -64,18 +73,53 @@ public class RewardDemoRepository {
         return userId;
     }
 
+    public UUID latestCommitment(UUID userId, String status) {
+        return jdbcTemplate.query(
+                "SELECT id FROM reward_commitments WHERE user_id = ? AND status = ? " +
+                        "ORDER BY locked_at DESC LIMIT 1",
+                (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class), userId, status
+        ).stream().findFirst().orElseThrow(() ->
+                new IllegalStateException("No " + status.toLowerCase() + " Founder cashback was found for this account"));
+    }
+
+    public void markPayable(UUID commitmentId, OffsetDateTime payoutDueAt) {
+        int updated = jdbcTemplate.update("""
+                UPDATE reward_commitments
+                SET status = 'PAYABLE', payable_at = CURRENT_TIMESTAMP, payout_due_at = ?,
+                    payout_failure_reason = NULL
+                WHERE id = ? AND status = 'LOCKED'
+                """, payoutDueAt, commitmentId);
+        if (updated != 1) throw new IllegalStateException("Founder cashback could not be made payable");
+    }
+
+    public void markPaid(UUID commitmentId, String payoutReference) {
+        int updated = jdbcTemplate.update("""
+                UPDATE reward_commitments
+                SET status = 'PAID', processing_at = COALESCE(processing_at, CURRENT_TIMESTAMP),
+                    paid_at = CURRENT_TIMESTAMP, payout_reference = ?, payout_failure_reason = NULL
+                WHERE id = ? AND status IN ('PAYABLE', 'PROCESSING', 'FAILED')
+                """, payoutReference, commitmentId);
+        if (updated != 1) throw new IllegalStateException("Founder cashback is not ready to be paid");
+    }
+
     @Transactional
-    public int resetProgramData(UUID programId) {
+    public int resetProgramData(UUID programId, UUID currentUserId) {
         requireLocalDatabase();
         List<UUID> orderIds = jdbcTemplate.queryForList(
-                "SELECT order_id FROM reward_queue_entries WHERE program_id = ? " +
+                "SELECT id FROM sales_orders WHERE user_id = ? " +
+                        "UNION SELECT order_id FROM reward_commitments WHERE program_id = ? " +
+                        "UNION SELECT order_id FROM reward_queue_entries WHERE program_id = ? " +
                         "UNION SELECT order_id FROM reward_inbox_events WHERE program_id = ? " +
                         "UNION SELECT source_order_id FROM reward_contributions WHERE program_id = ?",
                 UUID.class,
+                currentUserId,
+                programId,
                 programId,
                 programId,
                 programId
         );
+
+        jdbcTemplate.update("DELETE FROM reward_commitments WHERE program_id = ?", programId);
 
         jdbcTemplate.update(
                 "DELETE FROM reward_allocations WHERE contribution_id IN " +
@@ -89,11 +133,38 @@ public class RewardDemoRepository {
         jdbcTemplate.update("DELETE FROM reward_inbox_events WHERE program_id = ?", programId);
         jdbcTemplate.update("DELETE FROM reward_queue_entries WHERE program_id = ?", programId);
         jdbcTemplate.update(
-                "UPDATE reward_programs SET next_queue_sequence = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                "UPDATE reward_programs SET next_founder_sequence = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 programId
         );
 
         if (!orderIds.isEmpty()) {
+            jdbcTemplate.batchUpdate(
+                    "DELETE FROM admin_audit_events WHERE entity_type = 'SALES_INVOICE' AND entity_id IN " +
+                            "(SELECT id FROM sales_invoices WHERE sales_order_id = ?)",
+                    orderIds,
+                    orderIds.size(),
+                    (statement, orderId) -> statement.setObject(1, orderId)
+            );
+            jdbcTemplate.batchUpdate(
+                    "DELETE FROM invoice_delivery_attempts WHERE invoice_id IN " +
+                            "(SELECT id FROM sales_invoices WHERE sales_order_id = ?)",
+                    orderIds,
+                    orderIds.size(),
+                    (statement, orderId) -> statement.setObject(1, orderId)
+            );
+            jdbcTemplate.batchUpdate(
+                    "DELETE FROM sales_invoice_lines WHERE invoice_id IN " +
+                            "(SELECT id FROM sales_invoices WHERE sales_order_id = ?)",
+                    orderIds,
+                    orderIds.size(),
+                    (statement, orderId) -> statement.setObject(1, orderId)
+            );
+            jdbcTemplate.batchUpdate(
+                    "DELETE FROM sales_invoices WHERE sales_order_id = ?",
+                    orderIds,
+                    orderIds.size(),
+                    (statement, orderId) -> statement.setObject(1, orderId)
+            );
             jdbcTemplate.batchUpdate(
                     "DELETE FROM payments WHERE order_id = ?",
                     orderIds,
@@ -107,12 +178,38 @@ public class RewardDemoRepository {
                     (statement, orderId) -> statement.setObject(1, orderId)
             );
         }
+        jdbcTemplate.update("""
+                DELETE FROM custom_build_quotes WHERE build_request_id IN
+                    (SELECT id FROM build_requests WHERE user_id = ?)
+                """, currentUserId);
+        jdbcTemplate.update("DELETE FROM build_requests WHERE user_id = ?", currentUserId);
         jdbcTemplate.update(
                 "DELETE FROM users u WHERE u.email LIKE 'reward-demo-%@jonpc.local' " +
                         "AND NOT EXISTS (SELECT 1 FROM sales_orders s WHERE s.user_id = u.id) " +
                         "AND NOT EXISTS (SELECT 1 FROM saved_builds b WHERE b.user_id = u.id) " +
                         "AND NOT EXISTS (SELECT 1 FROM build_requests r WHERE r.user_id = u.id)"
         );
+        jdbcTemplate.update("""
+                UPDATE system_builds SET planned_preorder_quantity = CASE code
+                    WHEN 'JON-STK-5060' THEN 8 WHEN 'JON-STK-5060TI' THEN 8
+                    WHEN 'JON-STM-5070' THEN 2 WHEN 'JON-STM-5070TI' THEN 2
+                    END, updated_at = CURRENT_TIMESTAMP
+                WHERE code IN ('JON-STK-5060', 'JON-STK-5060TI', 'JON-STM-5070', 'JON-STM-5070TI')
+                """);
+        jdbcTemplate.update("""
+                DELETE FROM system_inventory_movements m USING system_builds s
+                WHERE s.id = m.system_build_id
+                  AND s.code IN ('JON-STK-5060', 'JON-STK-5060TI', 'JON-STM-5070', 'JON-STM-5070TI')
+                """);
+        jdbcTemplate.update("""
+                UPDATE system_inventory_balances b SET on_hand_quantity = CASE s.code
+                    WHEN 'JON-STK-5060' THEN 8 WHEN 'JON-STK-5060TI' THEN 8
+                    WHEN 'JON-STM-5070' THEN 2 WHEN 'JON-STM-5070TI' THEN 2
+                    ELSE b.on_hand_quantity END,
+                    version = version + 1, updated_at = CURRENT_TIMESTAMP
+                FROM system_builds s WHERE s.id = b.system_build_id
+                  AND s.code IN ('JON-STK-5060', 'JON-STK-5060TI', 'JON-STM-5070', 'JON-STM-5070TI')
+                """);
         return orderIds.size();
     }
 

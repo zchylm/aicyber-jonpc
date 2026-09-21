@@ -6,6 +6,8 @@ public record RewardProgramState(
         UUID id,
         String currency,
         String status,
-        long nextQueueSequence
+        long nextQueueSequence,
+        int maxPositions,
+        long maxLiabilityCents
 ) {
 }

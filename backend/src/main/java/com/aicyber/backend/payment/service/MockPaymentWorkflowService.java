@@ -1,11 +1,15 @@
 package com.aicyber.backend.payment.service;
 
+import com.aicyber.backend.invoice.model.SalesInvoice;
+import com.aicyber.backend.invoice.service.InvoiceDeliveryService;
+import com.aicyber.backend.invoice.service.InvoiceService;
 import com.aicyber.backend.payment.dto.MockPaymentResponse;
 import com.aicyber.backend.payment.model.Payment;
 import com.aicyber.backend.payment.model.PaymentSettlement;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
+import com.aicyber.backend.reward.dto.RewardCheckoutPreviewResponse;
 import com.aicyber.backend.reward.dto.RewardMeResponse;
-import com.aicyber.backend.reward.service.RewardEventProcessor;
+import com.aicyber.backend.reward.repository.RewardDemoRepository;
 import com.aicyber.backend.reward.service.RewardQueryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,33 +27,41 @@ public class MockPaymentWorkflowService {
 
     private final PaymentService paymentService;
     private final MockPaymentSettlementService settlementService;
-    private final RewardEventProcessor rewardEventProcessor;
     private final RewardQueryService rewardQueryService;
+    private final RewardDemoRepository rewardDemoRepository;
+    private final InvoiceService invoiceService;
+    private final InvoiceDeliveryService invoiceDeliveryService;
 
     public MockPaymentWorkflowService(
             PaymentService paymentService,
             MockPaymentSettlementService settlementService,
-            RewardEventProcessor rewardEventProcessor,
-            RewardQueryService rewardQueryService
+            RewardQueryService rewardQueryService,
+            RewardDemoRepository rewardDemoRepository,
+            InvoiceService invoiceService,
+            InvoiceDeliveryService invoiceDeliveryService
     ) {
         this.paymentService = paymentService;
         this.settlementService = settlementService;
-        this.rewardEventProcessor = rewardEventProcessor;
         this.rewardQueryService = rewardQueryService;
+        this.rewardDemoRepository = rewardDemoRepository;
+        this.invoiceService = invoiceService;
+        this.invoiceDeliveryService = invoiceDeliveryService;
     }
 
     public MockPaymentResponse create(UUID userId, String requestReference, String idempotencyKey) {
+        rewardDemoRepository.ensureProgram();
         Payment payment = paymentService.createMockCheckout(userId, requestReference, idempotencyKey);
         if (!"SUCCEEDED".equals(payment.status())) {
-            return response(payment, "NOT_ELIGIBLE", null);
+            return response(payment, "NOT_ELIGIBLE", rewardQueryService.checkoutPreview(userId, payment.amountCents()), null);
         }
         RewardEntryResponse reward = rewardFor(userId, payment.orderReference());
-        return response(payment, reward == null ? "PROCESSING" : "JOINED", reward);
+        return response(payment, reward == null ? "PROCESSING" : "JOINED", null, reward);
     }
 
     public MockPaymentResponse complete(UUID userId, UUID paymentId, String outcome) {
         if ("FAILED".equalsIgnoreCase(outcome)) {
-            return response(settlementService.fail(userId, paymentId), "NOT_ELIGIBLE", null);
+            Payment failed = settlementService.fail(userId, paymentId);
+            return response(failed, "NOT_ELIGIBLE", null, null);
         }
         if (!"SUCCEEDED".equalsIgnoreCase(outcome)) {
             throw new IllegalArgumentException("Payment outcome must be SUCCEEDED or FAILED");
@@ -58,14 +70,14 @@ public class MockPaymentWorkflowService {
         PaymentSettlement settlement = settlementService.succeed(userId, paymentId);
         if (settlement.newlySucceeded()) {
             try {
-                rewardEventProcessor.processNext(settlement.rewardProgramId());
+                invoiceDeliveryService.deliver(settlement.invoiceId());
             } catch (RuntimeException exception) {
-                LOGGER.error("Payment {} succeeded but reward processing remains pending", paymentId, exception);
+                LOGGER.error("Invoice {} was issued but email delivery remains pending", settlement.invoiceId(), exception);
             }
         }
 
         RewardEntryResponse reward = rewardFor(userId, settlement.payment().orderReference());
-        return response(settlement.payment(), reward == null ? "PROCESSING" : "JOINED", reward);
+        return response(settlement.payment(), reward == null ? "PROCESSING" : "JOINED", null, reward);
     }
 
     private RewardEntryResponse rewardFor(UUID userId, String orderReference) {
@@ -76,7 +88,13 @@ public class MockPaymentWorkflowService {
                 .orElse(null);
     }
 
-    private MockPaymentResponse response(Payment payment, String rewardState, RewardEntryResponse reward) {
+    private MockPaymentResponse response(
+            Payment payment,
+            String rewardState,
+            RewardCheckoutPreviewResponse rewardPreview,
+            RewardEntryResponse reward
+    ) {
+        SalesInvoice invoice = invoiceService.invoiceForOrder(payment.orderId()).orElse(null);
         return new MockPaymentResponse(
                 payment.id(),
                 payment.paymentReference(),
@@ -86,7 +104,10 @@ public class MockPaymentWorkflowService {
                 payment.currency(),
                 payment.status(),
                 payment.failureReason(),
+                invoice == null ? null : invoice.id(),
+                invoice == null ? null : invoice.invoiceNumber(),
                 rewardState,
+                rewardPreview,
                 reward
         );
     }

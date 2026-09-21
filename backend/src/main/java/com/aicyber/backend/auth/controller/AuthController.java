@@ -1,10 +1,16 @@
 package com.aicyber.backend.auth.controller;
 
 import com.aicyber.backend.auth.dto.AuthResponse;
+import com.aicyber.backend.auth.dto.AuthMessageResponse;
 import com.aicyber.backend.auth.dto.LoginRequest;
+import com.aicyber.backend.auth.dto.PasswordResetRequest;
 import com.aicyber.backend.auth.dto.RegisterRequest;
+import com.aicyber.backend.auth.dto.ResetPasswordRequest;
 import com.aicyber.backend.auth.dto.UserResponse;
+import com.aicyber.backend.auth.dto.VerifyEmailRequest;
 import com.aicyber.backend.auth.service.AuthService;
+import com.aicyber.backend.auth.service.EmailVerificationService;
+import com.aicyber.backend.auth.service.PasswordResetService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -31,9 +37,14 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, EmailVerificationService emailVerificationService,
+                          PasswordResetService passwordResetService) {
         this.authService = authService;
+        this.emailVerificationService = emailVerificationService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/register")
@@ -46,6 +57,34 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     public AuthResponse login(@RequestBody LoginRequest request) {
         return handle(() -> authService.login(request));
+    }
+
+    @PostMapping("/email-verification/send")
+    public AuthMessageResponse sendVerification(Authentication authentication) {
+        return handle(() -> new AuthMessageResponse(
+                emailVerificationService.send(UUID.fromString(authentication.getName()))
+        ));
+    }
+
+    @PostMapping("/email-verification/confirm")
+    public AuthMessageResponse confirmVerification(@RequestBody VerifyEmailRequest request) {
+        return handle(() -> {
+            emailVerificationService.confirm(request.token());
+            return new AuthMessageResponse("Email verified successfully.");
+        });
+    }
+
+    @PostMapping("/password-reset/request")
+    public AuthMessageResponse requestPasswordReset(@RequestBody PasswordResetRequest request) {
+        return new AuthMessageResponse(passwordResetService.request(request.email()));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public AuthMessageResponse resetPassword(@RequestBody ResetPasswordRequest request) {
+        return handle(() -> {
+            passwordResetService.reset(request.token(), request.newPassword(), request.confirmPassword());
+            return new AuthMessageResponse("Password updated.");
+        });
     }
 
     @GetMapping("/me")

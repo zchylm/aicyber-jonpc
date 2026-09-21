@@ -1,34 +1,21 @@
 package com.aicyber.backend.reward.service;
 
 import com.aicyber.backend.reward.model.EligibleSalesOrder;
+import com.aicyber.backend.reward.model.FounderTier;
 import com.aicyber.backend.reward.model.PendingRewardEvent;
-import com.aicyber.backend.reward.model.QueueEntryBalance;
-import com.aicyber.backend.reward.model.RewardAllocation;
-import com.aicyber.backend.reward.model.RewardAllocationPlan;
-import com.aicyber.backend.reward.model.RewardPolicy;
 import com.aicyber.backend.reward.model.RewardProgramState;
 import com.aicyber.backend.reward.repository.RewardProcessingRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class RewardEventProcessor {
     private final RewardProcessingRepository repository;
-    private final ContributionCalculator contributionCalculator;
-    private final RewardAllocationEngine allocationEngine;
-
-    public RewardEventProcessor(
-            RewardProcessingRepository repository,
-            ContributionCalculator contributionCalculator,
-            RewardAllocationEngine allocationEngine
-    ) {
+    public RewardEventProcessor(RewardProcessingRepository repository) {
         this.repository = repository;
-        this.contributionCalculator = contributionCalculator;
-        this.allocationEngine = allocationEngine;
     }
 
     @Transactional
@@ -47,31 +34,24 @@ public class RewardEventProcessor {
         PendingRewardEvent event = pendingEvent.get();
         EligibleSalesOrder order = repository.findOrder(event.orderId());
         validateEligibleOrder(program, order);
-
-        RewardPolicy policy = repository.findActivePolicy(programId);
-        long contributionAmountCents = contributionCalculator.calculate(order.amountCents(), policy);
-        long queueSequence = program.nextQueueSequence();
-
-        repository.advanceQueueSequence(programId, queueSequence);
-        repository.createQueueEntry(programId, order.id(), queueSequence, order.amountCents());
-        UUID contributionId = repository.createContribution(
-                programId,
-                order.id(),
-                policy.id(),
-                contributionAmountCents
-        );
-
-        List<QueueEntryBalance> recipients = repository.lockWaitingEntriesBefore(programId, queueSequence);
-        RewardAllocationPlan plan = allocationEngine.allocate(contributionAmountCents, recipients);
-
-        for (RewardAllocation allocation : plan.allocations()) {
-            repository.applyAllocation(contributionId, allocation);
+        UUID userId = repository.findOrderUser(order.id());
+        long founderSequence = program.nextQueueSequence();
+        if (founderSequence <= program.maxPositions() && !repository.commitmentExists(programId, order.id(), userId)) {
+            FounderTier tier = repository.findTier(programId, founderSequence)
+                    .orElseThrow(() -> new IllegalStateException("Founder tier was not configured for this position"));
+            long eligibleSpendCents = order.amountCents() * 10 / 11;
+            long calculatedCashbackCents = eligibleSpendCents * tier.rateBasisPoints() / 10_000;
+            long cashbackAmountCents = Math.min(calculatedCashbackCents, tier.capCents());
+            long committedAfter = repository.committedLiability(programId) + cashbackAmountCents;
+            if (committedAfter > program.maxLiabilityCents()) {
+                throw new IllegalStateException("Founder campaign liability limit would be exceeded");
+            }
+            repository.advanceQueueSequence(programId, founderSequence);
+            repository.createCommitment(
+                    programId, tier.id(), order.id(), userId, founderSequence, order.amountCents(), eligibleSpendCents,
+                    tier.rateBasisPoints(), tier.capCents(), cashbackAmountCents
+            );
         }
-        repository.updateContribution(
-                contributionId,
-                contributionAmountCents,
-                plan.remainingContributionCents()
-        );
         repository.completeEvent(event.id());
         return true;
     }

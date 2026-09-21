@@ -3,6 +3,7 @@ export type AuthUser = {
   email: string;
   displayName: string;
   role: string;
+  emailVerified: boolean;
 };
 
 export type AuthResponse = {
@@ -55,5 +56,34 @@ function requestJson<T>(path: string, body: unknown): Promise<T> {
 export function fetchCurrentUser(token: string): Promise<AuthUser> {
   return request<AuthUser>("/api/auth/me", {
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function sendEmailVerification(token: string): Promise<{ message: string }> {
+  return request<{ message: string }>("/api/auth/email-verification/send", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function confirmEmailVerification(verificationToken: string): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/api/auth/email-verification/confirm", {
+    token: verificationToken,
+  });
+}
+
+export function requestPasswordReset(email: string): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/api/auth/password-reset/request", { email });
+}
+
+export function resetPassword(
+  token: string,
+  newPassword: string,
+  confirmPassword: string,
+): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/api/auth/password-reset/confirm", {
+    token,
+    newPassword,
+    confirmPassword,
   });
 }

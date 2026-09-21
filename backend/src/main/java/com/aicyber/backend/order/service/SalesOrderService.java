@@ -1,5 +1,6 @@
 package com.aicyber.backend.order.service;
 
+import com.aicyber.backend.catalog.SystemSaleAllocationService;
 import com.aicyber.backend.order.model.BuildRequestOrderSource;
 import com.aicyber.backend.order.model.SalesOrder;
 import com.aicyber.backend.order.repository.SalesOrderRepository;
@@ -12,9 +13,11 @@ import java.util.UUID;
 @Service
 public class SalesOrderService {
     private final SalesOrderRepository repository;
+    private final SystemSaleAllocationService allocations;
 
-    public SalesOrderService(SalesOrderRepository repository) {
+    public SalesOrderService(SalesOrderRepository repository, SystemSaleAllocationService allocations) {
         this.repository = repository;
+        this.allocations = allocations;
     }
 
     @Transactional
@@ -46,6 +49,7 @@ public class SalesOrderService {
 
     @Transactional
     public SalesOrder markPaid(UUID orderId) {
+        allocations.allocatePaidOrder(orderId);
         return repository.markPaid(orderId);
     }
 
