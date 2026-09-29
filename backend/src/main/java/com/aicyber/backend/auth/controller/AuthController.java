@@ -1,6 +1,7 @@
 package com.aicyber.backend.auth.controller;
 
 import com.aicyber.backend.auth.dto.AuthResponse;
+import com.aicyber.backend.auth.dto.AuthErrorResponse;
 import com.aicyber.backend.auth.dto.AuthMessageResponse;
 import com.aicyber.backend.auth.dto.LoginRequest;
 import com.aicyber.backend.auth.dto.PasswordResetRequest;
@@ -12,7 +13,9 @@ import com.aicyber.backend.auth.service.AuthService;
 import com.aicyber.backend.auth.service.EmailVerificationService;
 import com.aicyber.backend.auth.service.PasswordResetService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -102,6 +105,18 @@ public class AuthController {
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
         }
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<AuthErrorResponse> handleAuthError(ResponseStatusException exception) {
+        String message = exception.getReason() == null || exception.getReason().isBlank()
+                ? "Unable to complete this account request."
+                : exception.getReason();
+        String code = exception.getStatusCode().value() == HttpStatus.UNAUTHORIZED.value()
+                ? "AUTHENTICATION_INVALID"
+                : "AUTH_REQUEST_INVALID";
+        return ResponseEntity.status(exception.getStatusCode())
+                .body(new AuthErrorResponse(code, message));
     }
 
     @FunctionalInterface

@@ -96,10 +96,10 @@ public class PasswordResetService {
 
     private void validatePassword(String newPassword, String confirmPassword) {
         if (newPassword == null || newPassword.length() < 8) {
-            throw new IllegalArgumentException("Password must contain at least 8 characters");
+            throw new IllegalArgumentException("Use at least 8 characters for your password.");
         }
         if (!newPassword.equals(confirmPassword)) {
-            throw new IllegalArgumentException("Passwords do not match");
+            throw new IllegalArgumentException("The passwords do not match.");
         }
     }
 

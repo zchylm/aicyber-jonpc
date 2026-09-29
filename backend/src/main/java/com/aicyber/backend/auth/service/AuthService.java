@@ -39,7 +39,9 @@ public class AuthService {
         String password = requirePassword(request.password());
         String displayName = requireDisplayName(request.displayName());
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new IllegalArgumentException("An account with this email already exists");
+            throw new IllegalArgumentException(
+                    "An account with this email already exists. Log in or reset your password."
+            );
         }
         try {
             OffsetDateTime verifiedAt = emailVerificationService.enabled() ? null : OffsetDateTime.now(ZoneOffset.UTC);
@@ -51,7 +53,9 @@ public class AuthService {
             }
             return responseFor(user);
         } catch (DuplicateKeyException exception) {
-            throw new IllegalArgumentException("An account with this email already exists", exception);
+            throw new IllegalArgumentException(
+                    "An account with this email already exists. Log in or reset your password.", exception
+            );
         }
     }
 
@@ -59,9 +63,9 @@ public class AuthService {
         String email = normaliseEmail(request.email());
         String password = requirePassword(request.password());
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+                .orElseThrow(() -> new IllegalArgumentException("Email or password is incorrect."));
         if (!"ACTIVE".equals(user.status()) || !passwordEncoder.matches(password, user.passwordHash())) {
-            throw new IllegalArgumentException("Invalid email or password");
+            throw new IllegalArgumentException("Email or password is incorrect.");
         }
         return responseFor(user);
     }
@@ -85,21 +89,21 @@ public class AuthService {
 
     private String normaliseEmail(String email) {
         if (email == null || email.isBlank() || !email.contains("@")) {
-            throw new IllegalArgumentException("A valid email is required");
+            throw new IllegalArgumentException("Enter a valid email address.");
         }
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private String requirePassword(String password) {
         if (password == null || password.length() < 8) {
-            throw new IllegalArgumentException("Password must contain at least 8 characters");
+            throw new IllegalArgumentException("Use at least 8 characters for your password.");
         }
         return password;
     }
 
     private String requireDisplayName(String displayName) {
         if (displayName == null || displayName.isBlank() || displayName.trim().length() > 120) {
-            throw new IllegalArgumentException("Display name is required and must be at most 120 characters");
+            throw new IllegalArgumentException("Enter a display name of 120 characters or fewer.");
         }
         return displayName.trim();
     }
