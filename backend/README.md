@@ -53,13 +53,14 @@ Production settings:
 ```text
 JON_PC_EMAIL_PROVIDER=resend
 JON_PC_EMAIL_DISPATCH_ENABLED=true
-JON_PC_EMAIL_FROM="JON. PC <hello@jonpc.com.au>"
-JON_PC_EMAIL_REPLY_TO=your-monitored-support-mailbox
-JON_PC_EMAIL_OPERATIONS_RECIPIENT=optional-internal-operations-mailbox
+JON_PC_EMAIL_FROM="JON. PC <support@jonpc.com.au>"
+JON_PC_EMAIL_REPLY_TO=support@jonpc.com.au
+JON_PC_EMAIL_OPERATIONS_RECIPIENT=support@jonpc.com.au
 JON_PC_RESEND_API_KEY=re_...
 JON_PC_RESEND_WEBHOOK_SECRET=whsec_...
 JON_PC_EMAIL_VERIFICATION_ENABLED=true
 JON_PC_PASSWORD_RESET_ENABLED=true
+JON_PC_INVOICE_EMAIL=support@jonpc.com.au
 JON_PC_INVOICE_EMAIL_DELIVERY_ENABLED=true
 ```
 

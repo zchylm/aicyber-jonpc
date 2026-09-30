@@ -58,7 +58,7 @@ class InvoicePdfRendererTest {
                 "JON-INV-2026-000001", "TAX_INVOICE", "ISSUED", "SO-EXAMPLE0001", "PAY-EXAMPLE001",
                 "AI CYBER AUSTRALIA PTY LTD", "JON. PC", "22 689 546 450",
                 "205 Kensington Rd, West Melbourne VIC 3003, Australia",
-                "sales@aicybermedia.com.au", "+61 436 365 016", "Jambo Customer",
+                "support@jonpc.com.au", "+61 436 365 016", "Jambo Customer",
                 "customer@example.com", "JON-CUS-7A3F2C91D8E4", "Melbourne", null, "AUD", 213_364, 21_336,
                 234_700, 234_700, OffsetDateTime.parse("2026-09-15T10:30:00+10:00"),
                 8, "Launch Founder", 38_168L,

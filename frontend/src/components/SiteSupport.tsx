@@ -29,7 +29,7 @@ function SiteSupport({ user }: { user: AuthUser | null }) {
             <small>Ask anything about your next PC.</small>
             <b aria-hidden="true">→</b>
           </button>
-          <a href="mailto:sales@aicybermedia.com.au">
+          <a href="mailto:support@jonpc.com.au">
             <span>03 / Melbourne</span>
             <strong>Contact our team</strong>
             <small>Talk directly with JON. PC.</small>
@@ -51,7 +51,7 @@ function SiteSupport({ user }: { user: AuthUser | null }) {
           </div>
           <address className="company-footer-block">
             <span>Contact</span>
-            <a href="mailto:sales@aicybermedia.com.au">sales@aicybermedia.com.au</a>
+            <a href="mailto:support@jonpc.com.au">support@jonpc.com.au</a>
             <a href="tel:+61436365016">+61 436 365 016</a>
             <small>205 Kensington Rd, West Melbourne VIC 3003</small>
           </address>
