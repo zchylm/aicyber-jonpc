@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import BrandLockup from "./BrandLockup";
 import officialLogo from "../assets/jonpc-official-logo.png";
+import { useHistoryPanel } from "../hooks/useHistoryPanel";
 
 type AssistantReply = {
   title: string;
@@ -21,12 +22,13 @@ function AiAssistant() {
   const [connectionStatus, setConnectionStatus] = useState<"ready" | "live" | "unavailable">("ready");
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const { open: openAssistantPanel, close: closeAssistantPanel } = useHistoryPanel("jon-ai", isOpen, setIsOpen);
 
   useEffect(() => {
-    const openAssistant = () => setIsOpen(true);
+    const openAssistant = () => openAssistantPanel();
     window.addEventListener("jonpc:open-ai", openAssistant);
     return () => window.removeEventListener("jonpc:open-ai", openAssistant);
-  }, []);
+  }, [openAssistantPanel]);
 
   useEffect(() => {
     if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -103,7 +105,7 @@ function AiAssistant() {
             </div>
             <div className="ai-panel-actions">
               <button className="ai-reset" type="button" onClick={resetConversation} aria-label="Start a new conversation" title="Start a new conversation">↺</button>
-              <button className="ai-close" type="button" onClick={() => setIsOpen(false)} aria-label="Close JON. AI">×</button>
+              <button className="ai-close" type="button" onClick={closeAssistantPanel} aria-label="Close JON. AI">×</button>
             </div>
             <div className={`ai-panel-status ai-panel-status-${connectionStatus}`}><i /> {statusLabel}</div>
             <div className="ai-panel-heading">
@@ -142,7 +144,7 @@ function AiAssistant() {
         </section>
       )}
 
-      <button className="ai-launcher" type="button" onClick={() => setIsOpen((current) => !current)} aria-expanded={isOpen} aria-label={isOpen ? "Close JON. AI" : "Open JON. AI assistant"}>
+      <button className="ai-launcher" type="button" onClick={isOpen ? closeAssistantPanel : openAssistantPanel} aria-expanded={isOpen} aria-label={isOpen ? "Close JON. AI" : "Open JON. AI assistant"}>
         <span className="ai-launcher-label" aria-hidden="true">Ask JON. AI</span>
         <span className="ai-launcher-portrait" aria-hidden="true"><img src={officialLogo} alt="" /></span>
         <i className="ai-launcher-status" aria-hidden="true" />

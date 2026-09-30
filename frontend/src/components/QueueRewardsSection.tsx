@@ -13,6 +13,7 @@ import {
   type RewardMemberSummary,
   type RewardPublicSummary,
 } from "../api/rewards";
+import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import "./QueueRewardsSection.css";
 
 type Props = { user: AuthUser | null };
@@ -27,6 +28,7 @@ function QueueRewardsSection({ user }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refreshInFlight = useRef(false);
+  const { open: openRewardCentre, close: closeRewardCentre } = useHistoryPanel("founder-rewards", isCentreOpen, setIsCentreOpen);
 
   const refresh = useCallback(async () => {
     if (refreshInFlight.current) return;
@@ -51,14 +53,14 @@ function QueueRewardsSection({ user }: Props) {
     return () => window.clearTimeout(timer);
   }, [refresh]);
   useEffect(() => {
-    const open = () => { setIsCentreOpen(true); void refresh(); };
+    const open = () => { openRewardCentre(); void refresh(); };
     window.addEventListener("jonpc:open-rewards", open);
     window.addEventListener("jonpc:payment-completed", refresh);
     return () => {
       window.removeEventListener("jonpc:open-rewards", open);
       window.removeEventListener("jonpc:payment-completed", refresh);
     };
-  }, [refresh]);
+  }, [openRewardCentre, refresh]);
 
   async function runDemo(action: "qualify" | "create" | "payable" | "paid" | "reset") {
     const token = window.localStorage.getItem(authTokenKey);
@@ -89,7 +91,7 @@ function QueueRewardsSection({ user }: Props) {
           <h2 id="reward-title">Join early. <em>Get rewarded.</em></h2>
           <p>Your Founder cashback is calculated and locked when payment is confirmed.</p>
           <div className="reward-banner-actions">
-            <button className="button button-primary" type="button" onClick={() => setIsCentreOpen(true)}>My Founder reward <span aria-hidden="true">→</span></button>
+            <button className="button button-primary" type="button" onClick={openRewardCentre}>My Founder reward <span aria-hidden="true">→</span></button>
             <button className="reward-text-link" type="button" onClick={() => setIsExplanationOpen((open) => !open)}>{isExplanationOpen ? "Close details" : "How it works"} <span aria-hidden="true">{isExplanationOpen ? "−" : "+"}</span></button>
           </div>
         </div>
@@ -101,7 +103,7 @@ function QueueRewardsSection({ user }: Props) {
             <div><span>Maximum</span><strong>{summary?.currentCapCents != null ? formatAud(summary.currentCapCents) : "—"}</strong></div>
           </div>
           <div className="reward-position-card reward-position-card-active">
-            <div className="reward-position-heading"><div><span>{latest ? "Your Founder number" : "Positions remaining"}</span><strong>{latest ? `#${pad(latest.founderNumber)}` : summary?.remainingPositions ?? "—"}</strong></div><button type="button" onClick={() => setIsCentreOpen(true)}>View <i aria-hidden="true">→</i></button></div>
+            <div className="reward-position-heading"><div><span>{latest ? "Your Founder number" : "Positions remaining"}</span><strong>{latest ? `#${pad(latest.founderNumber)}` : summary?.remainingPositions ?? "—"}</strong></div><button type="button" onClick={openRewardCentre}>View <i aria-hidden="true">→</i></button></div>
             {latest && <div className="reward-position-amounts"><div><span>Tier</span><strong>{latest.tierName}</strong></div><div><span>Cashback</span><strong>{formatAud(latest.cashbackAmountCents)}</strong></div><div><span>Status</span><strong>{title(latest.status)}</strong></div></div>}
           </div>
         </div>
@@ -128,7 +130,7 @@ function QueueRewardsSection({ user }: Props) {
       {demoEnabled && <details className="reward-demo-tools"><summary><span>Local demo tools</span><b>Open controls <i aria-hidden="true">+</i></b></summary><div className="reward-demo-body"><div className="reward-demo-copy"><strong>Development workflow</strong><span>Test the complete cashback lifecycle.</span></div><div className="reward-demo-actions"><button type="button" onClick={() => runDemo("qualify")} disabled={busy || !user}>Create paid demo order</button><button type="button" onClick={() => runDemo("create")} disabled={busy || !user}>Claim next Founder place</button><button type="button" onClick={() => runDemo("payable")} disabled={busy || !user || latest?.status !== "LOCKED"}>Make cashback payable</button><button type="button" onClick={() => runDemo("paid")} disabled={busy || !user || !latest || !["PAYABLE", "PROCESSING"].includes(latest.status)}>Mark cashback paid</button><button className="reward-demo-reset" type="button" onClick={() => runDemo("reset")} disabled={busy || !user}>Reset local demo</button></div>{message && <p className="reward-demo-message">{message}</p>}{error && <p className="reward-demo-error" role="alert">{error}</p>}</div></details>}
     </section>
 
-    {isCentreOpen && <div className="reward-centre-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCentreOpen(false); }}><section className="reward-centre" role="dialog" aria-modal="true" aria-labelledby="reward-centre-title"><button className="reward-centre-close" type="button" onClick={() => setIsCentreOpen(false)} aria-label="Close reward centre">×</button><span className="section-kicker">JON. PC / Founders</span><h2 id="reward-centre-title">Your Founder rewards.</h2>{!user && <p className="reward-centre-empty">Sign in to view your reward.</p>}{user && entries.length === 0 && <p className="reward-centre-empty">No Founder reward yet.</p>}{entries.map((entry) => <FounderCard entry={entry} key={entry.id} />)}</section></div>}
+    {isCentreOpen && <div className="reward-centre-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeRewardCentre(); }}><section className="reward-centre" role="dialog" aria-modal="true" aria-labelledby="reward-centre-title"><button className="reward-centre-close" type="button" onClick={closeRewardCentre} aria-label="Close reward centre">×</button><span className="section-kicker">JON. PC / Founders</span><h2 id="reward-centre-title">Your Founder rewards.</h2>{!user && <p className="reward-centre-empty">Sign in to view your reward.</p>}{user && entries.length === 0 && <p className="reward-centre-empty">No Founder reward yet.</p>}{entries.map((entry) => <FounderCard entry={entry} key={entry.id} />)}</section></div>}
   </>;
 }
 

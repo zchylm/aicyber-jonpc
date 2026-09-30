@@ -19,6 +19,7 @@ import { motherboardOptions } from "../data/motherboard";
 import { psuOptions } from "../data/psu";
 import { caseOptions } from "../data/case";
 import { coolingOptions } from "../data/cooling";
+import { useHistoryPanel } from "../hooks/useHistoryPanel";
 
 type AuthMode = "login" | "register" | "forgot" | "reset";
 
@@ -54,6 +55,9 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const verificationHandledRef = useRef(false);
   const accountEntryRef = useRef<HTMLDivElement>(null);
+  const { open: openAccountPanel, close: closeAccountPanel } = useHistoryPanel("account", isOpen, setIsOpen);
+  const { open: openBuildsPanel, close: closeBuildsPanel, dismiss: dismissBuildsPanel } = useHistoryPanel("saved-builds", isBuildsOpen, setIsBuildsOpen);
+  const { open: openOrdersPanel, close: closeOrdersPanel, dismiss: dismissOrdersPanel } = useHistoryPanel("orders", isOrdersOpen, setIsOrdersOpen);
 
   const refreshAccount = useCallback(async () => {
     const token = window.localStorage.getItem(authTokenKey);
@@ -154,11 +158,11 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
+      if (event.key === "Escape") closeAccountPanel();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+  }, [closeAccountPanel, isOpen]);
 
   useEffect(() => {
     if (!isAccountOpen) return;
@@ -177,26 +181,31 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
   }, [isAccountOpen]);
 
   useEffect(() => {
-    const openAccount = () => openPanel("login");
+    const openAccount = () => {
+      setMode("login");
+      setError(null);
+      setRecoveryNotice(null);
+      openAccountPanel();
+    };
     window.addEventListener("jonpc:open-account", openAccount);
     return () => window.removeEventListener("jonpc:open-account", openAccount);
-  }, []);
+  }, [openAccountPanel]);
 
   useEffect(() => {
     if (!user) return;
     const openOrders = () => {
-      setIsOrdersOpen(true);
+      openOrdersPanel();
       window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
     };
     window.addEventListener("jonpc:open-orders", openOrders);
     return () => window.removeEventListener("jonpc:open-orders", openOrders);
-  }, [user]);
+  }, [openOrdersPanel, user]);
 
   function openPanel(nextMode: AuthMode = "login") {
     setMode(nextMode);
     setError(null);
     setRecoveryNotice(null);
-    setIsOpen(true);
+    openAccountPanel();
   }
 
   function switchMode(nextMode: AuthMode) {
@@ -221,7 +230,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
       setRecoveryNotice(null);
       window.dispatchEvent(new CustomEvent("jonpc:authenticated"));
       setPassword("");
-      setIsOpen(false);
+      closeAccountPanel();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to complete this request.");
     } finally {
@@ -338,13 +347,13 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
           </div>
         )}
       </div>
-      {user && <div className="my-builds-entry"><button className="my-builds-nav-button" type="button" onClick={() => setIsBuildsOpen(true)}><span className="my-builds-icon" aria-hidden="true" />My builds</button></div>}
-      {user && <div className="order-history-entry"><button className="order-history-nav-button" type="button" onClick={() => { setIsOrdersOpen(true); window.dispatchEvent(new CustomEvent("jonpc:order-requested")); }}><span className="order-history-icon" aria-hidden="true" />My orders</button></div>}
+      {user && <div className="my-builds-entry"><button className="my-builds-nav-button" type="button" onClick={openBuildsPanel}><span className="my-builds-icon" aria-hidden="true" />My builds</button></div>}
+      {user && <div className="order-history-entry"><button className="order-history-nav-button" type="button" onClick={() => { openOrdersPanel(); window.dispatchEvent(new CustomEvent("jonpc:order-requested")); }}><span className="order-history-icon" aria-hidden="true" />My orders</button></div>}
 
       {isOpen && (
-        <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOpen(false); }}>
+        <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeAccountPanel(); }}>
           <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-            <button className="auth-modal-close" type="button" onClick={() => setIsOpen(false)} aria-label="Close account panel">×</button>
+            <button className="auth-modal-close" type="button" onClick={closeAccountPanel} aria-label="Close account panel">×</button>
             <span className="section-kicker">JON. PC / Account</span>
             <h2 id="auth-modal-title">
               {mode === "login" && "Welcome back."}
@@ -404,9 +413,9 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
       )}
 
       {isBuildsOpen && user && (
-        <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsBuildsOpen(false); }}>
+        <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeBuildsPanel(); }}>
           <section className="auth-modal saved-builds-modal" role="dialog" aria-modal="true" aria-labelledby="saved-builds-title">
-            <button className="auth-modal-close" type="button" onClick={() => setIsBuildsOpen(false)} aria-label="Close saved builds">×</button>
+            <button className="auth-modal-close" type="button" onClick={closeBuildsPanel} aria-label="Close saved builds">×</button>
             <span className="section-kicker">JON. PC / Account</span>
             <h2 id="saved-builds-title">My builds.</h2>
             <p className="auth-modal-intro">Keep your configurations close and return to them when you are ready.</p>
@@ -417,7 +426,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                 <article className="saved-build-row" key={build.id}>
                   <div><strong>{build.name}</strong><span>{build.direction} / ${build.estimatedPrice.toLocaleString("en-AU")} AUD</span></div>
                   <div className="saved-build-row-actions">
-                    <button type="button" onClick={() => { setIsBuildsOpen(false); window.dispatchEvent(new CustomEvent("jonpc:load-build", { detail: build })); }}>Continue customising ↗</button>
+                    <button type="button" onClick={() => { dismissBuildsPanel(); window.dispatchEvent(new CustomEvent("jonpc:load-build", { detail: build })); }}>Continue customising ↗</button>
                     <button type="button" onClick={() => { const token = window.localStorage.getItem(authTokenKey); if (!token) return; deleteSavedBuild(token, build.id).then(() => setSavedBuilds((current) => current.filter((item) => item.id !== build.id))).catch(() => undefined); }}>Delete ×</button>
                   </div>
                 </article>
@@ -428,9 +437,9 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
       )}
 
       {isOrdersOpen && user && (
-        <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOrdersOpen(false); }}>
+        <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeOrdersPanel(); }}>
           <section className="auth-modal order-history-modal" role="dialog" aria-modal="true" aria-labelledby="order-history-title">
-            <button className="auth-modal-close" type="button" onClick={() => { setIsOrdersOpen(false); setExpandedOrderId(null); }} aria-label="Close order history">×</button>
+            <button className="auth-modal-close" type="button" onClick={() => { closeOrdersPanel(); setExpandedOrderId(null); }} aria-label="Close order history">×</button>
             <span className="section-kicker">JON. PC / Orders</span>
             <h2 id="order-history-title">My orders.</h2>
             <div className="order-history-list">
@@ -449,7 +458,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                       <button className="order-details-action" type="button" aria-expanded={expandedOrderId === order.id} onClick={() => setExpandedOrderId((current) => current === order.id ? null : order.id)}>{expandedOrderId === order.id ? "Hide details" : "View details"}</button>
                       {(!order.salesOrderId || (paymentDemoEnabled && ["CREATED", "FAILED"].includes(order.paymentStatus ?? ""))) && <CancelRequestAction order={order} />}
                       {order.invoiceId && order.invoiceNumber && <InvoiceDownloadButton invoiceId={order.invoiceId} invoiceNumber={order.invoiceNumber} compact />}
-                      <OrderPrimaryAction order={order} onClose={() => setIsOrdersOpen(false)} />
+                      <OrderPrimaryAction order={order} onClose={dismissOrdersPanel} />
                     </div>
                   </div>
                   {expandedOrderId === order.id && <OrderDetails order={order} />}

@@ -57,6 +57,41 @@ type BuildConfiguratorProps = {
   user: AuthUser | null;
 };
 
+type ConfiguratorStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+const configuratorHistoryKey = "jonpcConfiguratorStep";
+const configuratorStepTargets: Record<ConfiguratorStep, string> = {
+  1: ".configurator-main > .configurator-block:first-child",
+  2: ".configurator-needs",
+  3: ".configurator-performance",
+  4: ".configurator-memory",
+  5: ".configurator-storage",
+  6: ".configurator-platform",
+  7: ".configurator-style",
+  8: "#build-review",
+};
+
+function scrollToConfiguratorStep(step: ConfiguratorStep, behavior: ScrollBehavior = "smooth") {
+  window.setTimeout(() => {
+    document.querySelector(configuratorStepTargets[step])?.scrollIntoView({ behavior, block: "start" });
+  }, 0);
+}
+
+function advanceConfiguratorStep(from: ConfiguratorStep, to: ConfiguratorStep) {
+  const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+  const activeStep = currentState[configuratorHistoryKey] as ConfiguratorStep | undefined;
+  if (activeStep === to) {
+    scrollToConfiguratorStep(to);
+    return;
+  }
+  const baseState = activeStep === from
+    ? currentState
+    : { ...currentState, [configuratorHistoryKey]: from };
+  if (activeStep !== from) window.history.replaceState(baseState, "", window.location.href);
+  window.history.pushState({ ...baseState, [configuratorHistoryKey]: to }, "", window.location.href);
+  scrollToConfiguratorStep(to);
+}
+
 
 function BuildConfigurator({ user }: BuildConfiguratorProps) {
   const [direction, setDirection] = useState<DirectionId>("gaming");
@@ -92,6 +127,16 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
   const [buildOrigin, setBuildOrigin] = useState<{ name: string; modified: boolean } | null>(null);
   const requestReference = submittedBuild?.requestReference ?? `JON-${direction.slice(0, 3).toUpperCase()}-DEMO`;
   const questions = useMemo(() => configuratorQuestions[direction], [direction]);
+
+  useEffect(() => {
+    const restoreConfiguratorStep = (event: PopStateEvent) => {
+      const step = event.state?.[configuratorHistoryKey];
+      if (Number.isInteger(step) && step >= 1 && step <= 8) scrollToConfiguratorStep(step as ConfiguratorStep, "auto");
+    };
+    window.addEventListener("popstate", restoreConfiguratorStep);
+    return () => window.removeEventListener("popstate", restoreConfiguratorStep);
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     fetchConfiguratorCatalog(controller.signal)
@@ -219,9 +264,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
       setRequestOpen(false);
       setSavedBuildId(build.id ?? null);
       setSaveState(build.id ? "saved" : "idle");
-      window.requestAnimationFrame(() => {
-        document.getElementById("build-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      advanceConfiguratorStep(1, 8);
     };
     window.addEventListener("jonpc:load-build", handleLoadBuild);
     return () => window.removeEventListener("jonpc:load-build", handleLoadBuild);
@@ -475,7 +518,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
     setBackendQuote(null);
     setBackendCompatibility(null);
     setSaveState("idle");
-    window.setTimeout(() => document.querySelector(".configurator-needs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    advanceConfiguratorStep(1, 2);
   }
 
   function chooseAnswer(questionId: string, value: string) {
@@ -511,6 +554,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
       setBackendRecommendation(recommendation);
       setPerformanceSelection({ cpuId: recommendation.cpuId, gpuId: recommendation.gpuId });
       setIsReady(true);
+      advanceConfiguratorStep(2, 3);
     } catch {
       setBackendRecommendation(null);
       setConfiguratorError("We could not build a recommendation right now. Please try again.");
@@ -544,6 +588,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
     setMemorySelection(recommendedMemory);
     setIsMemoryReady(true);
     setSaveState("idle");
+    advanceConfiguratorStep(3, 4);
   }
 
   function chooseMemory(id: string) {
@@ -567,6 +612,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
     setStorageSelection(recommendedStorage);
     setIsStorageReady(true);
     setSaveState("idle");
+    advanceConfiguratorStep(4, 5);
   }
 
   async function continueToPlatform() {
@@ -595,6 +641,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
       setCaseSelection(null);
       setCaseColorSelection(null);
       setSaveState("idle");
+      advanceConfiguratorStep(5, 6);
     } catch {
       setTransitionError({ step: "platform", message: "We could not verify the platform right now. Please try again." });
     } finally {
@@ -679,6 +726,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
       setIsReviewReady(false);
       setRequestSubmitted(false);
       setSaveState("idle");
+      advanceConfiguratorStep(6, 7);
     } catch {
       setTransitionError({ step: "style", message: "We could not verify cooling and case compatibility. Please try again." });
     } finally {
@@ -724,6 +772,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
       setIsReviewReady(true);
       setRequestSubmitted(false);
       setRequestOpen(false);
+      advanceConfiguratorStep(7, 8);
     } catch {
       setTransitionError({ step: "review", message: "We could not verify this build right now. Please try again." });
     } finally {
@@ -754,6 +803,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
     } else {
       setIsStyleReady(true);
     }
+    advanceConfiguratorStep(8, ({ performance: 3, memory: 4, storage: 5, platform: 6, style: 7 } as const)[step]);
   }
 
   return (

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AuthUser } from "../api/auth";
 import { authTokenKey, fetchCurrentUser, sendEmailVerification } from "../api/auth";
 import { completeMockPayment, createMockPayment, downloadInvoicePdf, fetchDeliveryDetails, saveDeliveryDetails, type DeliveryDetails, type MockPayment } from "../api/payments";
+import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import "./PaymentCheckout.css";
 
 type PaymentCheckoutProps = {
@@ -20,6 +21,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   const [delivery, setDelivery] = useState<DeliveryDetails>({ recipientName: "", phone: "", addressLine1: "", addressLine2: "", suburb: "", state: "VIC", postcode: "" });
   const [deliveryLoadedFor, setDeliveryLoadedFor] = useState<string | null>(null);
   const deliveryLoading = Boolean(isOpen && user?.emailVerified && requestReference && deliveryLoadedFor !== requestReference);
+  const { open: openCheckoutPanel, close: closeCheckoutPanel, dismiss: dismissCheckoutPanel } = useHistoryPanel("checkout", isOpen, setIsOpen);
 
   useEffect(() => {
     const openCheckout = (event: Event) => {
@@ -29,7 +31,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
         window.dispatchEvent(new CustomEvent("jonpc:open-account"));
         return;
       }
-      setIsOpen(true);
+      openCheckoutPanel();
       setRequestReference(reference);
       setPayment(null);
       setError(null);
@@ -39,7 +41,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     };
     window.addEventListener("jonpc:open-checkout", openCheckout);
     return () => window.removeEventListener("jonpc:open-checkout", openCheckout);
-  }, [user]);
+  }, [openCheckoutPanel, user]);
 
   useEffect(() => {
     if (!isOpen || !user?.emailVerified || !requestReference) return;
@@ -87,11 +89,11 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   useEffect(() => {
     if (!isOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) setIsOpen(false);
+      if (event.key === "Escape" && !busy) closeCheckoutPanel();
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [busy, isOpen]);
+  }, [busy, closeCheckoutPanel, isOpen]);
 
   async function beginCheckout(reference: string, retry = false) {
     const token = window.localStorage.getItem(authTokenKey);
@@ -169,12 +171,12 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   }
 
   function viewRewards() {
-    setIsOpen(false);
+    dismissCheckoutPanel();
     window.dispatchEvent(new CustomEvent("jonpc:open-rewards"));
   }
 
   function payLater() {
-    setIsOpen(false);
+    dismissCheckoutPanel();
     window.dispatchEvent(new CustomEvent("jonpc:open-orders"));
   }
 
@@ -192,9 +194,9 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="payment-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setIsOpen(false); }}>
+    <div className="payment-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) closeCheckoutPanel(); }}>
       <section className="payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-title">
-        <button className="payment-close" type="button" onClick={() => setIsOpen(false)} disabled={busy} aria-label="Close checkout">×</button>
+        <button className="payment-close" type="button" onClick={closeCheckoutPanel} disabled={busy} aria-label="Close checkout">×</button>
 
         {deliveryLoading && !payment && user?.emailVerified && (
           <div className="payment-loading" aria-live="polite"><i /> Preparing your secure checkout...</div>
