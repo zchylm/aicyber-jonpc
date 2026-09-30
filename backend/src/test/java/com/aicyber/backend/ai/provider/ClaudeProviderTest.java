@@ -65,8 +65,9 @@ class ClaudeProviderTest {
         String systemPrompt = requestBody.get().path("system").asText();
         assertTrue(systemPrompt.contains("official product assistant for JON. PC"));
         assertTrue(systemPrompt.contains("use only JON. PC context supplied by the application"));
-        assertTrue(systemPrompt.contains("one sentence containing exactly one short question"));
-        assertTrue(systemPrompt.contains("Do not join two questions with \"and\""));
+        assertTrue(systemPrompt.contains("Clarification mode is a strict output contract"));
+        assertTrue(systemPrompt.contains("reply only \"What budget are you working with?\""));
+        assertTrue(systemPrompt.contains("positioning, not benchmark evidence"));
         assertTrue(systemPrompt.contains("Real online card payment is not currently available"));
         assertTrue(systemPrompt.contains("paid tax invoice is emailed to the customer's account email"));
         assertTrue(systemPrompt.contains("support@jonpc.com.au"));
