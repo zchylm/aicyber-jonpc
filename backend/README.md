@@ -1,6 +1,7 @@
 # JON. PC Backend
 
 Spring Boot backend for the JON. PC website. The backend is organised around the AI chat domain so provider integrations, prompts, hardware knowledge and future compatibility tools stay separate.
+The `local` profile listens on `http://localhost:8081` so it can run alongside JG MOLI on port `8080`.
 
 ```text
 src/main/java/com/aicyber/backend/
