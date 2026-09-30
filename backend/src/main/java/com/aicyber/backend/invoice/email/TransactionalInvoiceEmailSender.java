@@ -31,8 +31,13 @@ public class TransactionalInvoiceEmailSender implements InvoiceEmailSender {
 
     @Override
     public String send(SalesInvoice invoice, UUID deliveryAttemptId) {
+        String productName = invoice.lines().stream()
+                .findFirst()
+                .map(line -> line.description())
+                .filter(description -> !description.isBlank())
+                .orElse("Your JON.PC");
         EmailContent content = templates.invoice(invoice.buyerName(), invoice.invoiceNumber(), invoice.orderReference(),
-                invoice.amountPaidCents(), invoice.founderCashbackAmountCents());
+                productName, invoice.amountPaidCents(), invoice.founderCashbackAmountCents());
         return outbox.enqueueAndSend(new EmailDraft(
                 "TAX_INVOICE", invoice.buyerEmail(), invoice.buyerName(), ordersFrom,
                 content.subject(), content.text(), content.html(),

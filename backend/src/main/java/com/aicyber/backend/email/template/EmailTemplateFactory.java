@@ -60,18 +60,20 @@ public class EmailTemplateFactory {
     }
 
     public EmailContent invoice(String displayName, String invoiceNumber, String orderReference,
-                                long amountPaidCents, Long cashbackAmountCents) {
+                                String productName, long amountPaidCents, Long cashbackAmountCents) {
         String rewardText = cashbackAmountCents != null && cashbackAmountCents > 0
                 ? "Founder reward locked: " + money(cashbackAmountCents)
                         + ". We’ll start it within 30 days after confirmed delivery."
                 : "Your paid tax invoice is attached for your records.";
-        String text = "Payment confirmed\n\n"
-                + "Hi " + safeName(displayName) + ", your payment is complete.\n\n"
+        String text = "Your JON.PC is confirmed\n\n"
+                + "Hi " + safeName(displayName) + ", your payment is complete and your tax invoice is attached.\n\n"
+                + "Your JON.PC: " + safeProductName(productName) + "\n"
                 + "Order: " + orderReference + "\n"
-                + "Amount paid: " + money(amountPaidCents) + "\n"
+                + "Amount paid (GST included): " + money(amountPaidCents) + "\n"
                 + "Tax invoice: " + invoiceNumber + " (attached)\n\n"
                 + rewardText + "\n\n"
                 + "View my order: " + accountUrl + "\n"
+                + "We’ll keep you updated as your order progresses.\n"
                 + "Questions? Reply to this email or contact " + supportEmail + ".";
 
         String reward = cashbackAmountCents != null && cashbackAmountCents > 0
@@ -83,16 +85,18 @@ public class EmailTemplateFactory {
                 : "";
 
         String body = "<div style=\"display:inline-block;padding:6px 10px;background:#e9f9d3;color:#274116;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase\">Paid</div>"
-                + "<h1 style=\"margin:18px 0 10px;font-size:32px;line-height:1.12;letter-spacing:-.03em\">Payment confirmed.</h1>"
-                + "<p style=\"margin:0 0 24px;color:#52615e;font-size:16px;line-height:1.55\">Thanks, " + escape(safeName(displayName)) + ". Your payment is complete.</p>"
+                + "<h1 style=\"margin:18px 0 10px;font-size:32px;line-height:1.12;letter-spacing:-.03em\">Your JON.PC is confirmed.</h1>"
+                + "<p style=\"margin:0 0 24px;color:#52615e;font-size:16px;line-height:1.55\">Thanks, " + escape(safeName(displayName)) + ". Your payment is complete and your tax invoice is attached.</p>"
                 + "<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;background:#f5f7f6\">"
+                + detailRow("Your JON.PC", safeProductName(productName), true)
                 + detailRow("Order", orderReference, true)
-                + detailRow("Amount paid", money(amountPaidCents), true)
+                + detailRow("Amount paid · GST included", money(amountPaidCents), true)
                 + detailRow("Tax invoice", invoiceNumber + " · PDF attached", false)
                 + "</table>"
                 + reward
-                + "<a href=\"" + escape(accountUrl) + "\" style=\"display:inline-block;margin-top:24px;background:#0b1513;color:#fff;padding:14px 20px;text-decoration:none;font-size:14px;font-weight:700\">View my order&nbsp;&nbsp;→</a>";
-        return new EmailContent("Payment confirmed · " + invoiceNumber, text, invoiceWrapper(body));
+                + "<a href=\"" + escape(accountUrl) + "\" style=\"display:inline-block;margin-top:24px;background:#0b1513;color:#fff;padding:14px 20px;text-decoration:none;font-size:14px;font-weight:700\">View my order&nbsp;&nbsp;→</a>"
+                + "<p style=\"margin:18px 0 0;color:#71807d;font-size:12px;line-height:1.5\">We’ll keep you updated as your order progresses.</p>";
+        return new EmailContent("Your JON.PC is confirmed · " + invoiceNumber, text, invoiceWrapper(body));
     }
 
     public EmailContent operationsBuildReceived(String reference, String customerName) {
@@ -154,6 +158,10 @@ public class EmailTemplateFactory {
 
     private String safeName(String value) {
         return value == null || value.isBlank() ? "there" : value.trim();
+    }
+
+    private String safeProductName(String value) {
+        return value == null || value.isBlank() ? "Your JON.PC" : value.trim();
     }
 
     private String escape(String value) {
