@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+JON. PC runs locally at `http://localhost:5174`. Port `5174` is strict so it cannot silently move to a different port.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

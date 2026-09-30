@@ -6,6 +6,8 @@ export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [react()],
   server: {
+    port: 5174,
+    strictPort: true,
     proxy: {
       '/api': 'http://localhost:8080',
     },
