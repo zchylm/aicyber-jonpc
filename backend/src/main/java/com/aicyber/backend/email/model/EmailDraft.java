@@ -6,6 +6,7 @@ public record EmailDraft(
         String messageType,
         String recipientEmail,
         String recipientName,
+        String sender,
         String subject,
         String textBody,
         String htmlBody,
@@ -15,4 +16,3 @@ public record EmailDraft(
         String idempotencyKey
 ) {
 }
-

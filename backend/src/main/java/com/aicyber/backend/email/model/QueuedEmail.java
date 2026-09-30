@@ -7,6 +7,7 @@ public record QueuedEmail(
         String messageType,
         String recipientEmail,
         String recipientName,
+        String sender,
         String subject,
         String textBody,
         String htmlBody,
@@ -15,4 +16,3 @@ public record QueuedEmail(
         int attemptCount
 ) {
 }
-

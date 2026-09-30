@@ -54,7 +54,9 @@ Production settings:
 JON_PC_EMAIL_PROVIDER=resend
 JON_PC_EMAIL_DISPATCH_ENABLED=true
 JON_PC_EMAIL_FROM="JON. PC <support@jonpc.com.au>"
+JON_PC_ORDERS_EMAIL_FROM="JON. PC Orders <orders@jonpc.com.au>"
 JON_PC_EMAIL_REPLY_TO=support@jonpc.com.au
+JON_PC_SUPPORT_EMAIL=support@jonpc.com.au
 JON_PC_EMAIL_OPERATIONS_RECIPIENT=support@jonpc.com.au
 JON_PC_RESEND_API_KEY=re_...
 JON_PC_RESEND_WEBHOOK_SECRET=whsec_...
@@ -68,3 +70,9 @@ Register `POST /api/email/webhooks/resend` in Resend for `email.sent`, `email.de
 `email.delivery_delayed`, `email.failed`, `email.bounced`, `email.complained`, and
 `email.suppressed`. Customer replies go to `JON_PC_EMAIL_REPLY_TO`; inbound-email ingestion is
 intentionally not enabled until JON. PC has a defined support-ticket workflow.
+
+For an intentional local end-to-end invoice test, run the backend with the `local` profile plus
+`JON_PC_PAYMENTS_DEMO_ENABLED=true`, `JON_PC_EMAIL_PROVIDER=resend`,
+`JON_PC_EMAIL_DISPATCH_ENABLED=true`, and `JON_PC_INVOICE_EMAIL_DELIVERY_ENABLED=true`. Supply
+`JON_PC_RESEND_API_KEY` through the shell or IDE secret storage, never a committed file. Completing
+the mock checkout sends a real email to the signed-in account address, so use an approved test inbox.

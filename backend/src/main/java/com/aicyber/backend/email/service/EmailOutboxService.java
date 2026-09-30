@@ -66,6 +66,9 @@ public class EmailOutboxService {
         if (draft.idempotencyKey().length() > 200) {
             throw new IllegalArgumentException("Email idempotency key is too long");
         }
+        if (draft.sender() != null && draft.sender().length() > 320) {
+            throw new IllegalArgumentException("Email sender is too long");
+        }
     }
 
     private boolean blank(String value) {

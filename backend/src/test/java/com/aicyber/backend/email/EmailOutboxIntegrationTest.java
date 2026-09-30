@@ -22,7 +22,7 @@ class EmailOutboxIntegrationTest {
     @Test
     void storesSendsAndScrubsSensitiveContent() {
         var id = outbox.enqueue(new EmailDraft("ACCOUNT_VERIFICATION", "test@example.com", "Test",
-                "Verify", "secret link", "<p>secret link</p>", null,
+                null, "Verify", "secret link", "<p>secret link</p>", null,
                 "ACCOUNT", null, "verify:test-key"));
 
         outbox.deliver(id);
@@ -33,4 +33,3 @@ class EmailOutboxIntegrationTest {
                 "SELECT text_body FROM transactional_email_outbox WHERE id = ?", String.class, id));
     }
 }
-

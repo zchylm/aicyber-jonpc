@@ -38,7 +38,7 @@ public class TransactionalAccountEmailSender implements AccountEmailSender {
     }
 
     private EmailDraft draft(String type, String email, String displayName, EmailContent content, String key) {
-        return new EmailDraft(type, email, displayName, content.subject(), content.text(), content.html(), null,
+        return new EmailDraft(type, email, displayName, null, content.subject(), content.text(), content.html(), null,
                 "ACCOUNT", null, key);
     }
 

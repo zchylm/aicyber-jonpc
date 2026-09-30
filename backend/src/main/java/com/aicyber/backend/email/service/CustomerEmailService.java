@@ -47,8 +47,7 @@ public class CustomerEmailService {
 
     private EmailDraft draft(String type, String recipient, String name, EmailContent content,
                              String aggregateType, UUID aggregateId, String idempotencyKey) {
-        return new EmailDraft(type, recipient, name, content.subject(), content.text(), content.html(), null,
+        return new EmailDraft(type, recipient, name, null, content.subject(), content.text(), content.html(), null,
                 aggregateType, aggregateId, idempotencyKey);
     }
 }
-

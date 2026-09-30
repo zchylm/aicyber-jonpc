@@ -12,9 +12,14 @@ import java.util.Locale;
 public class EmailTemplateFactory {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM uuuu", Locale.ENGLISH);
     private final String accountUrl;
+    private final String supportEmail;
 
-    public EmailTemplateFactory(@Value("${jonpc.email.account-url:https://jonpc.com.au/}") String accountUrl) {
+    public EmailTemplateFactory(
+            @Value("${jonpc.email.account-url:https://jonpc.com.au/}") String accountUrl,
+            @Value("${jonpc.email.support-address:support@jonpc.com.au}") String supportEmail
+    ) {
         this.accountUrl = accountUrl;
+        this.supportEmail = supportEmail;
     }
 
     public EmailContent verification(String displayName, String verificationUrl) {
@@ -55,15 +60,39 @@ public class EmailTemplateFactory {
     }
 
     public EmailContent invoice(String displayName, String invoiceNumber, String orderReference,
-                                Long cashbackAmountCents, String cashbackTerms) {
-        String intro = "Hi " + safeName(displayName) + ", payment for " + orderReference
-                + " is confirmed. Your paid tax invoice " + invoiceNumber + " is attached.";
-        String footer = cashbackAmountCents != null && cashbackAmountCents > 0
-                ? "Founder cashback locked: " + money(cashbackAmountCents) + ". "
-                    + (cashbackTerms == null ? "It remains separate from the amount paid." : cashbackTerms)
-                : "Keep this invoice for your records.";
-        return simple("Your JON. PC tax invoice " + invoiceNumber, "Payment confirmed", intro,
-                footer);
+                                long amountPaidCents, Long cashbackAmountCents) {
+        String rewardText = cashbackAmountCents != null && cashbackAmountCents > 0
+                ? "Founder reward locked: " + money(cashbackAmountCents)
+                        + ". We’ll start it within 30 days after confirmed delivery."
+                : "Your paid tax invoice is attached for your records.";
+        String text = "Payment confirmed\n\n"
+                + "Hi " + safeName(displayName) + ", your payment is complete.\n\n"
+                + "Order: " + orderReference + "\n"
+                + "Amount paid: " + money(amountPaidCents) + "\n"
+                + "Tax invoice: " + invoiceNumber + " (attached)\n\n"
+                + rewardText + "\n\n"
+                + "View my order: " + accountUrl + "\n"
+                + "Questions? Reply to this email or contact " + supportEmail + ".";
+
+        String reward = cashbackAmountCents != null && cashbackAmountCents > 0
+                ? "<div style=\"margin-top:18px;padding:18px 20px;background:#effbdc;border-left:4px solid #a8e95f\">"
+                    + "<div style=\"font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4f635d\">Founder reward locked</div>"
+                    + "<div style=\"margin-top:5px;font-size:22px;font-weight:700;color:#0b1513\">" + escape(money(cashbackAmountCents)) + "</div>"
+                    + "<div style=\"margin-top:5px;font-size:13px;line-height:1.5;color:#52615e\">We’ll start it within 30 days after confirmed delivery.</div>"
+                    + "</div>"
+                : "";
+
+        String body = "<div style=\"display:inline-block;padding:6px 10px;background:#e9f9d3;color:#274116;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase\">Paid</div>"
+                + "<h1 style=\"margin:18px 0 10px;font-size:32px;line-height:1.12;letter-spacing:-.03em\">Payment confirmed.</h1>"
+                + "<p style=\"margin:0 0 24px;color:#52615e;font-size:16px;line-height:1.55\">Thanks, " + escape(safeName(displayName)) + ". Your payment is complete.</p>"
+                + "<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;background:#f5f7f6\">"
+                + detailRow("Order", orderReference, true)
+                + detailRow("Amount paid", money(amountPaidCents), true)
+                + detailRow("Tax invoice", invoiceNumber + " · PDF attached", false)
+                + "</table>"
+                + reward
+                + "<a href=\"" + escape(accountUrl) + "\" style=\"display:inline-block;margin-top:24px;background:#0b1513;color:#fff;padding:14px 20px;text-decoration:none;font-size:14px;font-weight:700\">View my order&nbsp;&nbsp;→</a>";
+        return new EmailContent("Payment confirmed · " + invoiceNumber, text, invoiceWrapper(body));
     }
 
     public EmailContent operationsBuildReceived(String reference, String customerName) {
@@ -91,12 +120,31 @@ public class EmailTemplateFactory {
     }
 
     private String wrapper(String body) {
-        return "<!doctype html><html><body style=\"margin:0;background:#eef3f1;font-family:Arial,sans-serif;color:#0b1513\">"
+        return "<!doctype html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;background:#eef3f1;font-family:Arial,sans-serif;color:#0b1513\">"
                 + "<div style=\"max-width:620px;margin:0 auto;padding:36px 18px\">"
                 + "<div style=\"margin-bottom:18px;font-weight:700;letter-spacing:.12em\">JON. PC</div>"
                 + "<div style=\"background:#fff;border-top:4px solid #bdf278;padding:32px\">" + body + "</div>"
                 + "<div style=\"padding-top:16px;color:#71807d;font-size:12px\">AI CYBER AUSTRALIA PTY LTD</div>"
                 + "</div></body></html>";
+    }
+
+    private String invoiceWrapper(String body) {
+        return "<!doctype html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;background:#eef3f1;font-family:Arial,sans-serif;color:#0b1513\">"
+                + "<div style=\"max-width:600px;margin:0 auto;padding:28px 16px\">"
+                + "<div style=\"background:#0b1513;padding:24px 28px;color:#fff\">"
+                + "<div style=\"font-size:18px;font-weight:700;letter-spacing:.14em\">JON. PC</div>"
+                + "<div style=\"margin-top:8px;color:#9eaaa7;font-size:10px;letter-spacing:.12em;text-transform:uppercase\">Order confirmation</div>"
+                + "</div>"
+                + "<div style=\"background:#fff;border-top:4px solid #bdf278;padding:32px 28px\">" + body + "</div>"
+                + "<div style=\"padding:18px 4px 0;color:#71807d;font-size:12px;line-height:1.6\">"
+                + "Questions? Reply to this email or contact <a href=\"mailto:" + escape(supportEmail) + "\" style=\"color:#40504d\">" + escape(supportEmail) + "</a>.<br>"
+                + "AI CYBER AUSTRALIA PTY LTD · ABN 22 689 546 450"
+                + "</div></div></body></html>";
+    }
+
+    private String detailRow(String label, String value, boolean border) {
+        return "<tr><td style=\"padding:15px 18px;color:#71807d;font-size:12px;" + (border ? "border-bottom:1px solid #dfe5e2;" : "") + "\">" + escape(label) + "</td>"
+                + "<td align=\"right\" style=\"padding:15px 18px;color:#0b1513;font-size:13px;font-weight:700;" + (border ? "border-bottom:1px solid #dfe5e2;" : "") + "\">" + escape(value) + "</td></tr>";
     }
 
     private String money(long cents) {

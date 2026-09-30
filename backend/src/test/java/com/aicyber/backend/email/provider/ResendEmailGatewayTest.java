@@ -39,7 +39,7 @@ class ResendEmailGatewayTest {
                     "http://localhost:" + server.getAddress().getPort() + "/emails",
                     "JON. PC <support@jonpc.com.au>", "support@jonpc.com.au");
             QueuedEmail email = new QueuedEmail(UUID.randomUUID(), "TAX_INVOICE", "buyer@example.com", "Buyer",
-                    "Your invoice", "Paid", "<p>Paid</p>",
+                    "JON. PC Orders <orders@jonpc.com.au>", "Your invoice", "Paid", "<p>Paid</p>",
                     new EmailAttachment("invoice.pdf", "application/pdf", "pdf".getBytes(StandardCharsets.UTF_8)),
                     "invoice-delivery:123", 1);
 
@@ -47,7 +47,7 @@ class ResendEmailGatewayTest {
             assertEquals("Bearer re_test", authorization.get());
             assertEquals("invoice-delivery:123", idempotency.get());
             JsonNode body = json.readTree(requestBody.get());
-            assertEquals("JON. PC <support@jonpc.com.au>", body.path("from").asText());
+            assertEquals("JON. PC Orders <orders@jonpc.com.au>", body.path("from").asText());
             assertEquals("buyer@example.com", body.path("to").get(0).asText());
             assertEquals("invoice.pdf", body.path("attachments").get(0).path("filename").asText());
         } finally {

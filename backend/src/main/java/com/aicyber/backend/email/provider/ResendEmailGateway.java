@@ -89,7 +89,7 @@ public class ResendEmailGateway implements EmailGateway {
 
     private String payload(QueuedEmail email) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("from", from);
+        body.put("from", email.sender() == null || email.sender().isBlank() ? from : email.sender());
         body.put("to", List.of(email.recipientEmail()));
         body.put("subject", email.subject());
         if (email.htmlBody() != null) body.put("html", email.htmlBody());

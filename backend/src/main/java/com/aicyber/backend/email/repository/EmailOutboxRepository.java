@@ -26,12 +26,12 @@ public class EmailOutboxRepository {
         EmailAttachment attachment = draft.attachment();
         jdbc.update("""
                 INSERT INTO transactional_email_outbox
-                    (id, message_type, recipient_email, recipient_name, subject, text_body, html_body,
+                    (id, message_type, recipient_email, recipient_name, sender, subject, text_body, html_body,
                      attachment_filename, attachment_content_type, attachment_content,
                      aggregate_type, aggregate_id, idempotency_key)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (idempotency_key) DO NOTHING
-                """, id, draft.messageType(), draft.recipientEmail(), draft.recipientName(), draft.subject(),
+                """, id, draft.messageType(), draft.recipientEmail(), draft.recipientName(), draft.sender(), draft.subject(),
                 draft.textBody(), draft.htmlBody(), attachment == null ? null : attachment.filename(),
                 attachment == null ? null : attachment.contentType(), attachment == null ? null : attachment.content(),
                 draft.aggregateType(), draft.aggregateId(), draft.idempotencyKey());
@@ -65,7 +65,7 @@ public class EmailOutboxRepository {
 
     public Optional<QueuedEmail> findForDelivery(UUID id) {
         return jdbc.query("""
-                SELECT id, message_type, recipient_email, recipient_name, subject, text_body, html_body,
+                SELECT id, message_type, recipient_email, recipient_name, sender, subject, text_body, html_body,
                        attachment_filename, attachment_content_type, attachment_content,
                        idempotency_key, attempt_count
                 FROM transactional_email_outbox WHERE id = ? AND status = 'SENDING'
@@ -135,7 +135,7 @@ public class EmailOutboxRepository {
                 rs.getString("attachment_filename"), rs.getString("attachment_content_type"), content);
         return new QueuedEmail(
                 UUID.fromString(rs.getString("id")), rs.getString("message_type"),
-                rs.getString("recipient_email"), rs.getString("recipient_name"), rs.getString("subject"),
+                rs.getString("recipient_email"), rs.getString("recipient_name"), rs.getString("sender"), rs.getString("subject"),
                 rs.getString("text_body"), rs.getString("html_body"), attachment,
                 rs.getString("idempotency_key"), rs.getInt("attempt_count")
         );

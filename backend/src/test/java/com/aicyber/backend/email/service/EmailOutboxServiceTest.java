@@ -52,8 +52,7 @@ class EmailOutboxServiceTest {
     }
 
     private QueuedEmail queued(UUID id, int attempts) {
-        return new QueuedEmail(id, "TEST", "test@example.com", "Test", "Subject", "Text", null,
+        return new QueuedEmail(id, "TEST", "test@example.com", "Test", null, "Subject", "Text", null,
                 null, "test:" + id, attempts);
     }
 }
-
