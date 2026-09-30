@@ -60,7 +60,7 @@ function AiAssistant() {
       if (!response.ok) throw new Error("Chat API request failed");
       const answer: AssistantReply = await response.json();
       setConnectionStatus("live");
-      setMessages((current) => [...current, { id: Date.now(), role: "assistant", content: answer, context: answer.source === "claude" }]);
+      setMessages((current) => [...current, { id: Date.now(), role: "assistant", content: answer, context: answer.source === "claude" || answer.source === "guided" }]);
     } catch {
       setConnectionStatus("unavailable");
       setMessages((current) => [

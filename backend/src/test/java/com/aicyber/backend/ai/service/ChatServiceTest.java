@@ -59,4 +59,18 @@ class ChatServiceTest {
 
         assertEquals("Message is too long", error.getMessage());
     }
+
+    @Test
+    void asksOneBudgetQuestionBeforeCallingTheModelForBroadRecommendations() {
+        ChatService service = new ChatService((message, history, context) -> {
+            throw new AssertionError("The model should not be called before the visitor supplies a budget");
+        }, () -> "live context");
+
+        ChatResponse english = service.answer("I am new to PCs and want to play games. What should I buy?", List.of());
+        ChatResponse chinese = service.answer("我是电脑新手，请推荐一台游戏电脑", List.of());
+
+        assertEquals("What budget are you working with?", english.body());
+        assertEquals("你的预算大约是多少？", chinese.body());
+        assertEquals("guided", english.source());
+    }
 }
