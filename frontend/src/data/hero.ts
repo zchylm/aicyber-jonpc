@@ -16,7 +16,7 @@ export const heroSlides = [
   {
     id: "compact-ai",
     kicker: "02 / Compact AI",
-    title: "Build for\nAI.",
+    title: "Built for\nAI.",
     description: "Compact local AI systems, ready for your desk.",
     cta: { label: "View compact systems", href: "#compact-ai-systems" },
     image: compactAiImage,
