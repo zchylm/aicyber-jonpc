@@ -340,6 +340,8 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                 {verificationBusy ? "Sending..." : "Send verification link"}<span aria-hidden="true">→</span>
               </button>
             )}
+            <button type="button" role="menuitem" onClick={() => { setIsAccountOpen(false); openBuildsPanel(); }}>My builds <span aria-hidden="true">→</span></button>
+            <button type="button" role="menuitem" onClick={() => { setIsAccountOpen(false); openOrdersPanel(); window.dispatchEvent(new CustomEvent("jonpc:order-requested")); }}>My orders <span aria-hidden="true">→</span></button>
             {user.role === "ADMIN" && (
               <button type="button" role="menuitem" onClick={() => { window.location.hash = "/admin"; }}>Admin workspace <span aria-hidden="true">→</span></button>
             )}
@@ -347,8 +349,6 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
           </div>
         )}
       </div>
-      {user && <div className="my-builds-entry"><button className="my-builds-nav-button" type="button" onClick={openBuildsPanel}><span className="my-builds-icon" aria-hidden="true" />My builds</button></div>}
-      {user && <div className="order-history-entry"><button className="order-history-nav-button" type="button" onClick={() => { openOrdersPanel(); window.dispatchEvent(new CustomEvent("jonpc:order-requested")); }}><span className="order-history-icon" aria-hidden="true" />My orders</button></div>}
 
       {isOpen && (
         <div className="auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeAccountPanel(); }}>
@@ -450,7 +450,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                 <article className="order-history-row" key={order.id}>
                   <div className="order-history-row-heading">
                     <div><strong>{order.orderReference ?? order.requestReference}</strong><span>{order.direction} / {formatOrderDate(order.createdAt)}</span></div>
-                    <div className="order-history-price"><b>{order.quoteTotalCents != null ? `$${(order.quoteTotalCents / 100).toLocaleString("en-AU")} AUD incl. GST` : order.configuration.answers?.systemSku ? `$${order.estimatedPrice.toLocaleString("en-AU")} AUD incl. GST` : `$${order.estimatedPrice.toLocaleString("en-AU")} AUD estimated`}</b>{order.reward && <span>{formatRewardMoney(order.reward.cashbackAmountCents)} cashback · {rewardStatusLabel(order.reward.status)}</span>}</div>
+                    <div className="order-history-price"><b>{order.quoteTotalCents != null ? `$${(order.quoteTotalCents / 100).toLocaleString("en-AU")} AUD incl. GST` : order.direction === "AI Infrastructure" ? "Engineering review" : order.configuration.answers?.systemSku ? `$${order.estimatedPrice.toLocaleString("en-AU")} AUD incl. GST` : `$${order.estimatedPrice.toLocaleString("en-AU")} AUD estimated`}</b>{order.reward && <span>{formatRewardMoney(order.reward.cashbackAmountCents)} cashback · {rewardStatusLabel(order.reward.status)}</span>}</div>
                   </div>
                   <div className="order-history-row-footer">
                     {(!paymentDemoEnabled || customerOrderState(order).label !== "Ready to checkout") && <span className={`order-status order-status-${customerOrderState(order).tone}`}>{customerOrderState(order).label}</span>}
@@ -524,7 +524,7 @@ function OrderPrimaryAction({ order, onClose }: { order: OrderHistoryItem; onClo
   }
   if (!order.configuration.answers?.systemSku) {
     if (order.quoteStatus === "SENT" && order.quoteValidUntil && new Date(order.quoteValidUntil).getTime() < openedAt) return null;
-    if (order.quoteStatus === "SENT" && order.quoteId) return <><button className="order-primary-action" type="button" disabled={accepting} onClick={async () => {
+    if (order.quoteStatus === "SENT" && order.quoteId) return <div className="order-quote-action"><span>Build & dispatch · 30–45 days after payment</span><button className="order-primary-action" type="button" disabled={accepting} onClick={async () => {
       const token = window.localStorage.getItem(authTokenKey);
       if (!token) return;
       setAccepting(true);
@@ -535,7 +535,7 @@ function OrderPrimaryAction({ order, onClose }: { order: OrderHistoryItem; onClo
         if (paymentDemoEnabled) openCheckout();
       } catch (error) { setQuoteError(error instanceof Error ? error.message : "Unable to accept quote."); }
       finally { setAccepting(false); }
-    }}>{accepting ? "Confirming..." : "Accept final quote →"}</button>{quoteError && <small className="auth-error" role="alert">{quoteError}</small>}</>;
+    }}>{accepting ? "Confirming..." : "Accept final quote →"}</button>{quoteError && <small className="auth-error" role="alert">{quoteError}</small>}</div>;
     if (order.quoteStatus === "ACCEPTED" && paymentDemoEnabled) return <button className="order-primary-action" type="button" onClick={openCheckout}>Continue to checkout →</button>;
     return null;
   }
@@ -548,7 +548,7 @@ function OrderPrimaryAction({ order, onClose }: { order: OrderHistoryItem; onClo
 
 function OrderDetails({ order }: { order: OrderHistoryItem }) {
   const systemSku = order.configuration.answers?.systemSku;
-  const configuration = systemSku ? [
+  const configuration = order.direction === "AI Infrastructure" ? Object.entries(order.configuration.answers ?? {}).filter(([key]) => key !== "Request type") : systemSku ? [
     ["System", order.configuration.answers.systemName],
     ["SKU", systemSku],
     ...["CPU", "GPU", "Memory", "Storage", "Motherboard", "Cooler", "PSU", "Case", "Fans", "Networking", "OS"].filter((key) => order.configuration.answers[key]).map((key) => [key, order.configuration.answers[key]]),
@@ -562,26 +562,27 @@ function OrderDetails({ order }: { order: OrderHistoryItem }) {
     ["Case", getOptionLabel(caseOptions, order.configuration.caseId)],
     ["Cooling", getOptionLabel(coolingOptions, order.configuration.coolingId)],
   ];
+  const quotePending = order.quoteStatus === "SENT";
 
   return (
     <div className="order-history-details-panel">
       <div className="order-history-references">
-        {order.orderReference && <div><span>Order</span><strong>{order.orderReference}</strong></div>}
         <div><span>Build request</span><strong>{order.requestReference}</strong></div>
-        {order.paymentReference && <div><span>Payment</span><strong>{order.paymentReference}</strong></div>}
         {order.invoiceId && order.invoiceNumber && <div><span>Tax invoice</span><InvoiceDownloadButton invoiceId={order.invoiceId} invoiceNumber={order.invoiceNumber} /></div>}
-        {order.quoteTotalCents != null && <div><span>Final quote</span><strong>${(order.quoteTotalCents / 100).toLocaleString("en-AU")} incl. GST{order.quoteValidUntil ? ` · Valid until ${formatOrderDate(order.quoteValidUntil)}` : ""}</strong></div>}
+        {(order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID" || order.orderStatus === "REWARD_ELIGIBLE") && <div><span>Delivery estimate</span><strong>30–45 days</strong></div>}
       </div>
-      {order.quoteNote && <p className="order-next-step">{order.quoteNote}</p>}
+      {quotePending && order.quoteTotalCents != null && <div className="order-quote-summary"><div><span>Final quote</span><strong>${(order.quoteTotalCents / 100).toLocaleString("en-AU")} incl. GST</strong></div>{order.quoteValidUntil && <small>Valid until {formatOrderDate(order.quoteValidUntil)}</small>}{order.quoteNote && <p>{order.quoteNote}</p>}<em>Build & dispatch · 30–45 days after payment</em></div>}
       {order.reward && <div className="order-founder-summary">
         <div><span>Founder reward</span><strong>#{String(order.reward.founderNumber).padStart(2, "0")} · {order.reward.tierName}</strong></div>
         <div><span>Cashback</span><strong>{formatRewardMoney(order.reward.cashbackAmountCents)}</strong></div>
         <div><span>Status</span><strong>{rewardStatusLabel(order.reward.status)}</strong></div>
-        <p>{rewardTiming(order.reward)}</p>
       </div>}
-      <div className="order-history-configuration">
-        {configuration.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
-      </div>
+      <details className="order-configuration-details">
+        <summary>Configuration <span>{configuration.length} items</span></summary>
+        <div className="order-history-configuration">
+          {configuration.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
+        </div>
+      </details>
     </div>
   );
 }
@@ -592,13 +593,6 @@ function formatRewardMoney(cents: number) {
 
 function rewardStatusLabel(status: string) {
   return ({ LOCKED: "Locked", PAYABLE: "Ready for payout", PROCESSING: "Processing", PAID: "Paid", FAILED: "Needs attention", VOID: "Cancelled" } as Record<string, string>)[status] ?? status;
-}
-
-function rewardTiming(reward: NonNullable<OrderHistoryItem["reward"]>) {
-  if (reward.status === "PAID") return `Returned to the original payment method${reward.paidAt ? ` on ${formatOrderDate(reward.paidAt)}` : ""}${reward.payoutReference ? ` · ${reward.payoutReference}` : ""}.`;
-  if (reward.payoutDueAt) return `Payout scheduled by ${formatOrderDate(reward.payoutDueAt)} to the original payment method.`;
-  if (reward.status === "FAILED") return "Payout needs attention. JON.PC support will review it.";
-  return "JON.PC will initiate eligible cashback within 30 days after confirmed delivery.";
 }
 
 function CancelRequestAction({ order }: { order: OrderHistoryItem }) {

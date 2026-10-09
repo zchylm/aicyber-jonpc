@@ -27,12 +27,16 @@ public class CustomerEmailService {
     }
 
     public void buildReceived(UUID requestId, ConfiguratorBuildRequest request, String reference) {
-        EmailContent customer = templates.buildReceived(request.name(), reference);
-        outbox.enqueue(draft("CUSTOM_BUILD_RECEIVED", request.email(), request.name(), customer,
+        buildReceived(requestId, request.email(), request.name(), reference);
+    }
+
+    public void buildReceived(UUID requestId, String email, String name, String reference) {
+        EmailContent customer = templates.buildReceived(name, reference);
+        outbox.enqueue(draft("CUSTOM_BUILD_RECEIVED", email, name, customer,
                 "BUILD_REQUEST", requestId, "custom-build-received:" + requestId));
 
         if (operationsRecipient != null && !operationsRecipient.isBlank()) {
-            EmailContent operations = templates.operationsBuildReceived(reference, request.name());
+            EmailContent operations = templates.operationsBuildReceived(reference, name);
             outbox.enqueue(draft("OPERATIONS_BUILD_ALERT", operationsRecipient, "JON. PC Operations", operations,
                     "BUILD_REQUEST", requestId, "operations-build-alert:" + requestId));
         }

@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/requests/**").authenticated()
                         .requestMatchers("/api/orders/delivery/**").authenticated()
                         .requestMatchers("/api/configurator/requests").authenticated()
+                        .requestMatchers("/api/infrastructure/requests").authenticated()
                         .requestMatchers("/api/quotes/**").authenticated()
                         .requestMatchers("/api/systems/local-requests").authenticated()
                         .requestMatchers("/api/invoices/**").authenticated()

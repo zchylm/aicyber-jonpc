@@ -1,10 +1,10 @@
 import { useState } from "react";
 
 const logicSteps = [
-  { number: "01", title: "Tell us your requirements" },
-  { number: "02", title: "JON. recommends" },
-  { number: "03", title: "You customise" },
-  { number: "04", title: "We validate & build" },
+  { number: "01", title: "Choose your goal" },
+  { number: "02", title: "Get a recommendation" },
+  { number: "03", title: "Customise" },
+  { number: "04", title: "Validate & build" },
 ];
 
 function LogicStrip() {
@@ -13,7 +13,7 @@ function LogicStrip() {
   return (
     <section className="logic-strip" aria-labelledby="logic-title">
       <div className="logic-strip-heading">
-        <span id="logic-title">JON. PC LOGIC</span>
+        <span id="logic-title">JON.PC LOGIC</span>
         <i aria-hidden="true" />
       </div>
       <ol className="logic-strip-steps">

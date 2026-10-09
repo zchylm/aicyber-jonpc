@@ -35,10 +35,10 @@ function HeroVisual() {
         <span className="hero-slide-kicker">{activeSlide.kicker}</span>
         <h1 id="hero-title">{activeSlide.title}</h1>
         <p>{activeSlide.description}</p>
-        <a className="button button-primary" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>Find your system <span aria-hidden="true">↗</span></a>
+        <a className="button button-primary" href={activeSlide.cta.href}>{activeSlide.cta.label} <span aria-hidden="true">↗</span></a>
       </div>
       <div className="hero-carousel-controls">
-        <div className="hero-carousel-counter"><strong>0{activeIndex + 1}</strong><span>/ 05</span></div>
+        <div className="hero-carousel-counter"><strong>{String(activeIndex + 1).padStart(2, "0")}</strong><span>/ {String(heroSlides.length).padStart(2, "0")}</span></div>
         <div className="hero-carousel-dots" role="tablist" aria-label="Choose hero slide">
           {heroSlides.map((slide, index) => (
             <button className={index === activeIndex ? "hero-carousel-dot hero-carousel-dot-active" : "hero-carousel-dot"} type="button" role="tab" aria-selected={index === activeIndex} aria-label={`Show ${slide.kicker}`} key={slide.id} onClick={() => setActiveIndex(index)}>

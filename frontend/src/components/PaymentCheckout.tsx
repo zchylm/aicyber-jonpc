@@ -245,6 +245,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
             <h2 id="payment-title">Review and pay.</h2>
             <p className="payment-intro">Review your order and current Founder offer before payment.</p>
             <PaymentSummary payment={payment} />
+            <div className="payment-build-window"><span>Build & dispatch</span><strong>Allow 30–45 days after payment confirmation.</strong></div>
             {payment.rewardPreview?.available && <div className="payment-reward-preview">
               <div className="payment-reward-preview-heading"><span>Founder cashback</span><strong>{formatAudExact(payment.rewardPreview.cashbackAmountCents!)}</strong></div>
               <div className="payment-reward-preview-details">
@@ -281,7 +282,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           <>
             <span className="section-kicker payment-success-kicker"><i /> Payment confirmed</span>
             <h2 id="payment-title">You&apos;re in.</h2>
-            <p className="payment-intro">Your order is confirmed{payment.rewardState === "JOINED" ? " and your Founder cashback is locked." : "."}</p>
+            <p className="payment-intro">Your order is confirmed{payment.rewardState === "JOINED" ? " and your Founder cashback is locked." : "."} Build and dispatch are expected within 30–45 days.</p>
             <PaymentSummary payment={payment} />
             {payment.reward && (
               <div className="payment-reward-result">

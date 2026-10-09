@@ -12,6 +12,9 @@
 .payment-summary strong { display: block; margin-top: 9px; overflow-wrap: anywhere; color: var(--ink); font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500; letter-spacing: .025em; }
 .payment-summary > div:last-of-type strong { color: var(--lime); font-size: 23px; letter-spacing: -.025em; }
 .payment-summary small { grid-column: 1 / -1; padding: 11px 18px; color: #70807b; background: rgba(5, 9, 10, .94); font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: .045em; text-transform: uppercase; }
+.payment-build-window { display: grid; gap: 6px; margin-top: 14px; padding: 14px 17px; border: 1px solid rgba(195, 239, 128, .34); }
+.payment-build-window span { color: var(--lime); font: 9px 'DM Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
+.payment-build-window strong { color: var(--ink); font-size: 13px; font-weight: 500; }
 .payment-assurance { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; margin-top: 20px; color: #aab5b2; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .035em; line-height: 1.45; text-transform: uppercase; }
 .payment-assurance span { display: flex; gap: 8px; align-items: baseline; }
 .payment-assurance i, .payment-success-kicker i { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }

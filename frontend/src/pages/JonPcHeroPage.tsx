@@ -2,9 +2,9 @@ import { useState } from "react";
 import BrandLockup from "../components/BrandLockup";
 import BuildConfigurator from "../components/BuildConfigurator";
 import AiAssistant from "../components/AiAssistant";
-import LogicStrip from "../components/LogicStrip";
 import HeroVisual from "../components/HeroVisual";
 import SystemsSection from "../components/SystemsSection";
+import AiInfrastructureSection from "../components/AiInfrastructureSection";
 import AuthPanel from "../components/AuthPanel";
 import QueueRewardsSection from "../components/QueueRewardsSection";
 import PaymentCheckout from "../components/PaymentCheckout";
@@ -35,7 +35,6 @@ function JonPcHeroPage() {
                 href={item.href}
                 key={item.label}
                 onClick={(event) => {
-                  if (item.href === "#build") window.dispatchEvent(new CustomEvent("jonpc:start-new-build"));
                   if (isRewards && user) {
                     event.preventDefault();
                     window.dispatchEvent(new CustomEvent("jonpc:open-rewards"));
@@ -65,9 +64,9 @@ function JonPcHeroPage() {
 
       {import.meta.env.DEV && <PaymentCheckout user={user} onUserChange={setUser} />}
 
-      <LogicStrip />
-
       <SystemsSection />
+
+      <AiInfrastructureSection />
 
       <BuildConfigurator user={user} />
       <SiteSupport user={user} />

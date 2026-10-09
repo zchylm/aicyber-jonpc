@@ -11,6 +11,8 @@ import midWhite from "../assets/recommendation-slides/custom-02.jpeg";
 import coolingAir from "../assets/step07/cooling-air.jpeg";
 import coolingLiquid from "../assets/step07/cooling-liquid.jpeg";
 import coolingLiquidRed from "../assets/step07/cooling-liquid-red.jpeg";
+import customBuildWorkshop from "../assets/custom-build-workshop.jpg";
+import LogicStrip from "./LogicStrip";
 
 function defaultsFor(direction: DirectionId) {
   return Object.fromEntries(
@@ -94,6 +96,8 @@ function advanceConfiguratorStep(from: ConfiguratorStep, to: ConfiguratorStep) {
 
 
 function BuildConfigurator({ user }: BuildConfiguratorProps) {
+  const [configuratorOpen, setConfiguratorOpen] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
   const [direction, setDirection] = useState<DirectionId>("gaming");
   const [directionChosen, setDirectionChosen] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>(defaultsFor("gaming"));
@@ -264,6 +268,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
       setRequestOpen(false);
       setSavedBuildId(build.id ?? null);
       setSaveState(build.id ? "saved" : "idle");
+      setConfiguratorOpen(true);
       advanceConfiguratorStep(1, 8);
     };
     window.addEventListener("jonpc:load-build", handleLoadBuild);
@@ -333,6 +338,8 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
   const serializedQuoteRequest = JSON.stringify(currentQuoteRequest);
 
   function startNewBuild(nextDirection: DirectionId = "gaming", chosen = false) {
+    setResetConfirm(false);
+    setConfiguratorOpen(true);
     setDirection(nextDirection);
     setDirectionChosen(chosen);
     setAnswers(defaultsFor(nextDirection));
@@ -360,22 +367,48 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
     setSavedBuildId(null);
     setSaveState("idle");
     setBuildOrigin(null);
-    window.requestAnimationFrame(() => document.getElementById("build")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    window.requestAnimationFrame(() => document.getElementById("configurator-body")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   useEffect(() => {
     const handleStartNewBuild = () => startNewBuild();
+    const handleOpenConfigurator = () => {
+      setConfiguratorOpen(true);
+      window.requestAnimationFrame(() => document.getElementById("configurator-body")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
     const handleStartDirectedBuild = (event: Event) => {
       const nextDirection = (event as CustomEvent<{ direction?: DirectionId }>).detail?.direction;
       startNewBuild(nextDirection && configuratorDirections.some((item) => item.id === nextDirection) ? nextDirection : "gaming", true);
     };
     window.addEventListener("jonpc:start-new-build", handleStartNewBuild);
+    window.addEventListener("jonpc:open-configurator", handleOpenConfigurator);
     window.addEventListener("jonpc:start-directed-build", handleStartDirectedBuild);
     return () => {
       window.removeEventListener("jonpc:start-new-build", handleStartNewBuild);
+      window.removeEventListener("jonpc:open-configurator", handleOpenConfigurator);
       window.removeEventListener("jonpc:start-directed-build", handleStartDirectedBuild);
     };
   }, []);
+
+  function openConfigurator() {
+    setResetConfirm(false);
+    setConfiguratorOpen(true);
+    window.requestAnimationFrame(() => document.getElementById("configurator-body")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function closeConfigurator() {
+    setResetConfirm(false);
+    setConfiguratorOpen(false);
+    window.requestAnimationFrame(() => document.getElementById("build")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function requestStartOver() {
+    if (!resetConfirm) {
+      setResetConfirm(true);
+      return;
+    }
+    startNewBuild();
+  }
 
   function markPresetModified() {
     setBuildOrigin((current) => current ? { ...current, modified: true } : null);
@@ -812,9 +845,15 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
         <div>
           <h2 id="configurator-title">Intelligent custom<br /><em>builds.</em></h2>
         </div>
-        <p>Tell us how you work, play or create. JON. PC recommends a balanced starting point, then you customise the details.</p>
+        <div className="configurator-intro"><p>Tell us how you work, play or create. JON. PC recommends a balanced starting point, then you customise the details.</p><button className="button button-primary configurator-hero-cta" type="button" onClick={openConfigurator}>{directionChosen ? "Continue your build" : "Customize your PC"} <span aria-hidden="true">↗</span></button></div>
+      </div>
+      <div className="configurator-showcase">
+        <LogicStrip />
+        <figure className="configurator-craft-image"><img src={customBuildWorkshop} alt="A JON.PC builder completing a custom desktop PC" /><figcaption>JON.PC custom build workshop</figcaption></figure>
       </div>
 
+      {configuratorOpen && <div id="configurator-body">
+      <div className="configurator-toolbar"><div className="configurator-session"><span>PC configurator</span><strong>{directionChosen ? `${directionLabel} build in progress` : "Ready to begin"}</strong></div><div className="configurator-actions"><button className="configurator-control-button" type="button" onClick={closeConfigurator}><i aria-hidden="true">—</i><span><strong>Pause & close</strong><small>Keep your selections</small></span></button><button className={resetConfirm ? "configurator-control-button configurator-control-reset configurator-control-confirm" : "configurator-control-button configurator-control-reset"} type="button" onClick={requestStartOver}><i aria-hidden="true">↺</i><span><strong>{resetConfirm ? "Confirm reset" : "Start over"}</strong><small>{resetConfirm ? "Click again to clear" : "Clear this build"}</small></span></button></div></div>
       <div className="configurator-steps" aria-label="Configurator progress">
         <span className="configurator-step-active"><b>01</b> Direction</span>
         <span className={directionChosen ? "configurator-step-active" : ""}><b>02</b> What matters</span>
@@ -1241,6 +1280,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
           )}
         </aside>}
       </div>
+      </div>}
 
       {requestOpen && (
         <div className="request-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setRequestOpen(false); }}>
