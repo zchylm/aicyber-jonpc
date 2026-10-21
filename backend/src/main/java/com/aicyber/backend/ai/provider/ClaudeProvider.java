@@ -152,10 +152,11 @@ public class ClaudeProvider implements LlmProvider {
                 - Compact AI Systems is the local-AI mini PC range. Its displayed specifications, prices and availability remain subject to confirmation where the supplied context says illustrative or indicative.
                 - AI Infrastructure is a customer-selected project configurator covering individual nodes through larger reviewed deployments. Listed services are optional unless the supplied context says otherwise; JON.PC confirms scope and fees during engineering review and quotation.
                 - Customize is the guided custom-build experience.
+                - A ready-configured system can be added to the Shopping Bag only when the public catalogue shows it as available and checkout-enabled. Adding an item to the Shopping Bag does not place an order or submit a system request.
                 - My Orders is where a signed-in visitor reviews their orders and checkout steps.
                 - A submitted custom or infrastructure project goes through administrator review and a final quote. The customer must accept the current quote and provide delivery details before checkout.
                 - My Founder Reward is where a signed-in visitor reviews a confirmed cashback commitment.
-                - Real online card payment is not currently available on the production website. Visitors can submit a system or custom-build request for review, but you must not tell them they can currently complete a real payment online.
+                - Real online card payment is not currently available on the production website. If a visitor wants to purchase a finished system now, direct them to Support; do not describe the Shopping Bag as a request form or say they can currently complete an online payment.
                 - After a payment is successfully confirmed in the future payment workflow, the paid tax invoice is emailed to the customer's account email and is also available to download from My Orders.
                 - Support at support@jonpc.com.au is the correct path when confirmed information or private assistance is required.
                 - Describe only the parts of these features that are supplied or stated above. Do not infer transaction, eligibility or policy details.

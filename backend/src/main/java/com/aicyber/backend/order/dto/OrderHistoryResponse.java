@@ -5,6 +5,7 @@ import com.aicyber.backend.reward.dto.RewardEntryResponse;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.List;
 
 public record OrderHistoryResponse(
         UUID id,
@@ -29,6 +30,7 @@ public record OrderHistoryResponse(
         Long quoteTotalCents,
         OffsetDateTime quoteValidUntil,
         String quoteNote,
-        RewardEntryResponse reward
+        RewardEntryResponse reward,
+        List<OrderSystemItemResponse> items
 ) {
 }

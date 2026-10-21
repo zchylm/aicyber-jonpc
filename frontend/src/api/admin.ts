@@ -58,6 +58,7 @@ export type AdminOrderDetail = {
   buildRequestReference: string | null;
   direction: string | null;
   configuration: Record<string, unknown>;
+  systems: Array<{ sku: string; name: string; unitPriceCents: number; quantity: number; lineTotalCents: number }>;
   delivery: null | {
     recipientName: string;
     phone: string;
@@ -203,6 +204,7 @@ export type SystemProduct = {
   specifications: Record<string, string>;
   status: string;
   previewEnabled: boolean;
+  saleEnabled: boolean;
 };
 export type SystemProductInput = Omit<SystemProduct, "id" | "status" | "sourceRevision" | "onHandQuantity" | "reorderPoint" | "availableQuantity">;
 export type InventoryItemInput = {

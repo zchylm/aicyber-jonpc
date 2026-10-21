@@ -15,6 +15,7 @@ public record SystemProductRequest(
         String recommendedFor,
         String dispatchEstimate,
         Map<String, String> specifications,
-        boolean previewEnabled
+        boolean previewEnabled,
+        boolean saleEnabled
 ) {
 }

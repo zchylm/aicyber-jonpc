@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/me", "/api/auth/email-verification/send").authenticated()
                         .requestMatchers("/api/builds/**").authenticated()
+                        .requestMatchers("/api/cart/**").authenticated()
                         .requestMatchers("/api/orders").authenticated()
                         .requestMatchers("/api/orders/requests/**").authenticated()
                         .requestMatchers("/api/orders/delivery/**").authenticated()

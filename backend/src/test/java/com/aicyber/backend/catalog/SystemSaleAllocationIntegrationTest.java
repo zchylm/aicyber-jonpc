@@ -17,7 +17,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SpringBootTest
+@SpringBootTest(properties = "jonpc.catalog.demo-store-enabled=false")
 @ActiveProfiles("local")
 @Transactional
 class SystemSaleAllocationIntegrationTest {

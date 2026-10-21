@@ -41,6 +41,7 @@ public class CustomBuildReviewService {
                 ) q ON TRUE
                 WHERE b.user_id IS NOT NULL
                   AND b.configuration_snapshot->'answers'->>'systemSku' IS NULL
+                  AND NOT EXISTS (SELECT 1 FROM build_request_system_items si WHERE si.build_request_id = b.id)
                   AND b.status <> 'CANCELLED'
                   AND (q.status = 'ACCEPTED' OR NOT EXISTS
                       (SELECT 1 FROM sales_orders s WHERE s.build_request_id = b.id))
@@ -66,6 +67,7 @@ public class CustomBuildReviewService {
                 SELECT 1 FROM build_requests
                 WHERE id = ? AND user_id IS NOT NULL AND status <> 'CANCELLED'
                   AND configuration_snapshot->'answers'->>'systemSku' IS NULL
+                  AND NOT EXISTS (SELECT 1 FROM build_request_system_items si WHERE si.build_request_id = build_requests.id)
                 FOR UPDATE
                 """, rs -> rs.next() ? 1 : 0, requestId);
         if (locked == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Custom build request not found");

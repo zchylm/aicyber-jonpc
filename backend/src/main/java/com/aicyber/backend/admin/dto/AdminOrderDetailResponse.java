@@ -21,11 +21,14 @@ public record AdminOrderDetailResponse(
         String buildRequestReference,
         String direction,
         Map<String, Object> configuration,
+        List<SystemItem> systems,
         DeliveryItem delivery,
         List<PaymentItem> payments,
         InvoiceItem invoice,
         RewardItem reward
 ) {
+    public record SystemItem(String sku, String name, long unitPriceCents, int quantity, long lineTotalCents) {}
+
     public record DeliveryItem(
             String recipientName, String phone, String addressLine1, String addressLine2,
             String suburb, String state, String postcode, String country

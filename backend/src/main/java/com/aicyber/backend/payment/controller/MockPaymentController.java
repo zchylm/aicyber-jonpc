@@ -5,7 +5,6 @@ import com.aicyber.backend.payment.dto.CreateMockPaymentRequest;
 import com.aicyber.backend.payment.dto.MockPaymentResponse;
 import com.aicyber.backend.payment.service.MockPaymentWorkflowService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,7 +18,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payments/mock")
-@Profile("local")
 @ConditionalOnProperty(name = "jonpc.payments.demo-enabled", havingValue = "true")
 public class MockPaymentController {
     private final MockPaymentWorkflowService service;

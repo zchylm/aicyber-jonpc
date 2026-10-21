@@ -60,18 +60,34 @@ public class InvoiceService {
         OffsetDateTime issuedAt = OffsetDateTime.now(MELBOURNE);
         String invoiceNumber = repository.nextInvoiceNumber(issuedAt.getYear());
         GstBreakdown amounts = gstCalculator.fromGstInclusiveTotal(source.paymentAmountCents());
-        InvoiceLine line = new InvoiceLine(
-                UUID.randomUUID(), 1, source.systemSku(),
-                source.systemName() == null ? description(source.direction()) : source.systemName(), 1,
-                amounts.subtotalExGstCents(), GST_RATE_BASIS_POINTS, amounts.gstCents(),
-                amounts.totalCents(), true
-        );
+        List<InvoiceRepository.OrderSystemLine> systemLines = repository.systemLines(orderId);
+        List<InvoiceLine> lines;
+        if (systemLines.isEmpty()) {
+            lines = List.of(new InvoiceLine(
+                    UUID.randomUUID(), 1, source.systemSku(),
+                    source.systemName() == null ? description(source.direction()) : source.systemName(), 1,
+                    amounts.subtotalExGstCents(), GST_RATE_BASIS_POINTS, amounts.gstCents(),
+                    amounts.totalCents(), true
+            ));
+        } else {
+            long lineTotal = systemLines.stream().mapToLong(InvoiceRepository.OrderSystemLine::lineTotalCents).sum();
+            if (lineTotal != source.paymentAmountCents())
+                throw new IllegalStateException("Shopping bag total does not match the successful payment");
+            java.util.concurrent.atomic.AtomicInteger lineNumber = new java.util.concurrent.atomic.AtomicInteger(1);
+            lines = systemLines.stream().map(item -> {
+                GstBreakdown lineAmounts = gstCalculator.fromGstInclusiveTotal(item.lineTotalCents());
+                long unitExGst = Math.round((double) lineAmounts.subtotalExGstCents() / item.quantity());
+                return new InvoiceLine(UUID.randomUUID(), lineNumber.getAndIncrement(), item.sku(), item.name(),
+                        item.quantity(), unitExGst, GST_RATE_BASIS_POINTS, lineAmounts.gstCents(),
+                        lineAmounts.totalCents(), true);
+            }).toList();
+        }
         SalesInvoice draft = invoice(
-                source, invoiceNumber, issuedAt, amounts, List.of(line), null, null
+                source, invoiceNumber, issuedAt, amounts, lines, null, null
         );
         byte[] pdf = pdfRenderer.render(draft);
         SalesInvoice issued = invoice(
-                source, invoiceNumber, issuedAt, amounts, List.of(line), pdf, sha256(pdf)
+                source, invoiceNumber, issuedAt, amounts, lines, pdf, sha256(pdf)
         );
         repository.create(issued);
         return issued;

@@ -22,6 +22,7 @@ public record SystemProduct(
         String dispatchEstimate,
         Map<String, String> specifications,
         String status,
-        boolean previewEnabled
+        boolean previewEnabled,
+        boolean saleEnabled
 ) {
 }

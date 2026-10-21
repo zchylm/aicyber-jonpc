@@ -81,6 +81,21 @@ public class InvoiceRepository {
         return "JON-INV-%d-%06d".formatted(year, number);
     }
 
+    public List<OrderSystemLine> systemLines(UUID orderId) {
+        return jdbcTemplate.query("""
+                SELECT i.sku_snapshot, i.name_snapshot, i.unit_price_cents, i.quantity, i.line_total_cents
+                FROM sales_orders s
+                JOIN build_request_system_items i ON i.build_request_id = s.build_request_id
+                WHERE s.id = ? ORDER BY i.created_at, i.id
+                """, (resultSet, rowNum) -> new OrderSystemLine(
+                resultSet.getString("sku_snapshot"), resultSet.getString("name_snapshot"),
+                resultSet.getLong("unit_price_cents"), resultSet.getInt("quantity"),
+                resultSet.getLong("line_total_cents")
+        ), orderId);
+    }
+
+    public record OrderSystemLine(String sku, String name, long unitPriceCents, int quantity, long lineTotalCents) {}
+
     public void create(SalesInvoice invoice) {
         jdbcTemplate.update("""
                 INSERT INTO sales_invoices

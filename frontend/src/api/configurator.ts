@@ -128,6 +128,7 @@ export type OrderHistoryItem = {
   quoteValidUntil: string | null;
   quoteNote: string | null;
   reward: RewardEntry | null;
+  items: Array<{ systemId: string; sku: string; name: string; unitPriceCents: number; quantity: number; lineTotalCents: number }>;
 };
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");

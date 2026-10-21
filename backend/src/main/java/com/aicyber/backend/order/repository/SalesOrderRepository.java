@@ -22,11 +22,12 @@ public class SalesOrderRepository {
     public Optional<BuildRequestOrderSource> findLatestUnconvertedBuildRequest(UUID userId) {
         return jdbcTemplate.query(
                 "SELECT b.id, b.user_id, b.request_reference, " +
-                        "COALESCE(q.total_cents, b.estimated_price * 100::bigint) AS price_cents " +
+                        "COALESCE(q.total_cents, (SELECT SUM(i.line_total_cents) FROM build_request_system_items i WHERE i.build_request_id = b.id), b.estimated_price * 100::bigint) AS price_cents " +
                         "FROM build_requests b LEFT JOIN sales_orders s ON s.build_request_id = b.id " +
                         "LEFT JOIN custom_build_quotes q ON q.build_request_id = b.id AND q.status = 'ACCEPTED' " +
                         "WHERE b.user_id = ? AND b.status <> 'CANCELLED' AND s.id IS NULL " +
-                        "AND (b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL OR q.id IS NOT NULL) " +
+                        "AND (b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL OR q.id IS NOT NULL " +
+                        "OR EXISTS (SELECT 1 FROM build_request_system_items i WHERE i.build_request_id = b.id)) " +
                         "ORDER BY b.created_at DESC LIMIT 1",
                 (resultSet, rowNumber) -> new BuildRequestOrderSource(
                         resultSet.getObject("id", UUID.class),
@@ -41,11 +42,12 @@ public class SalesOrderRepository {
     public Optional<BuildRequestOrderSource> findBuildRequest(UUID userId, String requestReference) {
         return jdbcTemplate.query(
                 "SELECT b.id, b.user_id, b.request_reference, " +
-                        "COALESCE(q.total_cents, b.estimated_price * 100::bigint) AS price_cents " +
+                        "COALESCE(q.total_cents, (SELECT SUM(i.line_total_cents) FROM build_request_system_items i WHERE i.build_request_id = b.id), b.estimated_price * 100::bigint) AS price_cents " +
                         "FROM build_requests b " +
                         "LEFT JOIN custom_build_quotes q ON q.build_request_id = b.id AND q.status = 'ACCEPTED' " +
                         "WHERE b.user_id = ? AND b.request_reference = ? AND b.status <> 'CANCELLED' " +
-                        "AND (b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL OR q.id IS NOT NULL)",
+                        "AND (b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL OR q.id IS NOT NULL " +
+                        "OR EXISTS (SELECT 1 FROM build_request_system_items i WHERE i.build_request_id = b.id))",
                 (resultSet, rowNumber) -> new BuildRequestOrderSource(
                         resultSet.getObject("id", UUID.class),
                         resultSet.getObject("user_id", UUID.class),

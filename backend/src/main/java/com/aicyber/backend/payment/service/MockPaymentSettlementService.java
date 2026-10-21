@@ -10,14 +10,12 @@ import com.aicyber.backend.reward.repository.RewardDemoRepository;
 import com.aicyber.backend.reward.service.RewardEventIntakeService;
 import com.aicyber.backend.reward.service.RewardEventProcessor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
 @Service
-@Profile("local")
 @ConditionalOnProperty(name = "jonpc.payments.demo-enabled", havingValue = "true")
 public class MockPaymentSettlementService {
     private static final String DEMO_DECLINE_REASON = "Demo payment was declined";
@@ -85,7 +83,9 @@ public class MockPaymentSettlementService {
         if (!"CREATED".equals(payment.status())) {
             throw new IllegalStateException("Payment can no longer be declined");
         }
-        return paymentRepository.markFailed(payment.id(), DEMO_DECLINE_REASON);
+        Payment failed = paymentRepository.markFailed(payment.id(), DEMO_DECLINE_REASON);
+        salesOrderService.releaseReservation(payment.orderId());
+        return failed;
     }
 
     private Payment ownedPayment(UUID userId, UUID paymentId) {

@@ -10,6 +10,8 @@ public record PublicSystemPreview(
         String description,
         long priceCents,
         boolean available,
+        boolean saleEnabled,
+        String productRange,
         String badge,
         String recommendedFor,
         String dispatchEstimate,
@@ -19,6 +21,7 @@ public record PublicSystemPreview(
         Map<String, String> specs = new java.util.LinkedHashMap<>(product.specifications());
         specs.remove("Warranty");
         return new PublicSystemPreview(product.id(), product.sku(), product.name(), product.description(),
-                product.priceCents(), product.availableQuantity() > 0, product.badge(), product.recommendedFor(), product.dispatchEstimate(), specs);
+                product.priceCents(), product.saleEnabled() && product.availableQuantity() > 0,
+                product.saleEnabled(), product.productRange(), product.badge(), product.recommendedFor(), product.dispatchEstimate(), specs);
     }
 }

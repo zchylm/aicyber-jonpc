@@ -31,24 +31,21 @@
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   border-bottom: 1px solid var(--line);
 }
 
-.brand { display: inline-flex; align-items: center; }
-.nav-links { display: flex; gap: 32px; margin-left: 62px; color: #d0d9d5; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: .085em; text-transform: uppercase; }
-.nav-links a, .nav-cta, .button, .focus-item { transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease, transform 180ms ease; }
+.brand { display: inline-flex; flex-shrink: 0; align-items: center; }
+.nav-links { display: flex; gap: clamp(20px, 2.2vw, 32px); margin-left: clamp(30px, 4vw, 62px); color: #d0d9d5; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: .085em; text-transform: uppercase; }
+.nav-links a, .button, .focus-item { transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease, transform 180ms ease; }
 .nav-links a { position: relative; padding: 8px 0; }
 .nav-links a::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; background: var(--lime); content: ''; opacity: 0; transform: scaleX(.35); transition: opacity 180ms ease, transform 180ms ease; }
 .nav-links a:hover, .nav-links a:focus-visible { color: var(--ink); }
 .nav-links a:hover::after, .nav-links a:focus-visible::after { opacity: 1; transform: scaleX(1); }
-.nav-cta { display: inline-flex; align-items: center; gap: 14px; padding: 13px 0 13px 19px; border-left: 1px solid var(--line); color: var(--ink); font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
-.nav-cta:hover, .nav-cta:focus-visible { color: var(--cyan); }
-.nav-cta-icon { color: var(--lime); font-size: 18px; }
-.account-entry { position: relative; margin-left: auto; }
-.account-button { display: inline-flex; align-items: center; gap: 9px; min-height: 46px; padding: 9px 0; color: #d0d9d5; background: transparent; border: 0; font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: color 180ms ease, border-color 180ms ease; }
+.nav-actions { display: flex; height: 82px; margin-left: auto; align-items: center; }
+.account-entry { position: relative; }
+.account-button { display: inline-flex; align-items: center; gap: 9px; min-height: 82px; padding: 9px 0 9px 20px; color: #d0d9d5; background: transparent; border: 0; font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: color 180ms ease, border-color 180ms ease; }
 .account-button:hover, .account-button:focus-visible { color: var(--ink); }
-.account-button-icon { width: 48px; justify-content: center; padding: 9px 0; }
+.account-button-icon { width: 64px; justify-content: center; padding: 9px 0; }
 .account-avatar { position: relative; display: inline-block; width: 24px; height: 24px; flex-shrink: 0; color: var(--cyan); }
 .account-avatar::before { position: absolute; top: 0; left: 6px; box-sizing: border-box; width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%; content: ''; }
 .account-avatar i { position: absolute; top: 14px; right: 1px; left: 1px; box-sizing: border-box; height: 10px; border: 2px solid currentColor; border-bottom: 0; border-radius: 12px 12px 0 0; }
@@ -666,7 +663,7 @@
 @media (max-width: 1024px) {
   .site-nav, .hero { width: min(100% - 48px, 760px); }
   .nav-links { margin-left: 0; gap: 20px; }
-  .account-entry { margin-left: auto; }
+  .nav-actions { margin-left: auto; }
   .hero-copy { gap: 20px; padding: 38px 0 25px; }
   .hero-copy-side { display: grid; gap: 25px; }
   .hero-action-stack { justify-self: start; }
@@ -717,8 +714,8 @@
   .site-nav, .hero { width: calc(100% - 36px); }
   .site-nav { height: 84px; }
   .nav-links { display: none; }
-  .account-button { padding-left: 12px; font-size: 10px; }
-  .nav-cta { padding-left: 12px; font-size: 10px; }
+  .nav-actions { height: 84px; }
+  .account-button { min-height: 84px; padding-left: 12px; font-size: 10px; }
   .logic-strip { padding: 24px; }
   .logic-strip-heading { gap: 12px; padding: 0 0 20px; }
   .logic-strip-heading > span { font-size: 14px; }

@@ -7,6 +7,8 @@ export type PreviewSystem = {
   description: string | null;
   priceCents: number;
   available: boolean;
+  saleEnabled: boolean;
+  productRange: string;
   badge: string | null;
   recommendedFor: string | null;
   dispatchEstimate: string | null;
@@ -17,6 +19,19 @@ export async function fetchSystemPreviews(): Promise<PreviewSystem[]> {
   const response = await fetch(`${apiBaseUrl}/api/systems/preview`);
   if (!response.ok) throw new Error(`Unable to load systems (${response.status})`);
   return response.json() as Promise<PreviewSystem[]>;
+}
+
+export async function prepareCartCheckout(token: string, items: Array<{ systemId: string; quantity: number }>): Promise<{ requestReference: string; totalCents: number }> {
+  const response = await fetch(`${apiBaseUrl}/api/cart/prepare`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: string; message?: string } | null;
+    throw new Error(body?.detail ?? body?.message ?? `Unable to prepare checkout (${response.status})`);
+  }
+  return response.json();
 }
 
 export async function createLocalSystemRequest(token: string, sku: string, expectedPriceCents: number): Promise<{ requestReference: string; priceCents: number }> {

@@ -38,12 +38,15 @@ public class AdminQueryRepository {
                     (SELECT COUNT(*) FROM build_requests b
                      WHERE b.user_id IS NOT NULL AND b.status <> 'CANCELLED'
                        AND b.configuration_snapshot->'answers'->>'systemSku' IS NULL
+                       AND NOT EXISTS (SELECT 1 FROM build_request_system_items si WHERE si.build_request_id = b.id)
                        AND NOT EXISTS (SELECT 1 FROM custom_build_quotes q WHERE q.build_request_id = b.id)
                        AND NOT EXISTS (SELECT 1 FROM sales_orders s WHERE s.build_request_id = b.id)) AS custom_reviews,
                     (SELECT COUNT(*) FROM system_builds s
                        JOIN system_inventory_balances b ON b.system_build_id = s.id
-                       WHERE s.preview_enabled = TRUE AND b.on_hand_quantity <=
-                           (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)) AS sold_out_systems,
+                       WHERE s.preview_enabled = TRUE AND s.sale_enabled = TRUE AND b.on_hand_quantity <=
+                           ((SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)
+                            + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items a WHERE a.system_build_id = s.id)
+                            + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_reservations r WHERE r.system_build_id = s.id AND r.expires_at > CURRENT_TIMESTAMP))) AS sold_out_systems,
                     (SELECT COUNT(*) FROM inventory_items i WHERE i.status = 'ACTIVE'
                        AND EXISTS (SELECT 1 FROM inventory_balances b WHERE b.inventory_item_id = i.id)
                        AND (SELECT COALESCE(SUM(b.on_hand_quantity - b.reserved_quantity), 0)
@@ -60,6 +63,7 @@ public class AdminQueryRepository {
                     ,COALESCE((SELECT FLOOR(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MIN(b.created_at))) / 3600)
                         FROM build_requests b WHERE b.user_id IS NOT NULL AND b.status <> 'CANCELLED'
                           AND b.configuration_snapshot->'answers'->>'systemSku' IS NULL
+                          AND NOT EXISTS (SELECT 1 FROM build_request_system_items si WHERE si.build_request_id = b.id)
                           AND NOT EXISTS (SELECT 1 FROM custom_build_quotes q WHERE q.build_request_id = b.id)
                           AND NOT EXISTS (SELECT 1 FROM sales_orders s WHERE s.build_request_id = b.id)), 0) AS oldest_review_hours
                     ,(SELECT COUNT(*) FROM sales_orders s WHERE (s.created_at AT TIME ZONE 'Australia/Melbourne')::date =
@@ -72,6 +76,7 @@ public class AdminQueryRepository {
                             (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Melbourne')::date), 0) AS rewards_allocated_today
                     ,(SELECT COUNT(*) FROM build_requests b WHERE b.user_id IS NOT NULL
                         AND b.configuration_snapshot->'answers'->>'systemSku' IS NULL
+                        AND NOT EXISTS (SELECT 1 FROM build_request_system_items si WHERE si.build_request_id = b.id)
                         AND (b.created_at AT TIME ZONE 'Australia/Melbourne')::date =
                             (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Melbourne')::date) AS custom_today
                 """, (resultSet, rowNum) -> new AdminOverviewResponse(
@@ -111,12 +116,16 @@ public class AdminQueryRepository {
                     HAVING SUM(b.on_hand_quantity - b.reserved_quantity) <= SUM(b.reorder_point)
                     UNION ALL
                     SELECT 'SYSTEM', s.code, s.name,
-                           GREATEST(0, b.on_hand_quantity -
-                               (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)),
+                           GREATEST(0, b.on_hand_quantity
+                               - (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)
+                               - (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items a WHERE a.system_build_id = s.id)
+                               - (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_reservations r WHERE r.system_build_id = s.id AND r.expires_at > CURRENT_TIMESTAMP)),
                            b.reorder_point
                     FROM system_builds s JOIN system_inventory_balances b ON b.system_build_id = s.id
-                    WHERE s.preview_enabled = TRUE AND GREATEST(0, b.on_hand_quantity -
-                        (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)) <= b.reorder_point
+                    WHERE s.preview_enabled = TRUE AND s.sale_enabled = TRUE AND GREATEST(0, b.on_hand_quantity
+                        - (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)
+                        - (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items a WHERE a.system_build_id = s.id)
+                        - (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_reservations r WHERE r.system_build_id = s.id AND r.expires_at > CURRENT_TIMESTAMP)) <= b.reorder_point
                 ) alerts
                 ORDER BY available_quantity, display_name LIMIT 6
                 """, (rs, row) -> new AdminOverviewResponse.InventoryAlert(
@@ -138,6 +147,7 @@ public class AdminQueryRepository {
                            INITCAP(b.direction) || ' · ' || b.request_reference, NULL::bigint, b.created_at
                     FROM build_requests b WHERE b.user_id IS NOT NULL
                       AND b.configuration_snapshot->'answers'->>'systemSku' IS NULL
+                      AND NOT EXISTS (SELECT 1 FROM build_request_system_items si WHERE si.build_request_id = b.id)
                     UNION ALL
                     SELECT 'INVENTORY', i.display_name || ' inventory updated',
                            (m.on_hand_after - m.on_hand_delta)::text || ' → ' || m.on_hand_after::text,
@@ -246,8 +256,19 @@ public class AdminQueryRepository {
                 value.id(), value.orderReference(), value.customerName(), value.customerEmail(), value.customerReference(),
                 value.amountCents(), value.currency(), value.status(), value.paidAt(), value.rewardEligibleAt(),
                 value.createdAt(), value.updatedAt(), value.buildRequestReference(), value.direction(),
-                value.configuration(), delivery(orderId).orElse(null), payments(orderId), invoice(orderId).orElse(null), reward(orderId).orElse(null)
+                value.configuration(), systems(orderId), delivery(orderId).orElse(null), payments(orderId), invoice(orderId).orElse(null), reward(orderId).orElse(null)
         ));
+    }
+
+    private List<AdminOrderDetailResponse.SystemItem> systems(UUID orderId) {
+        return jdbcTemplate.query("""
+                SELECT i.sku_snapshot, i.name_snapshot, i.unit_price_cents, i.quantity, i.line_total_cents
+                FROM sales_orders s JOIN build_request_system_items i ON i.build_request_id = s.build_request_id
+                WHERE s.id = ? ORDER BY i.created_at, i.id
+                """, (rs, row) -> new AdminOrderDetailResponse.SystemItem(
+                rs.getString("sku_snapshot"), rs.getString("name_snapshot"), rs.getLong("unit_price_cents"),
+                rs.getInt("quantity"), rs.getLong("line_total_cents")
+        ), orderId);
     }
 
     public AdminRewardSnapshotResponse rewards() {

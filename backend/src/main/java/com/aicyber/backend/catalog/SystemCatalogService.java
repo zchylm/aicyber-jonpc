@@ -3,6 +3,7 @@ package com.aicyber.backend.catalog;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,10 +16,13 @@ import java.util.UUID;
 public class SystemCatalogService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    private final boolean demoStoreEnabled;
 
-    public SystemCatalogService(JdbcTemplate jdbc, ObjectMapper json) {
+    public SystemCatalogService(JdbcTemplate jdbc, ObjectMapper json,
+                                @Value("${jonpc.catalog.demo-store-enabled:false}") boolean demoStoreEnabled) {
         this.jdbc = jdbc;
         this.json = json;
+        this.demoStoreEnabled = demoStoreEnabled;
     }
 
     public List<SystemProduct> allDrafts() {
@@ -26,17 +30,29 @@ public class SystemCatalogService {
     }
 
     public List<SystemProduct> previews() {
-        return load(true);
+        List<SystemProduct> products = load(true);
+        if (!demoStoreEnabled) return products;
+        return products.stream().map(product -> new SystemProduct(
+                product.id(), product.sku(), product.name(), product.description(), product.priceCents(),
+                product.plannedPreorderQuantity(), product.onHandQuantity(), product.reorderPoint(),
+                Math.max(20, product.availableQuantity()), product.listingOrder(), product.productRange(),
+                product.salesMode(), product.sourceRevision(), product.badge(), product.recommendedFor(),
+                product.dispatchEstimate(), product.specifications(), product.status(), product.previewEnabled(), true
+        )).toList();
     }
 
     private List<SystemProduct> load(boolean previewOnly) {
         String sql = """
-                SELECT s.id, s.code, s.name, s.description, s.status, s.preview_enabled,
+                SELECT s.id, s.code, s.name, s.description, s.status, s.preview_enabled, s.sale_enabled,
                        s.listing_order, s.product_range, s.sales_mode, s.source_revision,
                        s.badge, s.planned_preorder_quantity,
                        COALESCE(b.on_hand_quantity, 0) AS on_hand_quantity,
                        COALESCE(b.reorder_point, 1) AS reorder_point,
-                       GREATEST(0, COALESCE(b.on_hand_quantity, 0) - (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)) AS available_quantity,
+                       GREATEST(0, COALESCE(b.on_hand_quantity, 0)
+                         - (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = s.id)
+                         - (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items a WHERE a.system_build_id = s.id)
+                         - (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_reservations r WHERE r.system_build_id = s.id AND r.expires_at > CURRENT_TIMESTAMP)
+                       ) AS available_quantity,
                        v.display_price_cents, v.recommended_for, v.dispatch_estimate, v.specifications::text
                 FROM system_builds s
                 JOIN system_build_versions v ON v.system_build_id = s.id
@@ -52,7 +68,8 @@ public class SystemCatalogService {
                 rs.getInt("available_quantity"), rs.getInt("listing_order"),
                 rs.getString("product_range"), rs.getString("sales_mode"), rs.getString("source_revision"),
                 rs.getString("badge"), rs.getString("recommended_for"), rs.getString("dispatch_estimate"),
-                readSpecs(rs.getString("specifications")), rs.getString("status"), rs.getBoolean("preview_enabled")
+                readSpecs(rs.getString("specifications")), rs.getString("status"), rs.getBoolean("preview_enabled"),
+                rs.getBoolean("sale_enabled")
         ), previewOnly);
     }
 
@@ -62,11 +79,11 @@ public class SystemCatalogService {
         UUID id = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO system_builds
-                    (id, code, name, direction, description, status, preview_enabled, listing_order, badge,
+                    (id, code, name, direction, description, status, preview_enabled, sale_enabled, listing_order, badge,
                      planned_preorder_quantity, product_range, sales_mode, source_revision)
-                VALUES (?, ?, ?, 'gaming', ?, 'DRAFT', ?, ?, ?, ?, ?, ?, 'ADMIN')
+                VALUES (?, ?, ?, 'gaming', ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, 'ADMIN')
                 """, id, request.sku().trim().toUpperCase(), request.name().trim(), blankToNull(request.description()),
-                request.previewEnabled(), request.listingOrder(), blankToNull(request.badge()), request.plannedPreorderQuantity(),
+                request.previewEnabled(), request.saleEnabled(), request.listingOrder(), blankToNull(request.badge()), request.plannedPreorderQuantity(),
                 productRange(request), salesMode(request));
         jdbc.update("INSERT INTO system_inventory_balances (system_build_id, on_hand_quantity) VALUES (?, 0)", id);
         jdbc.update("""
@@ -82,15 +99,18 @@ public class SystemCatalogService {
     public SystemProduct update(UUID id, SystemProductRequest request) {
         validate(request);
         int changed = jdbc.update("""
-                UPDATE system_builds SET code = ?, name = ?, description = ?, preview_enabled = ?,
+                UPDATE system_builds SET code = ?, name = ?, description = ?, preview_enabled = ?, sale_enabled = ?,
                     listing_order = ?, badge = ?, planned_preorder_quantity = ?, product_range = ?, sales_mode = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND status = 'DRAFT'
                 """, request.sku().trim().toUpperCase(), request.name().trim(), blankToNull(request.description()),
-                request.previewEnabled(), request.listingOrder(), blankToNull(request.badge()), request.plannedPreorderQuantity(),
+                request.previewEnabled(), request.saleEnabled(), request.listingOrder(), blankToNull(request.badge()), request.plannedPreorderQuantity(),
                 productRange(request), salesMode(request), id);
         if (changed == 0) throw new IllegalStateException("Only draft systems can be edited");
-        Integer allocated = jdbc.queryForObject("SELECT COUNT(*) FROM system_sale_allocations WHERE system_build_id = ?", Integer.class, id);
+        Integer allocated = jdbc.queryForObject("""
+                SELECT (SELECT COUNT(*) FROM system_sale_allocations WHERE system_build_id = ?)
+                     + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items WHERE system_build_id = ?)
+                """, Integer.class, id, id);
         if (allocated != null && request.plannedPreorderQuantity() < allocated)
             throw new IllegalArgumentException("Planned quantity cannot be lower than paid system orders");
         Integer nextVersion = jdbc.queryForObject(
@@ -120,11 +140,16 @@ public class SystemCatalogService {
             throw new IllegalArgumentException("Choose a valid sales mode");
         if (request.specifications() == null || request.specifications().isEmpty())
             throw new IllegalArgumentException("Add the system specifications");
+        List<String> requiredSpecs = "Compact AI".equalsIgnoreCase(productRange(request))
+                ? List.of("Processor", "Graphics", "Memory", "Storage")
+                : List.of("GPU", "CPU", "Memory", "Storage");
         if (request.previewEnabled() && (request.priceCents() == 0 || request.recommendedFor() == null || request.recommendedFor().isBlank()
                 || request.dispatchEstimate() == null || request.dispatchEstimate().isBlank()
-                || List.of("GPU", "CPU", "Memory", "Storage").stream().anyMatch(key -> request.specifications().get(key) == null
+                || requiredSpecs.stream().anyMatch(key -> request.specifications().get(key) == null
                     || request.specifications().get(key).isBlank())))
             throw new IllegalArgumentException("Add price, dispatch estimate and core specifications before showing the preview");
+        if (request.saleEnabled() && !request.previewEnabled())
+            throw new IllegalArgumentException("A system must be visible on site before checkout can be enabled");
     }
 
     private String writeSpecs(Map<String, String> specifications) {

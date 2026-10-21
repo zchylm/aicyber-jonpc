@@ -65,6 +65,7 @@ public class OrderHistoryController {
             if (unsupported != null && unsupported > 0)
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "This payment cannot be cancelled here");
             jdbc.update("UPDATE payments SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE order_id = ? AND status IN ('CREATED', 'FAILED')", order.id());
+            jdbc.update("DELETE FROM system_sale_reservations WHERE sales_order_id = ?", order.id());
             jdbc.update("UPDATE sales_orders SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", order.id());
         }
         jdbc.update("UPDATE build_requests SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", requestId);

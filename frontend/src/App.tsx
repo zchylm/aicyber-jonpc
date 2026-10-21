@@ -6,6 +6,12 @@ function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(() => window.location.hash === "#/admin");
 
   useEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    return () => { window.history.scrollRestoration = previousScrollRestoration; };
+  }, []);
+
+  useEffect(() => {
     const updateRoute = () => setIsAdminRoute(window.location.hash === "#/admin");
     window.addEventListener("hashchange", updateRoute);
     return () => window.removeEventListener("hashchange", updateRoute);

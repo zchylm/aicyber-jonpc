@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 
 const historyViewKey = "jonpcView";
+const historyScrollKey = "jonpcScrollY";
+const historyViewChangeEvent = "jonpc:history-view-change";
 
 function activeView() {
   const state = window.history.state;
@@ -15,23 +17,41 @@ export function useHistoryPanel(view: string, isOpen: boolean, setIsOpen: Dispat
   }, [isOpen]);
 
   useEffect(() => {
-    const syncWithHistory = () => {
+    const syncWithHistory = (event: Event) => {
       const shouldBeOpen = activeView() === view;
       if (shouldBeOpen !== isOpenRef.current) {
         isOpenRef.current = shouldBeOpen;
         setIsOpen(shouldBeOpen);
+        if (event.type === "popstate") {
+          const scrollY = (event as PopStateEvent).state?.[historyScrollKey];
+          if (typeof scrollY === "number") {
+            window.setTimeout(() => window.scrollTo({ top: scrollY, left: 0, behavior: "auto" }), 50);
+          }
+        }
       }
     };
 
     window.addEventListener("popstate", syncWithHistory);
-    return () => window.removeEventListener("popstate", syncWithHistory);
+    window.addEventListener(historyViewChangeEvent, syncWithHistory);
+    const initialSync = activeView() === undefined
+      ? null
+      : window.setTimeout(() => syncWithHistory(new Event(historyViewChangeEvent)), 0);
+    return () => {
+      if (initialSync !== null) window.clearTimeout(initialSync);
+      window.removeEventListener("popstate", syncWithHistory);
+      window.removeEventListener(historyViewChangeEvent, syncWithHistory);
+    };
   }, [setIsOpen, view]);
 
   const open = useCallback(() => {
     if (activeView() !== view) {
       const currentState = window.history.state;
       const nextState = currentState && typeof currentState === "object" ? { ...currentState } : {};
-      window.history.pushState({ ...nextState, [historyViewKey]: view }, "", window.location.href);
+      const scrollY = window.scrollY;
+      const stateWithScroll = { ...nextState, [historyScrollKey]: scrollY };
+      window.history.replaceState(stateWithScroll, "", window.location.href);
+      window.history.pushState({ ...stateWithScroll, [historyViewKey]: view }, "", window.location.href);
+      window.dispatchEvent(new Event(historyViewChangeEvent));
     }
     isOpenRef.current = true;
     setIsOpen(true);
@@ -52,6 +72,7 @@ export function useHistoryPanel(view: string, isOpen: boolean, setIsOpen: Dispat
       const nextState = { ...currentState };
       delete nextState[historyViewKey];
       window.history.replaceState(nextState, "", window.location.href);
+      window.dispatchEvent(new Event(historyViewChangeEvent));
     }
     isOpenRef.current = false;
     setIsOpen(false);

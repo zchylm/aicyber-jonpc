@@ -36,7 +36,9 @@ public class SystemInventoryService {
         jdbc.update("INSERT INTO system_inventory_balances (system_build_id) VALUES (?) ON CONFLICT DO NOTHING", systemId);
         List<SystemBalance> balances = jdbc.query("""
                 SELECT b.on_hand_quantity, b.version,
-                       (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = b.system_build_id) AS allocated
+                       (SELECT COUNT(*) FROM system_sale_allocations a WHERE a.system_build_id = b.system_build_id)
+                       + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items a WHERE a.system_build_id = b.system_build_id)
+                       AS allocated
                 FROM system_inventory_balances b WHERE b.system_build_id = ? FOR UPDATE
                 """, (rs, row) -> new SystemBalance(rs.getInt("on_hand_quantity"), rs.getLong("version"), rs.getInt("allocated")), systemId);
         if (balances.isEmpty()) throw new IllegalStateException("System inventory is unavailable");

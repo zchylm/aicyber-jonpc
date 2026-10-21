@@ -32,7 +32,7 @@ class JonPcKnowledgeContextServiceTest {
                 UUID.randomUUID(), "JON-STK-5060TI", "JON PC Strike Ti 5060 Ti",
                 "A stronger starting point for 1440p gaming.", 239_900,
                 8, 8, 1, 0, 2, "Strike/Storm", "PREORDER", "test", null, "1440p High settings",
-                "10–15 business days", specifications, "DRAFT", true
+                "10–15 business days", specifications, "DRAFT", true, true
         )));
 
         String context = new JonPcKnowledgeContextService(catalog, rewards).currentContext();
@@ -44,8 +44,8 @@ class JonPcKnowledgeContextServiceTest {
         assertTrue(context.contains("Confirmed warranty for the listed systems: 3-year parts / 2-year return-to-base."));
         assertTrue(context.contains("Current cashback: 15.0% of purchase price before GST, capped at A$500"));
         assertTrue(context.contains("does not depend on later customers or future orders"));
-        assertTrue(context.contains("Edge Mini: A$1,299 indicative"));
-        assertTrue(context.contains("Edge Max: A$4,999 indicative"));
+        assertTrue(context.contains("Desktop and Compact AI products use the same catalogue"));
+        assertTrue(context.contains("Saved builds are editable custom configurations"));
         assertTrue(context.contains("Selected hardware checks passed. Infrastructure integration requires engineering review."));
         assertTrue(context.contains("Service scope and fees are confirmed during engineering review and quotation."));
         assertTrue(context.contains("does not replace engineering review"));
@@ -89,7 +89,7 @@ class JonPcKnowledgeContextServiceTest {
                 "Built for high-refresh 1440p gaming.", 289_900,
                 2, 2, 0, availableQuantity, 1, "Strike/Storm", "PREORDER", "test", null, "1440p Ultra settings",
                 "10–15 business days", Map.of("GPU", "NVIDIA GeForce RTX 5070 12GB"),
-                "DRAFT", true
+                "DRAFT", true, true
         );
     }
 }

@@ -52,11 +52,8 @@ public class JonPcKnowledgeContextService implements KnowledgeContextProvider {
 
                 JON.PC website modules and service scope:
                 - Complete Systems includes ready-configured desktop PCs for play and work, plus Compact AI Systems for local AI.
-                - Compact AI Systems are illustrative concepts with indicative Australian pricing. Final specification, price and availability require confirmation.
-                - Edge Mini: A$1,299 indicative; local assistants, automation and office AI; Ryzen 7 8845HS, Radeon 780M, Ryzen AI NPU up to 16 TOPS, 32GB memory and 1TB NVMe.
-                - Edge AI: A$1,899 indicative; AI development, creator tools and edge inference; Ryzen AI 9 HX 370, Radeon 890M, XDNA 2 NPU up to 50 TOPS, 32GB memory and 1TB NVMe.
-                - Edge Pro: A$2,699 indicative; local models, data workflows and AI production; Ryzen AI 9 HX 370, Radeon 890M, XDNA 2 NPU up to 50 TOPS, 64GB memory and 2TB NVMe.
-                - Edge Max: A$4,999 indicative; larger local models, AI research and compact workstation use; Ryzen AI Max+ 395, Radeon 8060S, up to 126 combined platform TOPS, 128GB unified memory and 2TB NVMe.
+                - Desktop and Compact AI products use the same catalogue, stock and shopping-bag flow. A product can be added only when checkout is enabled and stock is available.
+                - Saved builds are editable custom configurations. The shopping bag is for stocked finished systems. Orders contain submitted or paid purchases; do not describe these as the same thing.
                 - AI Infrastructure lets a business select project scale, compute platform, GPU, CPU, memory, storage, networking, system quantity, physical platform, power, cooling, chassis, operating system, management and optional services.
                 - AI Infrastructure options are filtered by explicit platform and compatibility rules. This is not an AI architecture recommendation and does not replace engineering review.
                 - A passed website rule means only: Selected hardware checks passed. Infrastructure integration requires engineering review.

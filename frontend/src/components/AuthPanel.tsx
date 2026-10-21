@@ -20,6 +20,7 @@ import { psuOptions } from "../data/psu";
 import { caseOptions } from "../data/case";
 import { coolingOptions } from "../data/cooling";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
+import { internalPaymentDemoEnabled } from "../config/runtime";
 
 type AuthMode = "login" | "register" | "forgot" | "reset";
 
@@ -27,7 +28,7 @@ type AuthPanelProps = {
   onAuthChange?: (user: AuthUser | null) => void;
 };
 
-const paymentDemoEnabled = import.meta.env.DEV;
+const paymentDemoEnabled = internalPaymentDemoEnabled;
 
 function AuthPanel({ onAuthChange }: AuthPanelProps) {
   const [initialVerificationToken] = useState(() => new URL(window.location.href).searchParams.get("verifyEmailToken"));
@@ -201,6 +202,13 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
     return () => window.removeEventListener("jonpc:open-orders", openOrders);
   }, [openOrdersPanel, user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const openBuilds = () => openBuildsPanel();
+    window.addEventListener("jonpc:open-builds", openBuilds);
+    return () => window.removeEventListener("jonpc:open-builds", openBuilds);
+  }, [openBuildsPanel, user]);
+
   function openPanel(nextMode: AuthMode = "login") {
     setMode(nextMode);
     setError(null);
@@ -340,8 +348,8 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                 {verificationBusy ? "Sending..." : "Send verification link"}<span aria-hidden="true">→</span>
               </button>
             )}
-            <button type="button" role="menuitem" onClick={() => { setIsAccountOpen(false); openBuildsPanel(); }}>My builds <span aria-hidden="true">→</span></button>
-            <button type="button" role="menuitem" onClick={() => { setIsAccountOpen(false); openOrdersPanel(); window.dispatchEvent(new CustomEvent("jonpc:order-requested")); }}>My orders <span aria-hidden="true">→</span></button>
+            <button type="button" role="menuitem" onClick={() => { setIsAccountOpen(false); openBuildsPanel(); }}>Saved builds <span aria-hidden="true">→</span></button>
+            <button type="button" role="menuitem" onClick={() => { setIsAccountOpen(false); openOrdersPanel(); window.dispatchEvent(new CustomEvent("jonpc:order-requested")); }}>Orders <span aria-hidden="true">→</span></button>
             {user.role === "ADMIN" && (
               <button type="button" role="menuitem" onClick={() => { window.location.hash = "/admin"; }}>Admin workspace <span aria-hidden="true">→</span></button>
             )}
@@ -417,7 +425,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
           <section className="auth-modal saved-builds-modal" role="dialog" aria-modal="true" aria-labelledby="saved-builds-title">
             <button className="auth-modal-close" type="button" onClick={closeBuildsPanel} aria-label="Close saved builds">×</button>
             <span className="section-kicker">JON. PC / Account</span>
-            <h2 id="saved-builds-title">My builds.</h2>
+            <h2 id="saved-builds-title">Saved builds.</h2>
             <p className="auth-modal-intro">Keep your configurations close and return to them when you are ready.</p>
             <div className="saved-builds-list">
               {buildsLoading && <p className="saved-builds-empty">Loading your builds...</p>}
@@ -450,7 +458,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                 <article className="order-history-row" key={order.id}>
                   <div className="order-history-row-heading">
                     <div><strong>{order.orderReference ?? order.requestReference}</strong><span>{order.direction} / {formatOrderDate(order.createdAt)}</span></div>
-                    <div className="order-history-price"><b>{order.quoteTotalCents != null ? `$${(order.quoteTotalCents / 100).toLocaleString("en-AU")} AUD incl. GST` : order.direction === "AI Infrastructure" ? "Engineering review" : order.configuration.answers?.systemSku ? `$${order.estimatedPrice.toLocaleString("en-AU")} AUD incl. GST` : `$${order.estimatedPrice.toLocaleString("en-AU")} AUD estimated`}</b>{order.reward && <span>{formatRewardMoney(order.reward.cashbackAmountCents)} cashback · {rewardStatusLabel(order.reward.status)}</span>}</div>
+                    <div className="order-history-price"><b>{order.items.length ? `${formatRewardMoney(order.items.reduce((sum, item) => sum + item.lineTotalCents, 0))} incl. GST` : order.quoteTotalCents != null ? `$${(order.quoteTotalCents / 100).toLocaleString("en-AU")} AUD incl. GST` : order.direction === "AI Infrastructure" ? "Engineering review" : order.configuration.answers?.systemSku ? `$${order.estimatedPrice.toLocaleString("en-AU")} AUD incl. GST` : `$${order.estimatedPrice.toLocaleString("en-AU")} AUD estimated`}</b>{order.reward && <span>{formatRewardMoney(order.reward.cashbackAmountCents)} cashback · {rewardStatusLabel(order.reward.status)}</span>}</div>
                   </div>
                   <div className="order-history-row-footer">
                     {(!paymentDemoEnabled || customerOrderState(order).label !== "Ready to checkout") && <span className={`order-status order-status-${customerOrderState(order).tone}`}>{customerOrderState(order).label}</span>}
@@ -488,6 +496,7 @@ function customerOrderState(order: OrderHistoryItem): { label: string; tone: str
   if (order.paymentStatus === "FAILED") return { label: "Payment failed", tone: "failed" };
   if (order.paymentStatus === "PROCESSING") return { label: "Payment processing", tone: "processing" };
   if (order.paymentStatus === "CREATED") return { label: "Awaiting payment", tone: "pending" };
+  if (order.items.length && !order.salesOrderId) return paymentDemoEnabled ? { label: "Ready to checkout", tone: "ready" } : { label: "Saved", tone: "neutral" };
   if (!order.configuration.answers?.systemSku && !order.salesOrderId) {
     if (order.quoteStatus === "ACCEPTED") return { label: "Quote accepted", tone: "success" };
     if (order.quoteStatus === "SENT" && order.quoteValidUntil && new Date(order.quoteValidUntil).getTime() < Date.now()) return { label: "Quote expired", tone: "neutral" };
@@ -521,6 +530,10 @@ function OrderPrimaryAction({ order, onClose }: { order: OrderHistoryItem; onClo
   }
   if (order.paymentStatus === "CREATED") {
     return <button className="order-primary-action" type="button" onClick={openCheckout}>Continue payment →</button>;
+  }
+  if (order.items.length) {
+    if (paymentDemoEnabled && !order.salesOrderId) return <button className="order-primary-action" type="button" onClick={openCheckout}>Continue to checkout →</button>;
+    return null;
   }
   if (!order.configuration.answers?.systemSku) {
     if (order.quoteStatus === "SENT" && order.quoteValidUntil && new Date(order.quoteValidUntil).getTime() < openedAt) return null;
@@ -577,12 +590,13 @@ function OrderDetails({ order }: { order: OrderHistoryItem }) {
         <div><span>Cashback</span><strong>{formatRewardMoney(order.reward.cashbackAmountCents)}</strong></div>
         <div><span>Status</span><strong>{rewardStatusLabel(order.reward.status)}</strong></div>
       </div>}
-      <details className="order-configuration-details">
+      {order.items.length ? <details className="order-configuration-details">
+        <summary>Systems <span>{order.items.reduce((sum, item) => sum + item.quantity, 0)} items</span></summary>
+        <div className="order-history-configuration">{order.items.map((item) => <div key={item.systemId}><span>{item.quantity} × {item.sku}</span><strong>{item.name} · {formatRewardMoney(item.lineTotalCents)}</strong></div>)}</div>
+      </details> : <details className="order-configuration-details">
         <summary>Configuration <span>{configuration.length} items</span></summary>
-        <div className="order-history-configuration">
-          {configuration.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
-        </div>
-      </details>
+        <div className="order-history-configuration">{configuration.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+      </details>}
     </div>
   );
 }

@@ -1,0 +1,28 @@
+.shopping-bag-button { display: grid; flex: 0 0 72px; width: 72px; height: 82px; place-items: center; color: var(--cyan); background: transparent; border: 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); cursor: pointer; transition: color 180ms ease, background-color 180ms ease; }
+.shopping-bag-button svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-linecap: square; stroke-linejoin: miter; stroke-width: 1.55; }
+.shopping-bag-button:hover, .shopping-bag-button:focus-visible { color: var(--lime); }
+.shopping-bag-button:hover { background: rgba(143, 232, 226, .045); }
+.shopping-bag-backdrop { position: fixed; z-index: 120; inset: 0; display: flex; justify-content: flex-end; background: rgba(0, 7, 8, .76); backdrop-filter: blur(4px); }
+.shopping-bag-drawer { width: min(540px, 100%); height: 100%; padding: 44px; overflow-y: auto; color: var(--ink); background: #0a1212; border-left: 1px solid var(--cyan); box-shadow: -28px 0 80px rgba(0, 0, 0, .45); }
+.shopping-bag-close { float: right; width: 42px; height: 42px; padding: 0; color: var(--muted); background: transparent; border: 1px solid var(--line); font-size: 24px; cursor: pointer; }
+.shopping-bag-drawer h2 { max-width: 390px; margin: 20px 0 34px; color: var(--ink); font-size: clamp(42px, 6vw, 66px); font-weight: 500; letter-spacing: -.055em; line-height: .95; }
+.shopping-bag-empty { display: grid; gap: 18px; padding: 26px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.shopping-bag-empty p { margin: 0; color: var(--muted); }
+.shopping-bag-empty button { display: flex; justify-content: space-between; padding: 10px 0; color: var(--cyan); background: transparent; border: 0; font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+.shopping-bag-empty button span { color: var(--lime); }
+.shopping-bag-items { border-top: 1px solid var(--line); }
+.shopping-bag-items article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 22px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+.shopping-bag-items article > div:first-child { display: grid; gap: 5px; }
+.shopping-bag-items article span, .shopping-bag-items article small, .shopping-bag-total span { color: #7f8f8b; font: 9px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+.shopping-bag-items article strong { color: var(--ink); font-size: 18px; font-weight: 500; }
+.shopping-bag-quantity { display: grid; grid-template-columns: 30px 28px 30px; align-items: center; align-self: center; border: 1px solid var(--line); }
+.shopping-bag-quantity button { height: 30px; color: var(--cyan); background: transparent; border: 0; cursor: pointer; }
+.shopping-bag-quantity span { color: var(--ink) !important; text-align: center; }
+.shopping-bag-remove { grid-column: 2; justify-self: end; padding: 0; color: #7f8f8b; background: transparent; border: 0; font: 8px "DM Mono", monospace; text-transform: uppercase; cursor: pointer; }
+.shopping-bag-remove:hover { color: #ffb4b4; }
+.shopping-bag-total { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 25px 0; }
+.shopping-bag-total strong { color: var(--lime); font: 500 21px "DM Mono", monospace; }
+.shopping-bag-checkout { display: flex; justify-content: space-between; width: 100%; padding: 19px 20px; color: #10211b; background: var(--lime); border: 0; font: 12px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+.shopping-bag-checkout:disabled { cursor: not-allowed; opacity: .48; }
+.shopping-bag-error { margin: 0 0 15px; color: #ffb3ac; font-size: 12px; line-height: 1.5; }
+@media (max-width: 620px) { .shopping-bag-button { flex-basis: 58px; width: 58px; height: 84px; } .shopping-bag-button svg { width: 27px; height: 27px; } .shopping-bag-drawer { padding: 28px 22px; } }

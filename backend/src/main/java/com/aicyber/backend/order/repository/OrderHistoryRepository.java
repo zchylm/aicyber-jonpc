@@ -2,6 +2,7 @@ package com.aicyber.backend.order.repository;
 
 import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
 import com.aicyber.backend.order.dto.OrderHistoryResponse;
+import com.aicyber.backend.order.dto.OrderSystemItemResponse;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,7 @@ public class OrderHistoryRepository {
     }
 
     public List<OrderHistoryResponse> findAllByUserId(UUID userId) {
-        return jdbcTemplate.query(
+        List<OrderHistoryResponse> orders = jdbcTemplate.query(
                 "SELECT b.id, b.request_reference, b.direction, b.estimated_price, b.recommended_baseline, " +
                         "b.selected_adjustments, b.status, b.created_at, b.configuration_snapshot, " +
                         "s.id AS sales_order_id, s.order_reference, s.status AS order_status, " +
@@ -48,6 +49,14 @@ public class OrderHistoryRepository {
                         "WHERE b.user_id = ? AND b.status <> 'CANCELLED' ORDER BY b.created_at DESC",
                 (resultSet, rowNum) -> map(resultSet), userId
         );
+        return orders.stream().map(order -> new OrderHistoryResponse(
+                order.id(), order.requestReference(), order.direction(), order.estimatedPrice(),
+                order.recommendedBaseline(), order.selectedAdjustments(), order.status(), order.createdAt(),
+                order.configuration(), order.salesOrderId(), order.orderReference(), order.orderStatus(),
+                order.paymentReference(), order.paymentStatus(), order.invoiceId(), order.invoiceNumber(),
+                order.invoiceIssuedAt(), order.quoteId(), order.quoteStatus(), order.quoteTotalCents(),
+                order.quoteValidUntil(), order.quoteNote(), order.reward(), items(order.id())
+        )).toList();
     }
 
     private OrderHistoryResponse map(ResultSet resultSet) throws SQLException {
@@ -75,11 +84,23 @@ public class OrderHistoryRepository {
                     resultSet.getObject("quote_total_cents", Long.class),
                     resultSet.getObject("quote_valid_until", OffsetDateTime.class),
                     resultSet.getString("quote_note"),
-                    mapReward(resultSet)
+                    mapReward(resultSet),
+                    List.of()
             );
         } catch (JsonProcessingException exception) {
             throw new SQLException("Order configuration is invalid", exception);
         }
+    }
+
+    private List<OrderSystemItemResponse> items(UUID buildRequestId) {
+        return jdbcTemplate.query("""
+                SELECT system_build_id, sku_snapshot, name_snapshot, unit_price_cents, quantity, line_total_cents
+                FROM build_request_system_items WHERE build_request_id = ? ORDER BY created_at, id
+                """, (resultSet, rowNum) -> new OrderSystemItemResponse(
+                resultSet.getObject("system_build_id", UUID.class), resultSet.getString("sku_snapshot"),
+                resultSet.getString("name_snapshot"), resultSet.getLong("unit_price_cents"),
+                resultSet.getInt("quantity"), resultSet.getLong("line_total_cents")
+        ), buildRequestId);
     }
 
     private RewardEntryResponse mapReward(ResultSet resultSet) throws SQLException {

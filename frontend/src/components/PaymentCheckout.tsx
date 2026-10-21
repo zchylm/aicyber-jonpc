@@ -263,7 +263,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
             {error && <p className="payment-error" role="alert">{error}</p>}
             <button className="button button-primary payment-primary" type="button" onClick={() => complete("SUCCEEDED")} disabled={busy}>{busy ? "Confirming..." : `Complete payment · ${formatAud(payment.amountCents)}`} <span aria-hidden="true">↗</span></button>
             <button className="payment-secondary" type="button" onClick={payLater} disabled={busy}>Pay later</button>
-            <small className="payment-demo-note">Local simulation only. No card details are collected or processed.</small>
+            <small className="payment-demo-note">Internal test simulation only. No card details are collected or processed.</small>
           </>
         )}
 

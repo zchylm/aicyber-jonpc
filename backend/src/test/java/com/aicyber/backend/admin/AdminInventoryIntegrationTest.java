@@ -106,8 +106,11 @@ class AdminInventoryIntegrationTest {
         AdminIdentity admin = createAdmin();
         UUID systemId = jdbcTemplate.queryForObject(
                 "SELECT id FROM system_builds WHERE code = 'JON-STM-5070'", UUID.class);
-        Integer allocated = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM system_sale_allocations WHERE system_build_id = ?", Integer.class, systemId);
+        jdbcTemplate.update("UPDATE system_builds SET sale_enabled = TRUE WHERE id = ?", systemId);
+        Integer allocated = jdbcTemplate.queryForObject("""
+                SELECT (SELECT COUNT(*) FROM system_sale_allocations WHERE system_build_id = ?)
+                     + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items WHERE system_build_id = ?)
+                """, Integer.class, systemId, systemId);
         jdbcTemplate.update("UPDATE system_inventory_balances SET on_hand_quantity = ? WHERE system_build_id = ?", allocated + 1, systemId);
 
         mockMvc.perform(get("/api/admin/overview").header("Authorization", "Bearer " + admin.token()))

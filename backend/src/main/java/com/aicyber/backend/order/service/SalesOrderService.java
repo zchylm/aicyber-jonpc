@@ -26,7 +26,9 @@ public class SalesOrderService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Submit a build request before creating a demo sales order"
                 ));
-        return repository.createFromBuildRequest(source, orderReference());
+        SalesOrder order = repository.createFromBuildRequest(source, orderReference());
+        allocations.reservePendingOrder(order.id());
+        return order;
     }
 
     @Transactional
@@ -36,7 +38,9 @@ public class SalesOrderService {
         }
         BuildRequestOrderSource source = repository.findBuildRequest(userId, requestReference.trim())
                 .orElseThrow(() -> new IllegalArgumentException("Build request was not found for this account"));
-        return repository.createFromBuildRequest(source, orderReference());
+        SalesOrder order = repository.createFromBuildRequest(source, orderReference());
+        allocations.reservePendingOrder(order.id());
+        return order;
     }
 
     @Transactional
@@ -56,6 +60,11 @@ public class SalesOrderService {
     @Transactional
     public SalesOrder markRewardEligible(UUID orderId) {
         return repository.markRewardEligible(orderId);
+    }
+
+    @Transactional
+    public void releaseReservation(UUID orderId) {
+        allocations.releasePendingOrder(orderId);
     }
 
     private String orderReference() {

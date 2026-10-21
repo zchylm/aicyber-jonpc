@@ -9,7 +9,9 @@ import AuthPanel from "../components/AuthPanel";
 import QueueRewardsSection from "../components/QueueRewardsSection";
 import PaymentCheckout from "../components/PaymentCheckout";
 import SiteSupport from "../components/SiteSupport";
+import ShoppingBag from "../components/ShoppingBag";
 import type { AuthUser } from "../api/auth";
+import { internalPaymentDemoEnabled } from "../config/runtime";
 import { navigationItems } from "../data/site";
 import "./JonPcHeroPage.css";
 
@@ -28,31 +30,13 @@ function JonPcHeroPage() {
         </a>
 
         <nav className="nav-links" aria-label="Primary navigation">
-          {navigationItems.map((item) => {
-            const isRewards = item.href === "#queue-rewards";
-            return (
-              <a
-                href={item.href}
-                key={item.label}
-                onClick={(event) => {
-                  if (isRewards && user) {
-                    event.preventDefault();
-                    window.dispatchEvent(new CustomEvent("jonpc:open-rewards"));
-                  }
-                }}
-              >
-                {isRewards && user ? "My rewards" : item.label}
-              </a>
-            );
-          })}
+          {navigationItems.map((item) => <a href={item.href} key={item.label}>{item.label}</a>)}
         </nav>
 
-        <AuthPanel onAuthChange={setUser} />
-
-        <a className="nav-cta" href="#build" onClick={() => window.dispatchEvent(new CustomEvent("jonpc:start-new-build"))}>
-          <span>Start new build</span>
-          <span className="nav-cta-icon" aria-hidden="true">↗</span>
-        </a>
+        <div className="nav-actions">
+          <ShoppingBag user={user} />
+          <AuthPanel onAuthChange={setUser} />
+        </div>
       </header>
 
       <section className="hero" aria-labelledby="hero-title">
@@ -62,7 +46,7 @@ function JonPcHeroPage() {
 
       <QueueRewardsSection user={user} />
 
-      {import.meta.env.DEV && <PaymentCheckout user={user} onUserChange={setUser} />}
+      {internalPaymentDemoEnabled && <PaymentCheckout user={user} onUserChange={setUser} />}
 
       <SystemsSection />
 

@@ -28,12 +28,13 @@ class SystemCatalogIntegrationTest {
     void latestCatalogImportsTwelveSystemsWhileOnlyApprovedPreviewsArePublic() throws Exception {
         mockMvc.perform(get("/api/systems/preview"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$.length()").value(8))
                 .andExpect(jsonPath("$[0].sku").value("JON-STK-5060"))
                 .andExpect(jsonPath("$[0].priceCents").value(254900))
                 .andExpect(jsonPath("$[1].specifications.GPU").value("NVIDIA GeForce RTX 5060 Ti 16GB GDDR7"))
                 .andExpect(jsonPath("$[3].priceCents").value(394900))
                 .andExpect(jsonPath("$[0].available").isBoolean())
+                .andExpect(jsonPath("$[0].saleEnabled").value(false))
                 .andExpect(jsonPath("$[0].availableQuantity").doesNotExist())
                 .andExpect(jsonPath("$[0].plannedPreorderQuantity").doesNotExist())
                 .andExpect(jsonPath("$[0].onHandQuantity").doesNotExist())
@@ -42,7 +43,7 @@ class SystemCatalogIntegrationTest {
 
         mockMvc.perform(get("/api/admin/systems").header("Authorization", "Bearer " + userToken("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(12))
+                .andExpect(jsonPath("$.length()").value(16))
                 .andExpect(jsonPath("$[0].sku").value("S1"))
                 .andExpect(jsonPath("$[0].priceCents").value(2319900))
                 .andExpect(jsonPath("$[0].productRange").value("Premium"))
@@ -64,7 +65,7 @@ class SystemCatalogIntegrationTest {
         String body = """
                 {"sku":"JON-NEW-TEST","name":"New system","description":"Draft","priceCents":259900,
                  "plannedPreorderQuantity":0,"listingOrder":9,"badge":null,"recommendedFor":"Gaming",
-                 "dispatchEstimate":"10–15 business days","specifications":{"GPU":"RTX 5070"},"previewEnabled":false}
+                 "dispatchEstimate":"10–15 business days","specifications":{"GPU":"RTX 5070"},"previewEnabled":false,"saleEnabled":false}
                 """;
         mockMvc.perform(post("/api/admin/systems").contentType("application/json").content(body))
                 .andExpect(status().isForbidden());
@@ -78,7 +79,7 @@ class SystemCatalogIntegrationTest {
                 .andExpect(jsonPath("$.onHandQuantity").value(0))
                 .andExpect(jsonPath("$.previewEnabled").value(false));
         mockMvc.perform(get("/api/systems/preview"))
-                .andExpect(jsonPath("$.length()").value(4));
+                .andExpect(jsonPath("$.length()").value(8));
     }
 
     @Test
@@ -86,7 +87,7 @@ class SystemCatalogIntegrationTest {
         String body = """
                 {"sku":"JON-INCOMPLETE","name":"Incomplete system","priceCents":259900,
                  "plannedPreorderQuantity":0,"listingOrder":9,"recommendedFor":"Gaming",
-                 "dispatchEstimate":"10–15 business days","specifications":{"GPU":"RTX 5070"},"previewEnabled":true}
+                 "dispatchEstimate":"10–15 business days","specifications":{"GPU":"RTX 5070"},"previewEnabled":true,"saleEnabled":false}
                 """;
         mockMvc.perform(post("/api/admin/systems").header("Authorization", "Bearer " + userToken("ADMIN"))
                         .contentType("application/json").content(body))

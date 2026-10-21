@@ -62,6 +62,7 @@ type BuildConfiguratorProps = {
 type ConfiguratorStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 const configuratorHistoryKey = "jonpcConfiguratorStep";
+const configuratorHistoryChangeEvent = "jonpc:configurator-history-change";
 const configuratorStepTargets: Record<ConfiguratorStep, string> = {
   1: ".configurator-main > .configurator-block:first-child",
   2: ".configurator-needs",
@@ -91,6 +92,7 @@ function advanceConfiguratorStep(from: ConfiguratorStep, to: ConfiguratorStep) {
     : { ...currentState, [configuratorHistoryKey]: from };
   if (activeStep !== from) window.history.replaceState(baseState, "", window.location.href);
   window.history.pushState({ ...baseState, [configuratorHistoryKey]: to }, "", window.location.href);
+  window.dispatchEvent(new CustomEvent(configuratorHistoryChangeEvent, { detail: to }));
   scrollToConfiguratorStep(to);
 }
 
@@ -129,16 +131,26 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
   const [transitionLoading, setTransitionLoading] = useState<"platform" | "style" | "review" | null>(null);
   const [transitionError, setTransitionError] = useState<{ step: "platform" | "style" | "review"; message: string } | null>(null);
   const [buildOrigin, setBuildOrigin] = useState<{ name: string; modified: boolean } | null>(null);
+  const activeHistoryStep = useRef<ConfiguratorStep | undefined>(window.history.state?.[configuratorHistoryKey]);
   const requestReference = submittedBuild?.requestReference ?? `JON-${direction.slice(0, 3).toUpperCase()}-DEMO`;
   const questions = useMemo(() => configuratorQuestions[direction], [direction]);
 
   useEffect(() => {
     const restoreConfiguratorStep = (event: PopStateEvent) => {
       const step = event.state?.[configuratorHistoryKey];
-      if (Number.isInteger(step) && step >= 1 && step <= 8) scrollToConfiguratorStep(step as ConfiguratorStep, "auto");
+      const previousStep = activeHistoryStep.current;
+      activeHistoryStep.current = step;
+      if (Number.isInteger(step) && step >= 1 && step <= 8 && step !== previousStep) scrollToConfiguratorStep(step as ConfiguratorStep, "auto");
+    };
+    const trackConfiguratorStep = (event: Event) => {
+      activeHistoryStep.current = (event as CustomEvent<ConfiguratorStep>).detail;
     };
     window.addEventListener("popstate", restoreConfiguratorStep);
-    return () => window.removeEventListener("popstate", restoreConfiguratorStep);
+    window.addEventListener(configuratorHistoryChangeEvent, trackConfiguratorStep);
+    return () => {
+      window.removeEventListener("popstate", restoreConfiguratorStep);
+      window.removeEventListener(configuratorHistoryChangeEvent, trackConfiguratorStep);
+    };
   }, []);
 
   useEffect(() => {
@@ -1240,7 +1252,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
               <div className="review-actions">
                 <div className="review-cta-row">
                   <div className="save-build-action">
-                    <button className="button button-primary" type="button" onClick={saveCurrentBuild} disabled={!backendQuote || !backendQuote.compatible}>{saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save this build"} <span aria-hidden="true">↓</span></button>
+                    <button className="button button-primary" type="button" onClick={saveState === "saved" ? () => window.dispatchEvent(new CustomEvent("jonpc:open-builds")) : saveCurrentBuild} disabled={!backendQuote || !backendQuote.compatible} aria-label={saveState === "saved" ? "Saved to account. View saved builds" : undefined}>{saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved to account" : "Save this build"} <span aria-hidden="true">{saveState === "saved" ? "→" : "↓"}</span></button>
                     {saveState === "error" && <small>{window.localStorage.getItem(authTokenKey) ? "Unable to save this build." : "Log in to save your build."}</small>}
                   </div>
                   <button className="button button-primary" type="button" onClick={openBuildRequest} disabled={!backendQuote || !backendQuote.compatible}>Request this build <span aria-hidden="true">↗</span></button>
