@@ -7,8 +7,6 @@ import com.aicyber.backend.payment.model.Payment;
 import com.aicyber.backend.payment.model.PaymentSettlement;
 import com.aicyber.backend.payment.repository.PaymentRepository;
 import com.aicyber.backend.reward.repository.RewardDemoRepository;
-import com.aicyber.backend.reward.service.RewardEventIntakeService;
-import com.aicyber.backend.reward.service.RewardEventProcessor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,23 +21,20 @@ public class MockPaymentSettlementService {
     private final PaymentRepository paymentRepository;
     private final SalesOrderService salesOrderService;
     private final RewardDemoRepository rewardDemoRepository;
-    private final RewardEventIntakeService rewardEventIntakeService;
-    private final RewardEventProcessor rewardEventProcessor;
+    private final SuccessfulPaymentSettlementService successfulPaymentSettlementService;
     private final InvoiceService invoiceService;
 
     public MockPaymentSettlementService(
             PaymentRepository paymentRepository,
             SalesOrderService salesOrderService,
             RewardDemoRepository rewardDemoRepository,
-            RewardEventIntakeService rewardEventIntakeService,
-            RewardEventProcessor rewardEventProcessor,
+            SuccessfulPaymentSettlementService successfulPaymentSettlementService,
             InvoiceService invoiceService
     ) {
         this.paymentRepository = paymentRepository;
         this.salesOrderService = salesOrderService;
         this.rewardDemoRepository = rewardDemoRepository;
-        this.rewardEventIntakeService = rewardEventIntakeService;
-        this.rewardEventProcessor = rewardEventProcessor;
+        this.successfulPaymentSettlementService = successfulPaymentSettlementService;
         this.invoiceService = invoiceService;
     }
 
@@ -62,16 +57,8 @@ public class MockPaymentSettlementService {
         }
 
         Payment succeeded = paymentRepository.markSucceeded(payment.id());
-        salesOrderService.markPaid(payment.orderId());
-        salesOrderService.markRewardEligible(payment.orderId());
-        if (!rewardEventIntakeService.recordOrderEligible(programId, payment.orderId())) {
-            throw new IllegalStateException("Reward eligibility was already recorded for this order");
-        }
-        if (!rewardEventProcessor.processNext(programId)) {
-            throw new IllegalStateException("Founder cashback commitment was not created");
-        }
-        SalesInvoice invoice = invoiceService.issueForSuccessfulPayment(payment.orderId(), payment.id());
-        return new PaymentSettlement(succeeded, programId, true, invoice.id());
+        SuccessfulPaymentSettlementService.SettlementResult result = successfulPaymentSettlementService.settle(succeeded);
+        return new PaymentSettlement(succeeded, result.programId(), true, result.invoiceId());
     }
 
     @Transactional

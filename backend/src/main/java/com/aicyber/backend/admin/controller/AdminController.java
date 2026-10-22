@@ -11,6 +11,12 @@ import com.aicyber.backend.admin.service.AdminOrderService;
 import com.aicyber.backend.admin.service.AdminOverviewService;
 import com.aicyber.backend.admin.service.AdminRewardService;
 import com.aicyber.backend.invoice.model.SalesInvoice;
+import com.aicyber.backend.payment.dto.AdminBankTransferReviewResponse;
+import com.aicyber.backend.payment.dto.BankTransferResponse;
+import com.aicyber.backend.payment.dto.ConfirmBankTransferRequest;
+import com.aicyber.backend.payment.dto.RejectBankTransferRequest;
+import com.aicyber.backend.payment.service.AdminBankTransferService;
+import com.aicyber.backend.payment.service.BankTransferWorkflowService;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -27,6 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -35,17 +42,23 @@ public class AdminController {
     private final AdminOrderService orderService;
     private final AdminRewardService rewardService;
     private final AdminInvoiceService invoiceService;
+    private final AdminBankTransferService bankTransferService;
+    private final BankTransferWorkflowService bankTransferWorkflowService;
 
     public AdminController(
             AdminOverviewService overviewService,
             AdminOrderService orderService,
             AdminRewardService rewardService,
-            AdminInvoiceService invoiceService
+            AdminInvoiceService invoiceService,
+            AdminBankTransferService bankTransferService,
+            BankTransferWorkflowService bankTransferWorkflowService
     ) {
         this.overviewService = overviewService;
         this.orderService = orderService;
         this.rewardService = rewardService;
         this.invoiceService = invoiceService;
+        this.bankTransferService = bankTransferService;
+        this.bankTransferWorkflowService = bankTransferWorkflowService;
     }
 
     @GetMapping("/overview")
@@ -75,6 +88,42 @@ public class AdminController {
     @GetMapping("/rewards")
     public AdminRewardSnapshotResponse rewards() {
         return rewardService.snapshot();
+    }
+
+    @GetMapping("/bank-transfers")
+    public List<AdminBankTransferReviewResponse> bankTransfers() {
+        return bankTransferService.reviewQueue();
+    }
+
+    @PostMapping("/bank-transfers/{paymentId}/confirm")
+    public BankTransferResponse confirmBankTransfer(
+            Authentication authentication,
+            @PathVariable UUID paymentId,
+            @org.springframework.web.bind.annotation.RequestBody ConfirmBankTransferRequest request
+    ) {
+        try {
+            return bankTransferWorkflowService.confirm(
+                    UUID.fromString(authentication.getName()), paymentId,
+                    request.bankTransactionReference(), request.bankReceivedAt(), request.reviewNote()
+            );
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
+    }
+
+    @PostMapping("/bank-transfers/{paymentId}/reject")
+    public BankTransferResponse rejectBankTransfer(
+            Authentication authentication,
+            @PathVariable UUID paymentId,
+            @org.springframework.web.bind.annotation.RequestBody RejectBankTransferRequest request
+    ) {
+        try {
+            return bankTransferWorkflowService.reject(
+                    UUID.fromString(authentication.getName()), paymentId, request.reviewNote()
+            );
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
     }
 
     @GetMapping(value = "/invoices/{invoiceId}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)

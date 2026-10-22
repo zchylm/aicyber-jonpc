@@ -80,7 +80,7 @@ public class JonPcKnowledgeContextService implements KnowledgeContextProvider {
         context.append("- A Founder position and exact cashback amount are locked only after successful payment.\n")
                 .append("- A locked cashback amount does not depend on later customers or future orders.\n")
                 .append("- The pilot is limited to 50 Founder positions and one Founder reward per purchaser.\n")
-                .append("- JON.PC initiates eligible cashback to the original payment method within 30 days after confirmed delivery. The payment provider may require additional processing time.\n")
+                .append("- JON.PC initiates eligible cashback within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved. Bank processing may require additional time.\n")
                 .append("- Cancellation, refund, validation and payout conditions apply; direct policy-specific questions to Support if the supplied context does not confirm the detail.\n");
     }
 

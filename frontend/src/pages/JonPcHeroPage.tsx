@@ -11,7 +11,7 @@ import PaymentCheckout from "../components/PaymentCheckout";
 import SiteSupport from "../components/SiteSupport";
 import ShoppingBag from "../components/ShoppingBag";
 import type { AuthUser } from "../api/auth";
-import { internalPaymentDemoEnabled } from "../config/runtime";
+import { checkoutEnabled } from "../config/runtime";
 import { navigationItems } from "../data/site";
 import "./JonPcHeroPage.css";
 
@@ -46,7 +46,7 @@ function JonPcHeroPage() {
 
       <QueueRewardsSection user={user} />
 
-      {internalPaymentDemoEnabled && <PaymentCheckout user={user} onUserChange={setUser} />}
+      {checkoutEnabled && <PaymentCheckout user={user} onUserChange={setUser} />}
 
       <SystemsSection />
 

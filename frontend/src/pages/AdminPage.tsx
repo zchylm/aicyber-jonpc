@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   downloadAdminInvoice,
+  confirmAdminBankTransfer,
+  rejectAdminBankTransfer,
+  fetchAdminBankTransfers,
   fetchAdminOrder,
   fetchAdminOrders,
   fetchAdminOverview,
   fetchAdminRewards,
   resendAdminInvoice,
   type AdminOrder,
+  type AdminBankTransfer,
   type AdminOrderDetail,
   type AdminOverview,
   type AdminRewards,
@@ -32,6 +36,7 @@ function AdminPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [orderTotal, setOrderTotal] = useState(0);
+  const [bankTransfers, setBankTransfers] = useState<AdminBankTransfer[]>([]);
   const [orderQuery, setOrderQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderDetail | null>(null);
@@ -70,9 +75,12 @@ function AdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const nextOrders = await fetchAdminOrders(orderQuery, orderStatus);
+      const [nextOrders, nextBankTransfers] = await Promise.all([
+        fetchAdminOrders(orderQuery, orderStatus), fetchAdminBankTransfers(),
+      ]);
       setOrders(nextOrders.items);
       setOrderTotal(nextOrders.total);
+      setBankTransfers(nextBankTransfers);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load orders");
     } finally {
@@ -161,7 +169,7 @@ function AdminPage() {
         {error && <div className="admin-error" role="alert">{error}</div>}
 
         {view === "overview" && <Overview overview={overview} onNavigate={setView} />}
-        {view === "orders" && <Orders orders={orders} total={orderTotal} query={orderQuery} status={orderStatus} selected={selectedOrder} onQuery={setOrderQuery} onStatus={setOrderStatus} onOpen={openOrder} onClose={() => setSelectedOrder(null)} />}
+        {view === "orders" && <Orders orders={orders} bankTransfers={bankTransfers} total={orderTotal} query={orderQuery} status={orderStatus} selected={selectedOrder} onQuery={setOrderQuery} onStatus={setOrderStatus} onOpen={openOrder} onClose={() => setSelectedOrder(null)} onRefresh={loadOrders} />}
         {view === "custom-build-review" && <AdminCustomBuildReview refreshKey={inventoryRefreshKey} />}
         {view === "inventory" && <AdminInventoryWorkspace refreshKey={inventoryRefreshKey} />}
         {view === "rewards" && <Rewards rewards={rewards} view={rewardView} onView={setRewardView} />}
@@ -201,8 +209,43 @@ function greeting() {
 function duration(hours: number) { return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`; }
 function activityTime(value: string) { return new Date(value).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" }); }
 
-function Orders({ orders, total, query, status, selected, onQuery, onStatus, onOpen, onClose }: { orders: AdminOrder[]; total: number; query: string; status: string; selected: AdminOrderDetail | null; onQuery: (value: string) => void; onStatus: (value: string) => void; onOpen: (id: string) => void; onClose: () => void }) {
-  return <><section className="admin-section-heading compact"><span>{total} orders</span><h2>Find any order.</h2></section><div className="admin-filters"><label><span>Search</span><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Order, invoice, payment, customer ID or email" /></label><label><span>Status</span><select value={status} onChange={(event) => onStatus(event.target.value)}><option value="">All statuses</option><option>PENDING_PAYMENT</option><option>PAID</option><option>REWARD_ELIGIBLE</option><option>CANCELLED</option><option>REFUNDED</option></select></label></div><div className="admin-table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Reward</th><th>Created</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} onClick={() => onOpen(order.id)}><td><strong>{order.orderReference}</strong><Status value={order.status} />{order.invoiceNumber && <small>{order.invoiceNumber}</small>}</td><td>{order.customerName}<small>{order.customerReference}</small><small>{order.customerEmail}</small></td><td>{money(order.amountCents)}</td><td><Status value={order.paymentStatus ?? "NOT STARTED"} /><small>{order.paymentReference}</small></td><td><Status value={order.rewardStatus ?? "NOT ELIGIBLE"} /></td><td>{date(order.createdAt)}<small>View details →</small></td></tr>)}</tbody></table>{orders.length === 0 && <EmptyState label="No matching orders" />}</div>{selected && <OrderDrawer order={selected} onClose={onClose} />}</>;
+function Orders({ orders, bankTransfers, total, query, status, selected, onQuery, onStatus, onOpen, onClose, onRefresh }: { orders: AdminOrder[]; bankTransfers: AdminBankTransfer[]; total: number; query: string; status: string; selected: AdminOrderDetail | null; onQuery: (value: string) => void; onStatus: (value: string) => void; onOpen: (id: string) => void; onClose: () => void; onRefresh: () => Promise<void> }) {
+  return <><section className="admin-section-heading compact"><span>{total} orders</span><h2>Find any order.</h2></section><BankTransferReview items={bankTransfers} onOpen={onOpen} onRefresh={onRefresh} /><div className="admin-filters"><label><span>Search</span><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Order, invoice, payment, customer ID or email" /></label><label><span>Status</span><select value={status} onChange={(event) => onStatus(event.target.value)}><option value="">All statuses</option><option>PENDING_PAYMENT</option><option>PAID</option><option>REWARD_ELIGIBLE</option><option>CANCELLED</option><option>REFUNDED</option></select></label></div><div className="admin-table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Reward</th><th>Created</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} onClick={() => onOpen(order.id)}><td><strong>{order.orderReference}</strong><Status value={order.status} />{order.invoiceNumber && <small>{order.invoiceNumber}</small>}</td><td>{order.customerName}<small>{order.customerReference}</small><small>{order.customerEmail}</small></td><td>{money(order.amountCents)}</td><td><Status value={order.paymentStatus ?? "NOT STARTED"} /><small>{order.paymentReference}</small></td><td><Status value={order.rewardStatus ?? "NOT ELIGIBLE"} /></td><td>{date(order.createdAt)}<small>View details →</small></td></tr>)}</tbody></table>{orders.length === 0 && <EmptyState label="No matching orders" />}</div>{selected && <OrderDrawer order={selected} onClose={onClose} />}</>;
+}
+
+function BankTransferReview({ items, onOpen, onRefresh }: { items: AdminBankTransfer[]; onOpen: (id: string) => void; onRefresh: () => Promise<void> }) {
+  const [active, setActive] = useState<string | null>(null);
+  const [reference, setReference] = useState("");
+  const [receivedAt, setReceivedAt] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState<"confirm" | "reject" | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  async function confirm(paymentId: string) {
+    if (!reference.trim()) { setActionError("Enter the ANZ transaction reference before confirming."); return; }
+    if (!receivedAt) { setActionError("Enter the time ANZ received the funds."); return; }
+    const received = new Date(receivedAt);
+    if (Number.isNaN(received.getTime())) { setActionError("Enter a valid ANZ received time."); return; }
+    setBusy("confirm"); setActionError(null);
+    try {
+      await confirmAdminBankTransfer(paymentId, { bankTransactionReference: reference, bankReceivedAt: received.toISOString(), reviewNote: note });
+      setActive(null); setReference(""); setReceivedAt(""); setNote("");
+      await onRefresh();
+    } catch (requestError) {
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to confirm transfer");
+    } finally { setBusy(null); }
+  }
+  async function reject(paymentId: string) {
+    if (!note.trim()) { setActionError("Add an internal note before rejecting the transfer."); return; }
+    setBusy("reject"); setActionError(null);
+    try {
+      await rejectAdminBankTransfer(paymentId, { reviewNote: note });
+      setActive(null); setReference(""); setReceivedAt(""); setNote("");
+      await onRefresh();
+    } catch (requestError) {
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to reject transfer");
+    } finally { setBusy(null); }
+  }
+  return <section className="admin-bank-review"><div className="admin-bank-review-head"><div><span>ANZ verification queue</span><strong>{items.length ? `${items.length} awaiting review` : "Queue clear"}</strong></div><small>Review oldest reports first · Founder order uses ANZ received time</small></div>{items.length === 0 ? <p className="admin-bank-empty"><i />Transferred orders will appear here for manual verification.</p> : <ol>{items.map((item, index) => <li key={item.paymentId}><button className="admin-bank-row" type="button" onClick={() => { const opening = active !== item.paymentId; setActive(opening ? item.paymentId : null); setReference(""); setReceivedAt(""); setNote(""); setActionError(null); }}><b>{String(index + 1).padStart(2, "0")}</b><div><strong>{item.orderReference}</strong><small>{item.customerName} · {item.customerEmail}</small></div><div><strong>{money(item.amountCents)}</strong><small>Submitted {dateTime(item.customerReportedAt)}</small></div><span>{active === item.paymentId ? "Close" : "Review"} →</span></button>{active === item.paymentId && <div className="admin-bank-confirm"><div className="admin-bank-reference"><span>Customer payment reference</span><strong>{item.paymentReference}</strong><button type="button" onClick={() => onOpen(item.orderId)}>Open order ↗</button></div><label>ANZ transaction reference<input value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} placeholder="Transaction ID shown in ANZ" /></label><label>Funds received in ANZ<input type="datetime-local" value={receivedAt} onChange={(event) => setReceivedAt(event.target.value)} /></label><label className="admin-bank-note">Internal note <small>Required only when rejecting</small><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} /></label>{actionError && <p role="alert">{actionError}</p>}<div className="admin-bank-actions"><button className="admin-bank-reject-action" type="button" disabled={Boolean(busy)} onClick={() => void reject(item.paymentId)}>{busy === "reject" ? "Rejecting…" : "No matching funds"}</button><button className="admin-bank-confirm-action" type="button" disabled={Boolean(busy)} onClick={() => void confirm(item.paymentId)}>{busy === "confirm" ? "Confirming…" : "Confirm funds received"}<span>→</span></button></div><small className="admin-bank-warning">Match the exact amount and payment reference in ANZ. Confirmation allocates stock, issues the tax invoice and assigns the Founder position using the ANZ received time.</small></div>}</li>)}</ol>}</section>;
 }
 
 function OrderDrawer({ order, onClose }: { order: AdminOrderDetail; onClose: () => void }) {
@@ -222,7 +265,7 @@ function OrderDrawer({ order, onClose }: { order: AdminOrderDetail; onClose: () 
   return <div className="admin-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="admin-drawer" aria-label={`Order ${order.orderReference}`}><button className="admin-drawer-close" type="button" onClick={onClose}>×</button><span>Order detail</span><h2>{order.orderReference}</h2><div className="admin-detail-grid"><div><small>Customer</small><strong>{order.customerName}</strong><p>{order.customerReference}</p><p>{order.customerEmail}</p></div><div><small>Total incl. GST</small><strong>{money(order.amountCents)}</strong><Status value={order.status} /></div></div>
     <DetailSection title={order.systems.length ? "Systems" : featured ? "Featured system" : "Selected configuration"}><dl><div><dt>Build request</dt><dd>{order.buildRequestReference ?? "—"}</dd></div>{order.systems.length ? order.systems.map((system) => <div key={system.sku}><dt>{system.quantity} × {system.sku}</dt><dd>{system.name} · {money(system.lineTotalCents)}</dd></div>) : featured ? <><div><dt>System</dt><dd>{String(answers.systemName ?? answers.systemSku)}</dd></div><div><dt>SKU</dt><dd>{String(answers.systemSku)}</dd></div>{featuredSpecs.filter((key) => answers[key]).map((key) => <div key={key}><dt>{key}</dt><dd>{String(answers[key])}</dd></div>)}</> : <>{customSpecs.filter(([key]) => order.configuration[key]).map(([key, label]) => { const id = String(order.configuration[key]); const name = catalog?.options[key.replace(/Id$/, "")]?.find((option) => option.id === id)?.label ?? id; return <div key={key}><dt>{label}</dt><dd>{name}</dd></div>; })}{Object.entries(answers).filter(([key, value]) => typeof value === "string" && value && key !== "cartCheckout").map(([key, value]) => <div key={key}><dt>{formatLabel(key)}</dt><dd>{String(value)}</dd></div>)}{!order.buildRequestReference && <p className="admin-muted">No product configuration is attached to this order.</p>}</>}</dl></DetailSection>
     <DetailSection title="Delivery details">{order.delivery ? <div className="admin-delivery-card"><strong>{order.delivery.recipientName}</strong><a href={`tel:${order.delivery.phone}`}>{order.delivery.phone}</a><address>{order.delivery.addressLine1}{order.delivery.addressLine2 && <><br />{order.delivery.addressLine2}</>}<br />{order.delivery.suburb} {order.delivery.state} {order.delivery.postcode}<br />Australia</address></div> : <p className="admin-delivery-missing">No delivery address is recorded for this order. Do not dispatch until the details are confirmed.</p>}</DetailSection>
-    <DetailSection title="Payments">{order.payments.length === 0 ? <p className="admin-muted">No payment attempts.</p> : order.payments.map((payment) => <article className="admin-payment-row" key={payment.id}><div><strong>{payment.paymentReference}</strong><small>{payment.provider} / {date(payment.createdAt)}</small></div><div><b>{money(payment.amountCents)}</b><Status value={payment.status} /></div></article>)}</DetailSection><DetailSection title="Tax invoice">{order.invoice ? <AdminInvoicePanel invoice={order.invoice} /> : <p className="admin-muted">No tax invoice issued.</p>}</DetailSection><DetailSection title="Founder reward">{order.reward ? <div className="admin-reward-detail"><strong>Founder #{String(order.reward.founderNumber).padStart(2, "0")} · {order.reward.tierName}</strong><Status value={order.reward.status} /><div><span>{order.reward.rateBasisPoints / 100}% rate</span><span>{money(order.reward.capCents)} cap</span><span>{money(order.reward.cashbackAmountCents)} committed</span></div></div> : <p className="admin-muted">No Founder commitment for this order.</p>}</DetailSection><DetailSection title="Timeline"><ol className="admin-timeline"><li><i /><div><strong>Order created</strong><span>{dateTime(order.createdAt)}</span></div></li>{order.paidAt && <li><i /><div><strong>Payment confirmed</strong><span>{dateTime(order.paidAt)}</span></div></li>}{order.invoice && <li><i /><div><strong>Tax invoice issued</strong><span>{dateTime(order.invoice.issuedAt)}</span></div></li>}{order.rewardEligibleAt && <li><i /><div><strong>Founder cashback locked</strong><span>{dateTime(order.rewardEligibleAt)}</span></div></li>}</ol></DetailSection></aside></div>;
+    <DetailSection title="Payments">{order.payments.length === 0 ? <p className="admin-muted">No payment attempts.</p> : order.payments.map((payment) => <article className="admin-payment-row" key={payment.id}><div><strong>{payment.paymentReference}</strong><small>{payment.provider} / {date(payment.createdAt)}</small>{payment.bankReceivedAt && <small>ANZ received {dateTime(payment.bankReceivedAt)}</small>}</div><div><b>{money(payment.amountCents)}</b><Status value={payment.status} /></div></article>)}</DetailSection><DetailSection title="Tax invoice">{order.invoice ? <AdminInvoicePanel invoice={order.invoice} /> : <p className="admin-muted">No tax invoice issued.</p>}</DetailSection><DetailSection title="Founder reward">{order.reward ? <div className="admin-reward-detail"><strong>Founder #{String(order.reward.founderNumber).padStart(2, "0")} · {order.reward.tierName}</strong><Status value={order.reward.status} /><div><span>{order.reward.rateBasisPoints / 100}% rate</span><span>{money(order.reward.capCents)} cap</span><span>{money(order.reward.cashbackAmountCents)} committed</span></div></div> : <p className="admin-muted">No Founder commitment for this order.</p>}</DetailSection><DetailSection title="Timeline"><ol className="admin-timeline"><li><i /><div><strong>Order created</strong><span>{dateTime(order.createdAt)}</span></div></li>{order.paidAt && <li><i /><div><strong>Payment confirmed</strong><span>{dateTime(order.paidAt)}</span></div></li>}{order.invoice && <li><i /><div><strong>Tax invoice issued</strong><span>{dateTime(order.invoice.issuedAt)}</span></div></li>}{order.rewardEligibleAt && <li><i /><div><strong>Founder cashback locked</strong><span>{dateTime(order.rewardEligibleAt)}</span></div></li>}</ol></DetailSection></aside></div>;
 }
 
 function AdminInvoicePanel({ invoice }: { invoice: NonNullable<AdminOrderDetail["invoice"]> }) {

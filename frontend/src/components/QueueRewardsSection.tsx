@@ -89,7 +89,7 @@ function QueueRewardsSection({ user }: Props) {
         <div className="reward-banner-copy">
           <span className="section-kicker reward-kicker"><i aria-hidden="true" />JON. PC Founders</span>
           <h2 id="reward-title">Join early. <em>Get rewarded.</em></h2>
-          <p>Your Founder cashback is calculated and locked when payment is confirmed.</p>
+          <p>Your Founder place is locked after cleared funds are verified. Bank transfers are reviewed manually.</p>
           <div className="reward-banner-actions">
             <button className="button button-primary" type="button" onClick={openRewardCentre}>My Founder reward <span aria-hidden="true">→</span></button>
             <button className="reward-text-link" type="button" onClick={() => setIsExplanationOpen((open) => !open)}>{isExplanationOpen ? "Close details" : "How it works"} <span aria-hidden="true">{isExplanationOpen ? "−" : "+"}</span></button>
@@ -113,11 +113,11 @@ function QueueRewardsSection({ user }: Props) {
         <div><span className="section-kicker">Limited Founder release</span><h3>Clear from the start.</h3></div>
         <div className="reward-explanation-grid">
           <p><strong>01 / Choose</strong>Select the JON. PC that fits your needs.</p>
-          <p><strong>02 / Confirm</strong>Your place is assigned only after successful payment.</p>
+          <p><strong>02 / Confirm</strong>Your place follows the verified bank-receipt order.</p>
           <p><strong>03 / Lock</strong>Cashback equals the current rate of the purchase price before GST, up to the tier cap.</p>
           <p><strong>04 / Receive</strong>Your locked amount does not depend on another customer purchasing.</p>
         </div>
-        <aside className="reward-explanation-limit"><strong>One Founder reward per customer</strong><p>Founder positions are confirmed in successful-payment order.</p></aside>
+        <aside className="reward-explanation-limit"><strong>One Founder reward per customer</strong><p>A transfer report is not a confirmed payment.</p></aside>
       </div>}
 
       <div className="reward-rules">
@@ -146,7 +146,7 @@ const payoutHeading = (entry: RewardEntry) => entry.status === "PAID" ? "Returne
 const payoutDetail = (entry: RewardEntry) => entry.status === "PAID"
   ? `${entry.paidAt ? `Paid ${date(entry.paidAt)}` : "Paid"}${entry.payoutReference ? ` · ${entry.payoutReference}` : ""}`
   : entry.status === "FAILED" ? "JON.PC support will review this payout."
-    : "JON.PC will initiate eligible cashback within 30 days after confirmed delivery.";
+    : "JON.PC will initiate eligible cashback within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.";
 const date = (value: string) => new Intl.DateTimeFormat("en-AU", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
 
 export default QueueRewardsSection;

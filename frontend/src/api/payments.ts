@@ -18,6 +18,15 @@ export type MockPayment = {
   reward: RewardEntry | null;
 };
 
+export type BankTransferPayment = MockPayment & {
+  expiresAt: string;
+  customerReportedAt: string | null;
+  bankName: string;
+  accountName: string;
+  bsb: string;
+  accountNumber: string;
+};
+
 export type DeliveryDetails = {
   recipientName: string;
   phone: string;
@@ -60,6 +69,23 @@ export function createMockPayment(token: string, requestReference: string, idemp
 
 export function completeMockPayment(token: string, paymentId: string, outcome: "SUCCEEDED" | "FAILED") {
   return request<MockPayment>(`/api/payments/mock/${paymentId}/complete`, token, { outcome });
+}
+
+export function createBankTransfer(token: string, requestReference: string, idempotencyKey: string) {
+  return request<BankTransferPayment>("/api/payments/bank-transfer", token, { requestReference, idempotencyKey });
+}
+
+export function reportBankTransfer(token: string, paymentId: string) {
+  return request<BankTransferPayment>(`/api/payments/bank-transfer/${paymentId}/reported`, token, {});
+}
+
+export async function fetchBankTransfer(token: string, paymentId: string) {
+  const response = await fetch(`${apiBaseUrl}/api/payments/bank-transfer/${paymentId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const responseBody = await response.json().catch(() => null) as (BankTransferPayment & { detail?: string; message?: string }) | null;
+  if (!response.ok) throw new Error(responseBody?.detail ?? responseBody?.message ?? `Unable to check bank transfer (${response.status})`);
+  return responseBody as BankTransferPayment;
 }
 
 export async function downloadInvoicePdf(token: string, invoiceId: string, invoiceNumber: string) {

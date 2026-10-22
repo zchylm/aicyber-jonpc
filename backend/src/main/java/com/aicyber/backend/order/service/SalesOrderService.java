@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Service
@@ -33,13 +34,19 @@ public class SalesOrderService {
 
     @Transactional
     public SalesOrder createFromBuildRequest(UUID userId, String requestReference) {
+        return createFromBuildRequest(userId, requestReference, null);
+    }
+
+    @Transactional
+    public SalesOrder createFromBuildRequest(UUID userId, String requestReference, OffsetDateTime reservationExpiresAt) {
         if (requestReference == null || requestReference.isBlank()) {
             throw new IllegalArgumentException("Build request reference is required");
         }
         BuildRequestOrderSource source = repository.findBuildRequest(userId, requestReference.trim())
                 .orElseThrow(() -> new IllegalArgumentException("Build request was not found for this account"));
         SalesOrder order = repository.createFromBuildRequest(source, orderReference());
-        allocations.reservePendingOrder(order.id());
+        if (reservationExpiresAt == null) allocations.reservePendingOrder(order.id());
+        else allocations.reservePendingOrderUntil(order.id(), reservationExpiresAt);
         return order;
     }
 
@@ -65,6 +72,12 @@ public class SalesOrderService {
     @Transactional
     public void releaseReservation(UUID orderId) {
         allocations.releasePendingOrder(orderId);
+    }
+
+    @Transactional
+    public void cancelPending(UUID orderId) {
+        allocations.releasePendingOrder(orderId);
+        repository.cancelPending(orderId);
     }
 
     private String orderReference() {

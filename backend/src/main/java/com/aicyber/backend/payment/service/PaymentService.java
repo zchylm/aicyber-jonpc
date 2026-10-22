@@ -5,12 +5,14 @@ import com.aicyber.backend.auth.repository.UserRepository;
 import com.aicyber.backend.order.model.SalesOrder;
 import com.aicyber.backend.order.service.SalesOrderService;
 import com.aicyber.backend.payment.model.Payment;
+import com.aicyber.backend.payment.config.BankTransferProperties;
 import com.aicyber.backend.payment.repository.PaymentRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Service
@@ -19,16 +21,43 @@ public class PaymentService {
     private final SalesOrderService salesOrderService;
     private final PaymentRepository repository;
     private final JdbcTemplate jdbc;
+    private final BankTransferProperties bankTransferProperties;
 
-    public PaymentService(UserRepository userRepository, SalesOrderService salesOrderService, PaymentRepository repository, JdbcTemplate jdbc) {
+    public PaymentService(UserRepository userRepository, SalesOrderService salesOrderService, PaymentRepository repository, JdbcTemplate jdbc, BankTransferProperties bankTransferProperties) {
         this.userRepository = userRepository;
         this.salesOrderService = salesOrderService;
         this.repository = repository;
         this.jdbc = jdbc;
+        this.bankTransferProperties = bankTransferProperties;
     }
 
     @Transactional
     public Payment createMockCheckout(UUID userId, String requestReference, String idempotencyKey) {
+        String key = validateCheckout(userId, requestReference, idempotencyKey);
+        SalesOrder order = salesOrderService.createFromBuildRequest(userId, requestReference);
+        if (!"PENDING_PAYMENT".equals(order.status())) {
+            return repository.findSuccessfulByOrder(order.id())
+                    .orElseThrow(() -> new IllegalStateException("Sales order is not awaiting payment"));
+        }
+        return repository.create(order, paymentReference(), key);
+    }
+
+    @Transactional
+    public Payment createBankTransfer(UUID userId, String requestReference, String idempotencyKey) {
+        bankTransferProperties.requireConfigured();
+        String key = validateCheckout(userId, requestReference, idempotencyKey);
+        Payment active = repository.findActiveBankTransferByBuildRequest(userId, requestReference).orElse(null);
+        if (active != null) return active;
+        OffsetDateTime expiresAt = OffsetDateTime.now().plusHours(bankTransferProperties.reservationHours());
+        SalesOrder order = salesOrderService.createFromBuildRequest(userId, requestReference, expiresAt);
+        if (!"PENDING_PAYMENT".equals(order.status())) {
+            return repository.findSuccessfulByOrder(order.id())
+                    .orElseThrow(() -> new IllegalStateException("Sales order is not awaiting payment"));
+        }
+        return repository.createBankTransfer(order, bankReference(), key, expiresAt);
+    }
+
+    private String validateCheckout(UUID userId, String requestReference, String idempotencyKey) {
         requireVerifiedEmail(userId);
         String key = requireIdempotencyKey(idempotencyKey);
         Long owned = jdbc.queryForObject("SELECT COUNT(*) FROM build_requests WHERE user_id = ? AND request_reference = ?", Long.class, userId, requestReference);
@@ -42,12 +71,7 @@ public class PaymentService {
                 """, Long.class, userId, requestReference);
         if (completeAddress == null || completeAddress == 0)
             throw new IllegalStateException("Confirm a complete delivery address before payment");
-        SalesOrder order = salesOrderService.createFromBuildRequest(userId, requestReference);
-        if (!"PENDING_PAYMENT".equals(order.status())) {
-            return repository.findSuccessfulByOrder(order.id())
-                    .orElseThrow(() -> new IllegalStateException("Sales order is not awaiting payment"));
-        }
-        return repository.create(order, paymentReference(), key);
+        return key;
     }
 
     private void requireVerifiedEmail(UUID userId) {
@@ -69,5 +93,11 @@ public class PaymentService {
         String suffix = UUID.randomUUID().toString().replace("-", "")
                 .substring(0, 12).toUpperCase(Locale.ROOT);
         return "PAY-" + suffix;
+    }
+
+    private String bankReference() {
+        String suffix = UUID.randomUUID().toString().replace("-", "")
+                .substring(0, 10).toUpperCase(Locale.ROOT);
+        return "JON-" + suffix;
     }
 }

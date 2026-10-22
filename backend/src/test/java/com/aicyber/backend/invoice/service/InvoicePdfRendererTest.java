@@ -62,7 +62,7 @@ class InvoicePdfRendererTest {
                 "customer@example.com", "JON-CUS-7A3F2C91D8E4", "Melbourne", null, "AUD", 213_364, 21_336,
                 234_700, 234_700, OffsetDateTime.parse("2026-09-15T10:30:00+10:00"),
                 8, "Launch Founder", 38_168L,
-                "Separate from the amount paid. JON.PC initiates eligible cashback within 30 days after confirmed delivery.",
+                "Separate from the amount paid. JON.PC initiates eligible cashback within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.",
                 List.of(line), null, null
         );
     }

@@ -16,6 +16,12 @@ public record Payment(
         String status,
         String idempotencyKey,
         String failureReason,
-        OffsetDateTime succeededAt
+        OffsetDateTime succeededAt,
+        OffsetDateTime expiresAt,
+        OffsetDateTime customerReportedAt,
+        OffsetDateTime bankReceivedAt,
+        UUID confirmedBy,
+        OffsetDateTime confirmedAt,
+        String reviewNote
 ) {
 }

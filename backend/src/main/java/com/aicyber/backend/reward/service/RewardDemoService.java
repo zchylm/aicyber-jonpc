@@ -70,7 +70,7 @@ public class RewardDemoService {
     public RewardDemoResponse makeLatestCashbackPayable(UUID userId) {
         demoRepository.requireLocalDatabase();
         UUID commitmentId = demoRepository.latestCommitment(userId, "LOCKED");
-        demoRepository.markPayable(commitmentId, addBusinessDays(OffsetDateTime.now(MELBOURNE), 5));
+        demoRepository.markPayable(commitmentId, addBusinessDays(OffsetDateTime.now(MELBOURNE), 1));
         return response(
                 "MAKE_CASHBACK_PAYABLE",
                 "Confirmed delivery and validation were simulated. Cashback is ready for payout.",

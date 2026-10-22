@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { AuthUser } from "../api/auth";
 import { authTokenKey, fetchCurrentUser, sendEmailVerification } from "../api/auth";
-import { completeMockPayment, createMockPayment, downloadInvoicePdf, fetchDeliveryDetails, saveDeliveryDetails, type DeliveryDetails, type MockPayment } from "../api/payments";
+import { completeMockPayment, createBankTransfer, createMockPayment, downloadInvoicePdf, fetchBankTransfer, fetchDeliveryDetails, reportBankTransfer, saveDeliveryDetails, type BankTransferPayment, type DeliveryDetails, type MockPayment } from "../api/payments";
+import { bankTransferEnabled } from "../config/runtime";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import "./PaymentCheckout.css";
 
@@ -13,11 +14,12 @@ type PaymentCheckoutProps = {
 function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [requestReference, setRequestReference] = useState<string | null>(null);
-  const [payment, setPayment] = useState<MockPayment | null>(null);
+  const [payment, setPayment] = useState<MockPayment | BankTransferPayment | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationBusy, setVerificationBusy] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [transferAcknowledged, setTransferAcknowledged] = useState(false);
   const [delivery, setDelivery] = useState<DeliveryDetails>({ recipientName: "", phone: "", addressLine1: "", addressLine2: "", suburb: "", state: "VIC", postcode: "" });
   const [deliveryLoadedFor, setDeliveryLoadedFor] = useState<string | null>(null);
   const deliveryLoading = Boolean(isOpen && user?.emailVerified && requestReference && deliveryLoadedFor !== requestReference);
@@ -36,6 +38,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
       setPayment(null);
       setError(null);
       setVerificationMessage(null);
+      setTransferAcknowledged(false);
       setDeliveryLoadedFor(null);
       setDelivery({ recipientName: user.displayName ?? "", phone: "", addressLine1: "", addressLine2: "", suburb: "", state: "VIC", postcode: "" });
     };
@@ -95,6 +98,28 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [busy, closeCheckoutPanel, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !payment || payment.status !== "PROCESSING" || !isBankTransfer(payment)) return;
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const response = await fetchBankTransfer(token, payment.paymentId);
+        if (cancelled) return;
+        setPayment(response);
+        if (response.status === "SUCCEEDED") {
+          window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
+          window.dispatchEvent(new CustomEvent("jonpc:payment-completed"));
+        }
+      } catch {
+        // Keep the review screen stable; the user can reopen Orders to refresh later.
+      }
+    };
+    const interval = window.setInterval(() => void refresh(), 5000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [isOpen, payment]);
+
   async function beginCheckout(reference: string, retry = false) {
     const token = window.localStorage.getItem(authTokenKey);
     if (!token) {
@@ -104,10 +129,13 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     setBusy(true);
     setError(null);
     try {
-      const storageKey = `jonpc:mock-payment:${reference}`;
+      const storageKey = `jonpc:${bankTransferEnabled ? "bank-transfer" : "mock-payment"}:${reference}`;
       const key = retry ? crypto.randomUUID() : window.sessionStorage.getItem(storageKey) ?? crypto.randomUUID();
       window.sessionStorage.setItem(storageKey, key);
-      setPayment(await createMockPayment(token, reference, key));
+      setPayment(bankTransferEnabled
+        ? await createBankTransfer(token, reference, key)
+        : await createMockPayment(token, reference, key));
+      setTransferAcknowledged(false);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to prepare checkout.");
     } finally {
@@ -161,10 +189,27 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
       setPayment(response);
       window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
       if (response.status === "SUCCEEDED") {
+        window.dispatchEvent(new CustomEvent("jonpc:checkout-committed", { detail: { requestReference } }));
         window.dispatchEvent(new CustomEvent("jonpc:payment-completed"));
       }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to complete payment.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markTransferred() {
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token || !payment || !isBankTransfer(payment) || !transferAcknowledged) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setPayment(await reportBankTransfer(token, payment.paymentId));
+      window.dispatchEvent(new CustomEvent("jonpc:checkout-committed", { detail: { requestReference } }));
+      window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to submit the transfer for review.");
     } finally {
       setBusy(false);
     }
@@ -239,7 +284,32 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           </>
         )}
 
-        {payment?.status === "CREATED" && (
+        {payment?.status === "CREATED" && isBankTransfer(payment) && (
+          <>
+            <span className="section-kicker">JON. PC / Bank transfer</span>
+            <h2 id="payment-title">Complete payment.</h2>
+            <p className="payment-intro">Your order is reserved for 24 hours while you complete payment.</p>
+            <PaymentSummary payment={payment} />
+            <div className="payment-bank-card">
+              <div className="payment-bank-heading"><span>Transfer to</span><strong>{payment.bankName}</strong></div>
+              <BankDetail label="Account name" value={payment.accountName} />
+              <BankDetail label="BSB" value={payment.bsb} copy />
+              <BankDetail label="Account number" value={payment.accountNumber} copy />
+              <BankDetail label="Payment reference" value={payment.paymentReference} copy highlight />
+            </div>
+            <div className="payment-transfer-window"><span>Pay before</span><strong>{formatDateTime(payment.expiresAt)}</strong></div>
+            {payment.rewardPreview?.available && <div className="payment-reward-preview">
+              <div className="payment-reward-preview-heading"><span>Founder cashback preview</span><strong>{formatAudExact(payment.rewardPreview.cashbackAmountCents!)}</strong></div>
+              <div className="payment-reward-preview-details"><span>{payment.rewardPreview.tierName} · confirmed only after payment verification</span></div>
+            </div>}
+            {error && <p className="payment-error" role="alert">{error}</p>}
+            <label className="payment-transfer-confirm"><input type="checkbox" checked={transferAcknowledged} onChange={(event) => setTransferAcknowledged(event.target.checked)} /><span>I&apos;ve completed the bank transfer using reference <strong>{payment.paymentReference}</strong>.</span></label>
+            <button className="button button-primary payment-primary" type="button" onClick={markTransferred} disabled={busy || !transferAcknowledged}>{busy ? "Submitting…" : "Submit for review"}<span aria-hidden="true">↗</span></button>
+            <button className="payment-secondary" type="button" onClick={payLater} disabled={busy}>Finish later in My Orders</button>
+          </>
+        )}
+
+        {payment?.status === "CREATED" && !isBankTransfer(payment) && (
           <>
             <span className="section-kicker">JON. PC / Demo checkout</span>
             <h2 id="payment-title">Review and pay.</h2>
@@ -267,14 +337,36 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           </>
         )}
 
+        {payment?.status === "PROCESSING" && isBankTransfer(payment) && (
+          <>
+            <span className="section-kicker payment-review-kicker"><i /> Transfer submitted</span>
+            <h2 id="payment-title">Bank review in progress.</h2>
+            <p className="payment-intro">Your order remains reserved while we verify your payment. This usually takes up to 1 business day. Thank you for your patience.</p>
+            <PaymentSummary payment={payment} />
+            <div className="payment-review-state"><span>Current status</span><strong>Awaiting ANZ verification</strong></div>
+            {error && <p className="payment-error" role="alert">{error}</p>}
+            <button className="button button-primary payment-primary" type="button" onClick={payLater}>View my orders <span aria-hidden="true">→</span></button>
+          </>
+        )}
+
         {payment?.status === "FAILED" && (
           <>
             <span className="section-kicker">Payment not completed</span>
             <h2 id="payment-title">Nothing was charged.</h2>
-            <p className="payment-intro">Your order is still saved and no Founder place was claimed.</p>
+            <p className="payment-intro">{isBankTransfer(payment) && payment.failureReason ? `${payment.failureReason}. Your order is still saved and no Founder place was claimed.` : "Your order is still saved and no Founder place was claimed."}</p>
             <PaymentSummary payment={payment} />
             {error && <p className="payment-error" role="alert">{error}</p>}
             <button className="button button-primary payment-primary" type="button" onClick={() => requestReference && beginCheckout(requestReference, true)} disabled={busy}>{busy ? "Preparing..." : "Try payment again"} <span aria-hidden="true">↗</span></button>
+          </>
+        )}
+
+        {payment?.status === "CANCELLED" && (
+          <>
+            <span className="section-kicker">Payment window closed</span>
+            <h2 id="payment-title">Reservation released.</h2>
+            <p className="payment-intro">The 24-hour payment window ended before the transfer was submitted. Your reservation was released and no Founder place was assigned.</p>
+            <PaymentSummary payment={payment} />
+            <button className="button button-primary payment-primary" type="button" onClick={payLater}>View my orders <span aria-hidden="true">→</span></button>
           </>
         )}
 
@@ -291,7 +383,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
                 <div><span>Cashback locked</span><strong>{formatAudExact(payment.reward.cashbackAmountCents)}</strong></div>
               </div>
             )}
-            {payment.reward && <div className="payment-reward-timing"><span>Cashback return</span><strong>Original payment method</strong><p>Initiated within 30 days of confirmed delivery. Provider processing times may vary.</p></div>}
+            {payment.reward && <div className="payment-reward-timing"><span>Cashback return</span><strong>{isBankTransfer(payment) ? "Bank transfer" : "Original payment method"}</strong><p>Initiated within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.</p></div>}
             {error && <p className="payment-error" role="alert">{error}</p>}
             {payment.invoiceId && payment.invoiceNumber && <button className="payment-invoice-download" type="button" onClick={downloadInvoice}>Download tax invoice ↓</button>}
             <button className="button button-primary payment-primary" type="button" onClick={viewRewards}>View my rewards <span aria-hidden="true">→</span></button>
@@ -302,14 +394,31 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   );
 }
 
-function PaymentSummary({ payment }: { payment: MockPayment }) {
+function PaymentSummary({ payment }: { payment: MockPayment | BankTransferPayment }) {
   return (
     <div className="payment-summary">
       <div><span>Order</span><strong>{payment.orderReference}</strong></div>
       <div><span>Total</span><strong>{formatAud(payment.amountCents)}</strong></div>
-      <small>Payment reference {payment.paymentReference}</small>
     </div>
   );
+}
+
+function BankDetail({ label, value, copy = false, highlight = false }: { label: string; value: string; copy?: boolean; highlight?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  async function copyValue() {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
+  return <div className={`payment-bank-detail${highlight ? " highlight" : ""}`}><span>{label}</span><strong>{value}</strong>{copy && <button type="button" onClick={() => void copyValue()}>{copied ? "Copied" : "Copy"}</button>}</div>;
+}
+
+function isBankTransfer(payment: MockPayment | BankTransferPayment): payment is BankTransferPayment {
+  return "bankName" in payment;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 function formatAud(amountCents: number) {

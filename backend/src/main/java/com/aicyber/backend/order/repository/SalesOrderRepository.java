@@ -117,6 +117,14 @@ public class SalesOrderRepository {
         return findById(orderId).orElseThrow();
     }
 
+    public void cancelPending(UUID orderId) {
+        jdbcTemplate.update(
+                "UPDATE sales_orders SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP " +
+                        "WHERE id = ? AND status = 'PENDING_PAYMENT'",
+                orderId
+        );
+    }
+
     public Optional<SalesOrder> findById(UUID orderId) {
         return jdbcTemplate.query(
                 "SELECT id, user_id, build_request_id, order_reference, amount_cents, currency, status, " +

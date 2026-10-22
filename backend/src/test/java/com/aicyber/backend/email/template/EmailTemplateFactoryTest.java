@@ -13,7 +13,7 @@ class EmailTemplateFactoryTest {
                 "https://jonpc.com.au/",
                 "support@jonpc.com.au"
         ).invoice("Ezreal", "JON-INV-2026-000022", "SO-C7D67D8B3819",
-                "JON PC Strike 5060", 254_900, 34_759L);
+                "JON PC Strike 5060", 254_900, 23, "Launch Founder", 34_759L);
 
         assertTrue(email.subject().contains("Your JON.PC is confirmed"));
         assertTrue(email.text().contains("Amount paid (GST included): $2,549.00"));
@@ -22,7 +22,7 @@ class EmailTemplateFactoryTest {
         assertTrue(email.html().contains("SO-C7D67D8B3819"));
         assertTrue(email.html().contains("Amount paid · GST included"));
         assertTrue(email.html().contains("JON-INV-2026-000022 · PDF attached"));
-        assertTrue(email.html().contains("Founder reward locked"));
+        assertTrue(email.html().contains("Founder #23 · Launch Founder locked"));
         assertTrue(email.html().contains("We’ll keep you updated as your order progresses."));
         assertTrue(email.html().contains("support@jonpc.com.au"));
         assertFalse(email.html().contains("RTX 5060"));

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Service
@@ -19,6 +20,10 @@ public class SystemSaleAllocationService {
     }
 
     public void reservePendingOrder(UUID orderId) {
+        reservePendingOrderUntil(orderId, OffsetDateTime.now().plusMinutes(30));
+    }
+
+    public void reservePendingOrderUntil(UUID orderId, OffsetDateTime expiresAt) {
         List<CartOrderItem> items = cartItems(orderId);
         if (items.isEmpty()) return;
         jdbc.update("DELETE FROM system_sale_reservations WHERE expires_at <= CURRENT_TIMESTAMP");
@@ -26,10 +31,10 @@ public class SystemSaleAllocationService {
             lockAndValidate(item, orderId);
             jdbc.update("""
                     INSERT INTO system_sale_reservations (sales_order_id, system_build_id, quantity, expires_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP + INTERVAL '30 minutes')
+                    VALUES (?, ?, ?, ?)
                     ON CONFLICT (sales_order_id, system_build_id)
                     DO UPDATE SET quantity = EXCLUDED.quantity, expires_at = EXCLUDED.expires_at
-                    """, orderId, item.systemId(), item.quantity());
+                    """, orderId, item.systemId(), item.quantity(), expiresAt);
         }
     }
 

@@ -128,7 +128,7 @@ public class InvoicePdfRenderer {
                     "Founder #%02d  |  %s".formatted(invoice.founderNumber(), invoice.founderTierName()));
             rightText(canvas, BOLD, 11, GREEN, right - 12, y - 18, money(invoice.founderCashbackAmountCents()));
             text(canvas, REGULAR, 7.5f, MUTED, left + 12, y - 36,
-                    "Separate from this invoice total. Initiated within 30 days after confirmed delivery.");
+                    "Separate from this invoice total. Initiated within 1 business day after delivery confirmation.");
         }
 
         y = 92;

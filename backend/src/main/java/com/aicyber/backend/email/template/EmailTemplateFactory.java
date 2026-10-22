@@ -61,9 +61,19 @@ public class EmailTemplateFactory {
 
     public EmailContent invoice(String displayName, String invoiceNumber, String orderReference,
                                 String productName, long amountPaidCents, Long cashbackAmountCents) {
+        return invoice(displayName, invoiceNumber, orderReference, productName, amountPaidCents,
+                null, null, cashbackAmountCents);
+    }
+
+    public EmailContent invoice(String displayName, String invoiceNumber, String orderReference,
+                                String productName, long amountPaidCents, Integer founderNumber,
+                                String founderTierName, Long cashbackAmountCents) {
+        String founderLabel = founderNumber == null ? "Founder reward" :
+                "Founder #" + String.format(Locale.ENGLISH, "%02d", founderNumber)
+                        + (founderTierName == null || founderTierName.isBlank() ? "" : " · " + founderTierName);
         String rewardText = cashbackAmountCents != null && cashbackAmountCents > 0
-                ? "Founder reward locked: " + money(cashbackAmountCents)
-                        + ". We’ll start it within 30 days after confirmed delivery."
+                ? founderLabel + " locked: " + money(cashbackAmountCents)
+                        + ". We’ll initiate it within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved."
                 : "Your paid tax invoice is attached for your records.";
         String text = "Your JON.PC is confirmed\n\n"
                 + "Hi " + safeName(displayName) + ", your payment is complete and your tax invoice is attached.\n\n"
@@ -78,9 +88,9 @@ public class EmailTemplateFactory {
 
         String reward = cashbackAmountCents != null && cashbackAmountCents > 0
                 ? "<div style=\"margin-top:18px;padding:18px 20px;background:#effbdc;border-left:4px solid #a8e95f\">"
-                    + "<div style=\"font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4f635d\">Founder reward locked</div>"
+                    + "<div style=\"font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4f635d\">" + escape(founderLabel) + " locked</div>"
                     + "<div style=\"margin-top:5px;font-size:22px;font-weight:700;color:#0b1513\">" + escape(money(cashbackAmountCents)) + "</div>"
-                    + "<div style=\"margin-top:5px;font-size:13px;line-height:1.5;color:#52615e\">We’ll start it within 30 days after confirmed delivery.</div>"
+                    + "<div style=\"margin-top:5px;font-size:13px;line-height:1.5;color:#52615e\">We’ll initiate it within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.</div>"
                     + "</div>"
                 : "";
 

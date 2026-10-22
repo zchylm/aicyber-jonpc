@@ -80,6 +80,11 @@ export type AdminOrderDetail = {
     failureReason: string | null;
     createdAt: string;
     succeededAt: string | null;
+    expiresAt: string | null;
+    customerReportedAt: string | null;
+    bankReceivedAt: string | null;
+    confirmedAt: string | null;
+    reviewNote: string | null;
   }>;
   invoice: null | {
     id: string;
@@ -108,6 +113,19 @@ export type AdminOrderDetail = {
 };
 
 export type AdminOrderPage = { items: AdminOrder[]; total: number; page: number; size: number };
+
+export type AdminBankTransfer = {
+  paymentId: string;
+  orderId: string;
+  paymentReference: string;
+  orderReference: string;
+  customerName: string;
+  customerEmail: string;
+  amountCents: number;
+  currency: string;
+  customerReportedAt: string;
+  expiresAt: string;
+};
 
 export type AdminRewards = {
   campaign: { maxPositions: number; confirmedPositions: number; availablePositions: number; maxLiabilityCents: number; committedCents: number; paidCents: number; availableBudgetCents: number };
@@ -232,6 +250,18 @@ export function fetchAdminOrders(query = "", status = "") {
 
 export function fetchAdminOrder(orderId: string) {
   return request<AdminOrderDetail>(`/api/admin/orders/${orderId}`);
+}
+
+export function fetchAdminBankTransfers() {
+  return request<AdminBankTransfer[]>("/api/admin/bank-transfers");
+}
+
+export function confirmAdminBankTransfer(paymentId: string, input: { bankTransactionReference: string; bankReceivedAt: string; reviewNote: string }) {
+  return request(`/api/admin/bank-transfers/${paymentId}/confirm`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function rejectAdminBankTransfer(paymentId: string, input: { reviewNote: string }) {
+  return request(`/api/admin/bank-transfers/${paymentId}/reject`, { method: "POST", body: JSON.stringify(input) });
 }
 
 export async function downloadAdminInvoice(invoiceId: string, invoiceNumber: string) {

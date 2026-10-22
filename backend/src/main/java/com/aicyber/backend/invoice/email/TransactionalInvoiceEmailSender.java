@@ -37,7 +37,8 @@ public class TransactionalInvoiceEmailSender implements InvoiceEmailSender {
                 .filter(description -> !description.isBlank())
                 .orElse("Your JON.PC");
         EmailContent content = templates.invoice(invoice.buyerName(), invoice.invoiceNumber(), invoice.orderReference(),
-                productName, invoice.amountPaidCents(), invoice.founderCashbackAmountCents());
+                productName, invoice.amountPaidCents(), invoice.founderNumber(), invoice.founderTierName(),
+                invoice.founderCashbackAmountCents());
         return outbox.enqueueAndSend(new EmailDraft(
                 "TAX_INVOICE", invoice.buyerEmail(), invoice.buyerName(), ordersFrom,
                 content.subject(), content.text(), content.html(),

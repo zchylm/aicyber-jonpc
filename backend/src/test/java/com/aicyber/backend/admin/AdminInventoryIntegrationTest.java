@@ -107,11 +107,13 @@ class AdminInventoryIntegrationTest {
         UUID systemId = jdbcTemplate.queryForObject(
                 "SELECT id FROM system_builds WHERE code = 'JON-STM-5070'", UUID.class);
         jdbcTemplate.update("UPDATE system_builds SET sale_enabled = TRUE WHERE id = ?", systemId);
-        Integer allocated = jdbcTemplate.queryForObject("""
+        Integer committed = jdbcTemplate.queryForObject("""
                 SELECT (SELECT COUNT(*) FROM system_sale_allocations WHERE system_build_id = ?)
                      + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items WHERE system_build_id = ?)
-                """, Integer.class, systemId, systemId);
-        jdbcTemplate.update("UPDATE system_inventory_balances SET on_hand_quantity = ? WHERE system_build_id = ?", allocated + 1, systemId);
+                     + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_reservations
+                        WHERE system_build_id = ? AND expires_at > CURRENT_TIMESTAMP)
+                """, Integer.class, systemId, systemId, systemId);
+        jdbcTemplate.update("UPDATE system_inventory_balances SET on_hand_quantity = ? WHERE system_build_id = ?", committed + 1, systemId);
 
         mockMvc.perform(get("/api/admin/overview").header("Authorization", "Bearer " + admin.token()))
                 .andExpect(status().isOk())
@@ -126,7 +128,7 @@ class AdminInventoryIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(adjustment))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.movementType").value("ADJUSTMENT"))
-                .andExpect(jsonPath("$.quantityAfter").value(allocated));
+                .andExpect(jsonPath("$.quantityAfter").value(committed));
 
         mockMvc.perform(get("/api/admin/overview").header("Authorization", "Bearer " + admin.token()))
                 .andExpect(status().isOk())
@@ -141,13 +143,13 @@ class AdminInventoryIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(receipt))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.movementType").value("RECEIPT"))
-                .andExpect(jsonPath("$.quantityAfter").value(allocated + 2));
+                .andExpect(jsonPath("$.quantityAfter").value(committed + 2));
 
         mockMvc.perform(post("/api/admin/systems/" + systemId + "/adjustments")
                         .header("Authorization", "Bearer " + admin.token())
                         .contentType(MediaType.APPLICATION_JSON).content(adjustment))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.quantityAfter").value(allocated));
+                .andExpect(jsonPath("$.quantityAfter").value(committed));
         org.junit.jupiter.api.Assertions.assertEquals(2, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM system_inventory_movements WHERE system_build_id = ?", Integer.class, systemId));
     }

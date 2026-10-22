@@ -24,7 +24,7 @@ public class InvoiceService {
     private static final ZoneId MELBOURNE = ZoneId.of("Australia/Melbourne");
     private static final int GST_RATE_BASIS_POINTS = 1000;
     private static final String FOUNDER_TERMS =
-            "Separate from the amount paid. JON.PC initiates eligible cashback within 30 days after confirmed delivery.";
+            "Separate from the amount paid. JON.PC initiates eligible cashback within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.";
 
     private final InvoiceRepository repository;
     private final GstCalculator gstCalculator;

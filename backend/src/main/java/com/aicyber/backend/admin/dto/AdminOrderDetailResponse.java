@@ -44,7 +44,12 @@ public record AdminOrderDetailResponse(
             String status,
             String failureReason,
             OffsetDateTime createdAt,
-            OffsetDateTime succeededAt
+            OffsetDateTime succeededAt,
+            OffsetDateTime expiresAt,
+            OffsetDateTime customerReportedAt,
+            OffsetDateTime bankReceivedAt,
+            OffsetDateTime confirmedAt,
+            String reviewNote
     ) {
     }
 

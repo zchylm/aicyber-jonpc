@@ -20,7 +20,7 @@ import { psuOptions } from "../data/psu";
 import { caseOptions } from "../data/case";
 import { coolingOptions } from "../data/cooling";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
-import { internalPaymentDemoEnabled } from "../config/runtime";
+import { checkoutEnabled } from "../config/runtime";
 
 type AuthMode = "login" | "register" | "forgot" | "reset";
 
@@ -28,7 +28,7 @@ type AuthPanelProps = {
   onAuthChange?: (user: AuthUser | null) => void;
 };
 
-const paymentDemoEnabled = internalPaymentDemoEnabled;
+const paymentDemoEnabled = checkoutEnabled;
 
 function AuthPanel({ onAuthChange }: AuthPanelProps) {
   const [initialVerificationToken] = useState(() => new URL(window.location.href).searchParams.get("verifyEmailToken"));
@@ -464,7 +464,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                     {(!paymentDemoEnabled || customerOrderState(order).label !== "Ready to checkout") && <span className={`order-status order-status-${customerOrderState(order).tone}`}>{customerOrderState(order).label}</span>}
                     <div className="order-history-row-actions">
                       <button className="order-details-action" type="button" aria-expanded={expandedOrderId === order.id} onClick={() => setExpandedOrderId((current) => current === order.id ? null : order.id)}>{expandedOrderId === order.id ? "Hide details" : "View details"}</button>
-                      {(!order.salesOrderId || (paymentDemoEnabled && ["CREATED", "FAILED"].includes(order.paymentStatus ?? ""))) && <CancelRequestAction order={order} />}
+                      {(!order.salesOrderId || (paymentDemoEnabled && ["CREATED", "FAILED", "CANCELLED"].includes(order.paymentStatus ?? ""))) && <CancelRequestAction order={order} />}
                       {order.invoiceId && order.invoiceNumber && <InvoiceDownloadButton invoiceId={order.invoiceId} invoiceNumber={order.invoiceNumber} compact />}
                       <OrderPrimaryAction order={order} onClose={dismissOrdersPanel} />
                     </div>
@@ -491,10 +491,11 @@ function formatOrderDate(value: string) {
 
 function customerOrderState(order: OrderHistoryItem): { label: string; tone: string } {
   if (order.orderStatus === "REFUNDED") return { label: "Refunded", tone: "neutral" };
-  if (order.orderStatus === "CANCELLED" || order.paymentStatus === "CANCELLED") return { label: "Cancelled", tone: "neutral" };
+  if (order.orderStatus === "CANCELLED") return { label: "Cancelled", tone: "neutral" };
+  if (order.paymentStatus === "CANCELLED") return { label: "Payment window expired", tone: "neutral" };
   if (order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID" || order.orderStatus === "REWARD_ELIGIBLE") return { label: "Paid", tone: "success" };
   if (order.paymentStatus === "FAILED") return { label: "Payment failed", tone: "failed" };
-  if (order.paymentStatus === "PROCESSING") return { label: "Payment processing", tone: "processing" };
+  if (order.paymentStatus === "PROCESSING") return { label: "Transfer under review", tone: "processing" };
   if (order.paymentStatus === "CREATED") return { label: "Awaiting payment", tone: "pending" };
   if (order.items.length && !order.salesOrderId) return paymentDemoEnabled ? { label: "Ready to checkout", tone: "ready" } : { label: "Saved", tone: "neutral" };
   if (!order.configuration.answers?.systemSku && !order.salesOrderId) {
@@ -530,6 +531,10 @@ function OrderPrimaryAction({ order, onClose }: { order: OrderHistoryItem; onClo
   }
   if (order.paymentStatus === "CREATED") {
     return <button className="order-primary-action" type="button" onClick={openCheckout}>Continue payment →</button>;
+  }
+  if (order.paymentStatus === "PROCESSING") return null;
+  if (order.paymentStatus === "CANCELLED" && order.orderStatus === "PENDING_PAYMENT") {
+    return <button className="order-primary-action" type="button" onClick={openCheckout}>Restart checkout →</button>;
   }
   if (order.items.length) {
     if (paymentDemoEnabled && !order.salesOrderId) return <button className="order-primary-action" type="button" onClick={openCheckout}>Continue to checkout →</button>;

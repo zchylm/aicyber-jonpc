@@ -60,7 +60,9 @@ public class OrderHistoryController {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "A paid order cannot be cancelled here");
             Long unsupported = jdbc.queryForObject("""
                     SELECT COUNT(*) FROM payments WHERE order_id = ?
-                      AND (provider <> 'MOCK' OR status NOT IN ('CREATED', 'FAILED', 'CANCELLED'))
+                      AND ((provider = 'MOCK' AND status NOT IN ('CREATED', 'FAILED', 'CANCELLED'))
+                           OR (provider = 'BANK_TRANSFER' AND status NOT IN ('CREATED', 'CANCELLED'))
+                           OR provider NOT IN ('MOCK', 'BANK_TRANSFER'))
                     """, Long.class, order.id());
             if (unsupported != null && unsupported > 0)
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "This payment cannot be cancelled here");

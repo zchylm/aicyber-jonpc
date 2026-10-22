@@ -10,19 +10,28 @@
 .shopping-bag-empty p { margin: 0; color: var(--muted); }
 .shopping-bag-empty button { display: flex; justify-content: space-between; padding: 10px 0; color: var(--cyan); background: transparent; border: 0; font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
 .shopping-bag-empty button span { color: var(--lime); }
+.shopping-bag-selection { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 0 13px; color: #c4cfcc; font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+.shopping-bag-selection button { padding: 0; color: var(--cyan); background: transparent; border: 0; font: inherit; cursor: pointer; }
+.shopping-bag-selection button:hover, .shopping-bag-selection button:focus-visible { color: var(--lime); }
 .shopping-bag-items { border-top: 1px solid var(--line); }
-.shopping-bag-items article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 22px; padding: 20px 0; border-bottom: 1px solid var(--line); }
-.shopping-bag-items article > div:first-child { display: grid; gap: 5px; }
-.shopping-bag-items article span, .shopping-bag-items article small, .shopping-bag-total span { color: #7f8f8b; font: 9px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+.shopping-bag-items article { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px 15px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.shopping-bag-select { position: relative; align-self: start; width: 18px; height: 18px; margin-top: 2px; cursor: pointer; }
+.shopping-bag-select input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.shopping-bag-select span { display: block; width: 18px; height: 18px; border: 1px solid #60716c; }
+.shopping-bag-select input:checked + span { background: var(--lime); border-color: var(--lime); box-shadow: inset 0 0 0 4px #0a1212; }
+.shopping-bag-select input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.shopping-bag-item-copy { display: grid; gap: 6px; }
+.shopping-bag-items article span, .shopping-bag-items article small, .shopping-bag-total span { color: #9caaa6; font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
 .shopping-bag-items article strong { color: var(--ink); font-size: 18px; font-weight: 500; }
+.shopping-bag-item-copy b { margin-top: 4px; color: #f4f7f5; font: 500 14px "DM Mono", monospace; }
 .shopping-bag-quantity { display: grid; grid-template-columns: 30px 28px 30px; align-items: center; align-self: center; border: 1px solid var(--line); }
 .shopping-bag-quantity button { height: 30px; color: var(--cyan); background: transparent; border: 0; cursor: pointer; }
 .shopping-bag-quantity span { color: var(--ink) !important; text-align: center; }
-.shopping-bag-remove { grid-column: 2; justify-self: end; padding: 0; color: #7f8f8b; background: transparent; border: 0; font: 8px "DM Mono", monospace; text-transform: uppercase; cursor: pointer; }
+.shopping-bag-remove { grid-column: 3; justify-self: end; padding: 0; color: #9caaa6; background: transparent; border: 0; font: 9px "DM Mono", monospace; text-transform: uppercase; cursor: pointer; }
 .shopping-bag-remove:hover { color: #ffb4b4; }
 .shopping-bag-total { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 25px 0; }
-.shopping-bag-total strong { color: var(--lime); font: 500 21px "DM Mono", monospace; }
+.shopping-bag-total strong { color: var(--lime); font: 500 23px "DM Mono", monospace; }
 .shopping-bag-checkout { display: flex; justify-content: space-between; width: 100%; padding: 19px 20px; color: #10211b; background: var(--lime); border: 0; font: 12px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
 .shopping-bag-checkout:disabled { cursor: not-allowed; opacity: .48; }
 .shopping-bag-error { margin: 0 0 15px; color: #ffb3ac; font-size: 12px; line-height: 1.5; }
-@media (max-width: 620px) { .shopping-bag-button { flex-basis: 58px; width: 58px; height: 84px; } .shopping-bag-button svg { width: 27px; height: 27px; } .shopping-bag-drawer { padding: 28px 22px; } }
+@media (max-width: 620px) { .shopping-bag-button { flex-basis: 58px; width: 58px; height: 84px; } .shopping-bag-button svg { width: 27px; height: 27px; } .shopping-bag-drawer { padding: 28px 22px; } .shopping-bag-items article { grid-template-columns: 22px minmax(0, 1fr); } .shopping-bag-quantity, .shopping-bag-remove { grid-column: 2; justify-self: start; } }

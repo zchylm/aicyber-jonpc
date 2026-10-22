@@ -278,7 +278,8 @@ public class AdminQueryRepository {
     private List<AdminOrderDetailResponse.PaymentItem> payments(UUID orderId) {
         return jdbcTemplate.query("""
                 SELECT id, payment_reference, provider, provider_payment_id, amount_cents, currency,
-                       status, failure_reason, created_at, succeeded_at
+                       status, failure_reason, created_at, succeeded_at, expires_at,
+                       customer_reported_at, bank_received_at, confirmed_at, review_note
                 FROM payments WHERE order_id = ? ORDER BY created_at DESC
                 """, (resultSet, rowNum) -> new AdminOrderDetailResponse.PaymentItem(
                 resultSet.getObject("id", UUID.class), resultSet.getString("payment_reference"),
@@ -286,7 +287,12 @@ public class AdminQueryRepository {
                 resultSet.getLong("amount_cents"), resultSet.getString("currency"), resultSet.getString("status"),
                 resultSet.getString("failure_reason"),
                 resultSet.getObject("created_at", java.time.OffsetDateTime.class),
-                resultSet.getObject("succeeded_at", java.time.OffsetDateTime.class)
+                resultSet.getObject("succeeded_at", java.time.OffsetDateTime.class),
+                resultSet.getObject("expires_at", java.time.OffsetDateTime.class),
+                resultSet.getObject("customer_reported_at", java.time.OffsetDateTime.class),
+                resultSet.getObject("bank_received_at", java.time.OffsetDateTime.class),
+                resultSet.getObject("confirmed_at", java.time.OffsetDateTime.class),
+                resultSet.getString("review_note")
         ), orderId);
     }
 
