@@ -46,7 +46,7 @@ jobs:
           VITE_BASE_PATH: /
           VITE_API_BASE_URL: https://jonpc-backend.prouddesert-f3cf5e65.australiaeast.azurecontainerapps.io
           VITE_JONPC_INTERNAL_DEMO: "false"
-          VITE_JONPC_BANK_TRANSFER: "false"
+          VITE_JONPC_BANK_TRANSFER: "true"
           VITE_JONPC_STRIPE: "true"
           VITE_JONPC_STRIPE_TEST_MODE: "true"
         run: npm run build
