@@ -7,4 +7,7 @@ export const bankTransferEnabled =
 export const stripeEnabled =
   import.meta.env.DEV || import.meta.env.VITE_JONPC_STRIPE === "true";
 
+export const stripeTestMode =
+  import.meta.env.DEV || import.meta.env.VITE_JONPC_STRIPE_TEST_MODE === "true";
+
 export const checkoutEnabled = stripeEnabled || bankTransferEnabled || internalPaymentDemoEnabled;

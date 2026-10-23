@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { AuthUser } from "../api/auth";
 import { authTokenKey, fetchCurrentUser, sendEmailVerification } from "../api/auth";
 import { completeMockPayment, createBankTransfer, createMockPayment, createStripePayment, downloadInvoicePdf, fetchBankTransfer, fetchDeliveryDetails, fetchStripePayment, reportBankTransfer, saveDeliveryDetails, type BankTransferPayment, type DeliveryDetails, type MockPayment, type StripePayment } from "../api/payments";
-import { bankTransferEnabled, stripeEnabled } from "../config/runtime";
+import { bankTransferEnabled, stripeEnabled, stripeTestMode } from "../config/runtime";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import "./PaymentCheckout.css";
 
@@ -386,7 +386,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
             <div className="payment-methods">
               {stripeEnabled && <button className="payment-method payment-method-featured" type="button" onClick={() => void beginStripeCheckout(requestReference)} disabled={busy}>
                 <span className="payment-method-icon" aria-hidden="true">S</span>
-                <span><strong>Pay securely online</strong><small>Cards and supported wallets</small></span>
+                <span><strong>Pay securely online</strong><small>{stripeTestMode ? "Test mode · No real charge" : "Cards and supported wallets"}</small></span>
                 <i aria-hidden="true">→</i>
               </button>}
               {bankTransferEnabled && <button className="payment-method" type="button" onClick={() => void beginBankCheckout(requestReference)} disabled={busy}>
