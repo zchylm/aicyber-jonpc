@@ -57,6 +57,19 @@ public class PaymentService {
         return repository.createBankTransfer(order, bankReference(), key, expiresAt);
     }
 
+    @Transactional
+    public Payment createStripe(UUID userId, String requestReference, String idempotencyKey, OffsetDateTime expiresAt) {
+        String key = validateCheckout(userId, requestReference, idempotencyKey);
+        Payment active = repository.findActiveStripeByBuildRequest(userId, requestReference).orElse(null);
+        if (active != null) return active;
+        SalesOrder order = salesOrderService.createFromBuildRequest(userId, requestReference, expiresAt);
+        if (!"PENDING_PAYMENT".equals(order.status())) {
+            return repository.findSuccessfulByOrder(order.id())
+                    .orElseThrow(() -> new IllegalStateException("Sales order is not awaiting payment"));
+        }
+        return repository.createStripe(order, stripeReference(), key);
+    }
+
     private String validateCheckout(UUID userId, String requestReference, String idempotencyKey) {
         requireVerifiedEmail(userId);
         String key = requireIdempotencyKey(idempotencyKey);
@@ -99,5 +112,11 @@ public class PaymentService {
         String suffix = UUID.randomUUID().toString().replace("-", "")
                 .substring(0, 10).toUpperCase(Locale.ROOT);
         return "JON-" + suffix;
+    }
+
+    private String stripeReference() {
+        String suffix = UUID.randomUUID().toString().replace("-", "")
+                .substring(0, 12).toUpperCase(Locale.ROOT);
+        return "STR-" + suffix;
     }
 }

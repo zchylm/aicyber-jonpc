@@ -40,7 +40,8 @@ public class SecurityConfig {
                                 "/api/auth/email-verification/confirm",
                                 "/api/auth/password-reset/request",
                                 "/api/auth/password-reset/confirm",
-                                "/api/email/webhooks/resend"
+                                "/api/email/webhooks/resend",
+                                "/api/payments/stripe/webhook"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/me", "/api/auth/email-verification/send").authenticated()

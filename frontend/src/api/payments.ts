@@ -27,6 +27,10 @@ export type BankTransferPayment = MockPayment & {
   accountNumber: string;
 };
 
+export type StripePayment = MockPayment & {
+  checkoutUrl: string | null;
+};
+
 export type DeliveryDetails = {
   recipientName: string;
   phone: string;
@@ -77,6 +81,19 @@ export function createBankTransfer(token: string, requestReference: string, idem
 
 export function reportBankTransfer(token: string, paymentId: string) {
   return request<BankTransferPayment>(`/api/payments/bank-transfer/${paymentId}/reported`, token, {});
+}
+
+export function createStripePayment(token: string, requestReference: string, idempotencyKey: string) {
+  return request<StripePayment>("/api/payments/stripe", token, { requestReference, idempotencyKey });
+}
+
+export async function fetchStripePayment(token: string, paymentId: string) {
+  const response = await fetch(`${apiBaseUrl}/api/payments/stripe/${paymentId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const responseBody = await response.json().catch(() => null) as (StripePayment & { detail?: string; message?: string }) | null;
+  if (!response.ok) throw new Error(responseBody?.detail ?? responseBody?.message ?? `Unable to check Stripe payment (${response.status})`);
+  return responseBody as StripePayment;
 }
 
 export async function fetchBankTransfer(token: string, paymentId: string) {

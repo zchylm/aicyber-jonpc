@@ -10,6 +10,8 @@ public record Payment(
         UUID userId,
         String paymentReference,
         String provider,
+        String providerPaymentId,
+        String providerCheckoutSessionId,
         long amountCents,
         String currency,
         String orderStatus,

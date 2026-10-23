@@ -54,6 +54,29 @@ public class PaymentRepository {
         return findByOrderAndKey(order.id(), idempotencyKey).orElseThrow();
     }
 
+    public Payment createStripe(SalesOrder order, String paymentReference, String idempotencyKey) {
+        UUID paymentId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO payments " +
+                        "(id, order_id, payment_reference, provider, amount_cents, currency, status, idempotency_key) " +
+                        "VALUES (?, ?, ?, 'STRIPE', ?, ?, 'CREATED', ?) " +
+                        "ON CONFLICT (order_id, idempotency_key) DO NOTHING",
+                paymentId, order.id(), paymentReference, order.amountCents(), order.currency(), idempotencyKey
+        );
+        return findByOrderAndKey(order.id(), idempotencyKey).orElseThrow();
+    }
+
+    public Payment attachStripeSession(UUID paymentId, String checkoutSessionId) {
+        int updated = jdbcTemplate.update(
+                "UPDATE payments SET provider_checkout_session_id = ?, updated_at = CURRENT_TIMESTAMP " +
+                        "WHERE id = ? AND provider = 'STRIPE' AND status = 'CREATED' " +
+                        "AND provider_checkout_session_id IS NULL",
+                checkoutSessionId, paymentId
+        );
+        requireSingleUpdate(updated, "Stripe Checkout session could not be attached");
+        return findById(paymentId).orElseThrow();
+    }
+
     public Optional<Payment> findByOrderAndKey(UUID orderId, String idempotencyKey) {
         return query("WHERE p.order_id = ? AND p.idempotency_key = ?", orderId, idempotencyKey);
     }
@@ -62,10 +85,21 @@ public class PaymentRepository {
         return query("WHERE p.order_id = ? AND p.status = 'SUCCEEDED'", orderId);
     }
 
+    public Optional<Payment> findByStripeSession(String checkoutSessionId) {
+        return query("WHERE p.provider = 'STRIPE' AND p.provider_checkout_session_id = ?", checkoutSessionId);
+    }
+
     public Optional<Payment> findActiveBankTransferByBuildRequest(UUID userId, String requestReference) {
         return query("JOIN build_requests b ON b.id = s.build_request_id " +
                 "WHERE s.user_id = ? AND b.request_reference = ? AND p.provider = 'BANK_TRANSFER' " +
                 "AND p.status IN ('CREATED', 'PROCESSING') ORDER BY p.created_at DESC LIMIT 1",
+                userId, requestReference);
+    }
+
+    public Optional<Payment> findActiveStripeByBuildRequest(UUID userId, String requestReference) {
+        return query("JOIN build_requests b ON b.id = s.build_request_id " +
+                        "WHERE s.user_id = ? AND b.request_reference = ? AND p.provider = 'STRIPE' " +
+                        "AND p.status IN ('CREATED', 'PROCESSING') ORDER BY p.created_at DESC LIMIT 1",
                 userId, requestReference);
     }
 
@@ -166,6 +200,54 @@ public class PaymentRepository {
         return findById(paymentId).orElseThrow();
     }
 
+    public Payment markStripeProcessing(UUID paymentId) {
+        jdbcTemplate.update(
+                "UPDATE payments SET status = 'PROCESSING', updated_at = CURRENT_TIMESTAMP " +
+                        "WHERE id = ? AND provider = 'STRIPE' AND status = 'CREATED'",
+                paymentId
+        );
+        return findById(paymentId).orElseThrow();
+    }
+
+    public Payment markStripeSucceeded(UUID paymentId, String paymentIntentId) {
+        int updated = jdbcTemplate.update(
+                "UPDATE payments SET status = 'SUCCEEDED', provider_payment_id = ?, failure_reason = NULL, " +
+                        "succeeded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP " +
+                        "WHERE id = ? AND provider = 'STRIPE' AND status IN ('CREATED', 'PROCESSING')",
+                paymentIntentId, paymentId
+        );
+        requireSingleUpdate(updated, "Stripe payment was not ready to complete");
+        return findById(paymentId).orElseThrow();
+    }
+
+    public Payment markStripeFailed(UUID paymentId, String reason) {
+        int updated = jdbcTemplate.update(
+                "UPDATE payments SET status = 'FAILED', failure_reason = ?, updated_at = CURRENT_TIMESTAMP " +
+                        "WHERE id = ? AND provider = 'STRIPE' AND status IN ('CREATED', 'PROCESSING')",
+                reason, paymentId
+        );
+        requireSingleUpdate(updated, "Stripe payment was not ready to fail");
+        return findById(paymentId).orElseThrow();
+    }
+
+    public Payment markStripeCancelled(UUID paymentId) {
+        int updated = jdbcTemplate.update(
+                "UPDATE payments SET status = 'CANCELLED', failure_reason = NULL, updated_at = CURRENT_TIMESTAMP " +
+                        "WHERE id = ? AND provider = 'STRIPE' AND status IN ('CREATED', 'PROCESSING')",
+                paymentId
+        );
+        requireSingleUpdate(updated, "Stripe payment was not ready to cancel");
+        return findById(paymentId).orElseThrow();
+    }
+
+    public boolean hasOtherActiveAttempt(UUID orderId, UUID excludedPaymentId) {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM payments WHERE order_id = ? AND id <> ? AND status IN ('CREATED', 'PROCESSING')",
+                Long.class, orderId, excludedPaymentId
+        );
+        return count != null && count > 0;
+    }
+
     public Payment markFailed(UUID paymentId, String reason) {
         int updated = jdbcTemplate.update(
                 "UPDATE payments SET status = 'FAILED', failure_reason = ?, updated_at = CURRENT_TIMESTAMP " +
@@ -188,6 +270,7 @@ public class PaymentRepository {
     private List<Payment> queryMany(String whereClause, Object... arguments) {
         return jdbcTemplate.query(
                 "SELECT p.id, p.order_id, s.order_reference, s.user_id, p.payment_reference, p.provider, " +
+                        "p.provider_payment_id, p.provider_checkout_session_id, " +
                         "p.amount_cents, p.currency, s.status AS order_status, p.status, p.idempotency_key, " +
                         "p.failure_reason, p.succeeded_at, p.expires_at, p.customer_reported_at, p.bank_received_at, " +
                         "p.confirmed_by, p.confirmed_at, p.review_note " +
@@ -205,6 +288,8 @@ public class PaymentRepository {
                 resultSet.getObject("user_id", UUID.class),
                 resultSet.getString("payment_reference"),
                 resultSet.getString("provider"),
+                resultSet.getString("provider_payment_id"),
+                resultSet.getString("provider_checkout_session_id"),
                 resultSet.getLong("amount_cents"),
                 resultSet.getString("currency").trim(),
                 resultSet.getString("order_status"),

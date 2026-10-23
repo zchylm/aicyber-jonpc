@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { AuthUser } from "../api/auth";
 import { authTokenKey, fetchCurrentUser, sendEmailVerification } from "../api/auth";
-import { completeMockPayment, createBankTransfer, createMockPayment, downloadInvoicePdf, fetchBankTransfer, fetchDeliveryDetails, reportBankTransfer, saveDeliveryDetails, type BankTransferPayment, type DeliveryDetails, type MockPayment } from "../api/payments";
-import { bankTransferEnabled } from "../config/runtime";
+import { completeMockPayment, createBankTransfer, createMockPayment, createStripePayment, downloadInvoicePdf, fetchBankTransfer, fetchDeliveryDetails, fetchStripePayment, reportBankTransfer, saveDeliveryDetails, type BankTransferPayment, type DeliveryDetails, type MockPayment, type StripePayment } from "../api/payments";
+import { bankTransferEnabled, stripeEnabled } from "../config/runtime";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import "./PaymentCheckout.css";
 
@@ -14,7 +14,9 @@ type PaymentCheckoutProps = {
 function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [requestReference, setRequestReference] = useState<string | null>(null);
-  const [payment, setPayment] = useState<MockPayment | BankTransferPayment | null>(null);
+  const [payment, setPayment] = useState<MockPayment | BankTransferPayment | StripePayment | null>(null);
+  const [choosingPayment, setChoosingPayment] = useState(false);
+  const [stripeReturn, setStripeReturn] = useState<"success" | "cancelled" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationBusy, setVerificationBusy] = useState(false);
@@ -36,6 +38,8 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
       openCheckoutPanel();
       setRequestReference(reference);
       setPayment(null);
+      setChoosingPayment(false);
+      setStripeReturn(null);
       setError(null);
       setVerificationMessage(null);
       setTransferAcknowledged(false);
@@ -45,6 +49,46 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     window.addEventListener("jonpc:open-checkout", openCheckout);
     return () => window.removeEventListener("jonpc:open-checkout", openCheckout);
   }, [openCheckoutPanel, user]);
+
+  useEffect(() => {
+    if (!user?.emailVerified) return;
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("stripe_result");
+    const paymentId = params.get("stripe_payment");
+    if ((result !== "success" && result !== "cancelled") || !paymentId) return;
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token) return;
+    let cancelled = false;
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("stripe_result");
+    clean.searchParams.delete("stripe_payment");
+    window.history.replaceState(window.history.state, "", clean);
+    const restoreStripePayment = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setBusy(true);
+      setError(null);
+      setStripeReturn(result);
+      openCheckoutPanel();
+      try {
+        const response = await fetchStripePayment(token, paymentId);
+        if (cancelled) return;
+        const savedRequestReference = window.sessionStorage.getItem(`jonpc:stripe-request:${paymentId}`);
+        setPayment(response);
+        setRequestReference(savedRequestReference);
+        if (response.status === "SUCCEEDED") {
+          window.dispatchEvent(new CustomEvent("jonpc:checkout-committed", { detail: { requestReference: savedRequestReference } }));
+          window.dispatchEvent(new CustomEvent("jonpc:payment-completed"));
+        }
+      } catch (requestError) {
+        if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Unable to confirm the Stripe payment.");
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    };
+    void restoreStripePayment();
+    return () => { cancelled = true; };
+  }, [openCheckoutPanel, user?.emailVerified]);
 
   useEffect(() => {
     if (!isOpen || !user?.emailVerified || !requestReference) return;
@@ -120,7 +164,33 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     return () => { cancelled = true; window.clearInterval(interval); };
   }, [isOpen, payment]);
 
-  async function beginCheckout(reference: string, retry = false) {
+  useEffect(() => {
+    if (!isOpen || !payment || !isStripePayment(payment) || stripeReturn !== "success" || !["CREATED", "PROCESSING"].includes(payment.status)) return;
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token) return;
+    let cancelled = false;
+    let attempts = 0;
+    const refresh = async () => {
+      try {
+        const response = await fetchStripePayment(token, payment.paymentId);
+        if (cancelled) return;
+        setPayment(response);
+        attempts += 1;
+        if (response.status === "SUCCEEDED") {
+          window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
+          window.dispatchEvent(new CustomEvent("jonpc:payment-completed"));
+        } else if (attempts >= 12) {
+          setError("Stripe is still confirming the payment. You can safely check My Orders in a moment.");
+        }
+      } catch {
+        attempts += 1;
+      }
+    };
+    const interval = window.setInterval(() => { if (attempts < 12) void refresh(); }, 2000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [isOpen, payment, stripeReturn]);
+
+  async function beginBankCheckout(reference: string, retry = false) {
     const token = window.localStorage.getItem(authTokenKey);
     if (!token) {
       setError("Sign in again to continue to checkout.");
@@ -143,6 +213,29 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     }
   }
 
+  async function beginStripeCheckout(reference: string, retry = false) {
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token) {
+      setError("Sign in again to continue to checkout.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const storageKey = `jonpc:stripe:${reference}`;
+      const key = retry ? crypto.randomUUID() : window.sessionStorage.getItem(storageKey) ?? crypto.randomUUID();
+      window.sessionStorage.setItem(storageKey, key);
+      const response = await createStripePayment(token, reference, key);
+      if (!response.checkoutUrl) throw new Error("Stripe did not return a secure checkout page.");
+      window.sessionStorage.setItem(`jonpc:stripe-request:${response.paymentId}`, reference);
+      window.location.assign(response.checkoutUrl);
+    } catch (requestError) {
+      window.sessionStorage.removeItem(`jonpc:stripe:${reference}`);
+      setError(requestError instanceof Error ? requestError.message : "Unable to prepare secure payment.");
+      setBusy(false);
+    }
+  }
+
   async function confirmDelivery(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const phone = delivery.phone.replace(/[\s()-]/g, "");
@@ -156,7 +249,8 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     setError(null);
     try {
       await saveDeliveryDetails(token, requestReference, delivery);
-      await beginCheckout(requestReference);
+      if (stripeEnabled || bankTransferEnabled) setChoosingPayment(true);
+      else await beginBankCheckout(requestReference);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to confirm delivery address.");
     } finally {
@@ -260,7 +354,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           </div>
         )}
 
-        {user?.emailVerified && !deliveryLoading && !payment && (
+        {user?.emailVerified && !deliveryLoading && !payment && !choosingPayment && (
           <>
             <span className="section-kicker">JON. PC / Checkout</span>
             <h2 id="payment-title">Delivery details.</h2>
@@ -281,6 +375,29 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
               {error && <p className="payment-error" role="alert">{error}</p>}
               <button className="button button-primary payment-primary" type="submit" disabled={busy}>{busy ? "Preparing..." : "Continue to payment"}<span aria-hidden="true">↗</span></button>
             </form>
+          </>
+        )}
+
+        {user?.emailVerified && !deliveryLoading && !payment && choosingPayment && requestReference && (
+          <>
+            <span className="section-kicker">JON. PC / Payment</span>
+            <h2 id="payment-title">Choose how to pay.</h2>
+            <p className="payment-intro">Your total is confirmed at the next step.</p>
+            <div className="payment-methods">
+              {stripeEnabled && <button className="payment-method payment-method-featured" type="button" onClick={() => void beginStripeCheckout(requestReference)} disabled={busy}>
+                <span className="payment-method-icon" aria-hidden="true">S</span>
+                <span><strong>Pay securely online</strong><small>Cards and supported wallets</small></span>
+                <i aria-hidden="true">→</i>
+              </button>}
+              {bankTransferEnabled && <button className="payment-method" type="button" onClick={() => void beginBankCheckout(requestReference)} disabled={busy}>
+                <span className="payment-method-icon payment-method-bank" aria-hidden="true">ANZ</span>
+                <span><strong>Bank transfer</strong><small>Reserved for 24 hours</small></span>
+                <i aria-hidden="true">→</i>
+              </button>}
+            </div>
+            <div className="payment-security-note"><i /> Secure checkout · Amount verified by JON. PC</div>
+            {error && <p className="payment-error" role="alert">{error}</p>}
+            <button className="payment-secondary" type="button" onClick={() => setChoosingPayment(false)} disabled={busy}>Back to delivery details</button>
           </>
         )}
 
@@ -309,7 +426,19 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           </>
         )}
 
-        {payment?.status === "CREATED" && !isBankTransfer(payment) && (
+        {payment?.status === "CREATED" && isStripePayment(payment) && (
+          <>
+            <span className="section-kicker">JON. PC / Secure payment</span>
+            <h2 id="payment-title">{stripeReturn === "success" ? "Confirming payment." : "Payment paused."}</h2>
+            <p className="payment-intro">{stripeReturn === "success" ? "Stripe is securely confirming your payment. Keep this window open for a moment." : "Nothing was charged. Continue whenever you’re ready."}</p>
+            <PaymentSummary payment={payment} />
+            {error && <p className="payment-error" role="alert">{error}</p>}
+            {stripeReturn !== "success" && payment.checkoutUrl && <button className="button button-primary payment-primary" type="button" onClick={() => window.location.assign(payment.checkoutUrl!)}>Return to secure payment <span aria-hidden="true">↗</span></button>}
+            <button className="payment-secondary" type="button" onClick={payLater}>View My Orders</button>
+          </>
+        )}
+
+        {payment?.status === "CREATED" && !isBankTransfer(payment) && !isStripePayment(payment) && (
           <>
             <span className="section-kicker">JON. PC / Demo checkout</span>
             <h2 id="payment-title">Review and pay.</h2>
@@ -349,6 +478,17 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           </>
         )}
 
+        {payment?.status === "PROCESSING" && isStripePayment(payment) && (
+          <>
+            <span className="section-kicker payment-review-kicker"><i /> Payment processing</span>
+            <h2 id="payment-title">Almost there.</h2>
+            <p className="payment-intro">Stripe is confirming your payment. Your order will update automatically.</p>
+            <PaymentSummary payment={payment} />
+            {error && <p className="payment-error" role="alert">{error}</p>}
+            <button className="button button-primary payment-primary" type="button" onClick={payLater}>View My Orders <span aria-hidden="true">→</span></button>
+          </>
+        )}
+
         {payment?.status === "FAILED" && (
           <>
             <span className="section-kicker">Payment not completed</span>
@@ -356,7 +496,9 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
             <p className="payment-intro">{isBankTransfer(payment) && payment.failureReason ? `${payment.failureReason}. Your order is still saved and no Founder place was claimed.` : "Your order is still saved and no Founder place was claimed."}</p>
             <PaymentSummary payment={payment} />
             {error && <p className="payment-error" role="alert">{error}</p>}
-            <button className="button button-primary payment-primary" type="button" onClick={() => requestReference && beginCheckout(requestReference, true)} disabled={busy}>{busy ? "Preparing..." : "Try payment again"} <span aria-hidden="true">↗</span></button>
+            {isStripePayment(payment)
+              ? <button className="button button-primary payment-primary" type="button" onClick={payLater}>View My Orders <span aria-hidden="true">→</span></button>
+              : <button className="button button-primary payment-primary" type="button" onClick={() => requestReference && beginBankCheckout(requestReference, true)} disabled={busy}>{busy ? "Preparing..." : "Try payment again"} <span aria-hidden="true">↗</span></button>}
           </>
         )}
 
@@ -364,7 +506,9 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           <>
             <span className="section-kicker">Payment window closed</span>
             <h2 id="payment-title">Reservation released.</h2>
-            <p className="payment-intro">The 24-hour payment window ended before the transfer was submitted. Your reservation was released and no Founder place was assigned.</p>
+            <p className="payment-intro">{isStripePayment(payment)
+              ? "The secure payment session ended before payment was completed. Nothing was charged and no Founder place was assigned."
+              : "The 24-hour payment window ended before the transfer was submitted. Your reservation was released and no Founder place was assigned."}</p>
             <PaymentSummary payment={payment} />
             <button className="button button-primary payment-primary" type="button" onClick={payLater}>View my orders <span aria-hidden="true">→</span></button>
           </>
@@ -394,7 +538,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   );
 }
 
-function PaymentSummary({ payment }: { payment: MockPayment | BankTransferPayment }) {
+function PaymentSummary({ payment }: { payment: MockPayment | BankTransferPayment | StripePayment }) {
   return (
     <div className="payment-summary">
       <div><span>Order</span><strong>{payment.orderReference}</strong></div>
@@ -413,8 +557,12 @@ function BankDetail({ label, value, copy = false, highlight = false }: { label: 
   return <div className={`payment-bank-detail${highlight ? " highlight" : ""}`}><span>{label}</span><strong>{value}</strong>{copy && <button type="button" onClick={() => void copyValue()}>{copied ? "Copied" : "Copy"}</button>}</div>;
 }
 
-function isBankTransfer(payment: MockPayment | BankTransferPayment): payment is BankTransferPayment {
+function isBankTransfer(payment: MockPayment | BankTransferPayment | StripePayment): payment is BankTransferPayment {
   return "bankName" in payment;
+}
+
+function isStripePayment(payment: MockPayment | BankTransferPayment | StripePayment): payment is StripePayment {
+  return "checkoutUrl" in payment;
 }
 
 function formatDateTime(value: string) {

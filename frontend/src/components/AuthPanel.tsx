@@ -495,7 +495,7 @@ function customerOrderState(order: OrderHistoryItem): { label: string; tone: str
   if (order.paymentStatus === "CANCELLED") return { label: "Payment window expired", tone: "neutral" };
   if (order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID" || order.orderStatus === "REWARD_ELIGIBLE") return { label: "Paid", tone: "success" };
   if (order.paymentStatus === "FAILED") return { label: "Payment failed", tone: "failed" };
-  if (order.paymentStatus === "PROCESSING") return { label: "Transfer under review", tone: "processing" };
+  if (order.paymentStatus === "PROCESSING") return { label: "Payment under review", tone: "processing" };
   if (order.paymentStatus === "CREATED") return { label: "Awaiting payment", tone: "pending" };
   if (order.items.length && !order.salesOrderId) return paymentDemoEnabled ? { label: "Ready to checkout", tone: "ready" } : { label: "Saved", tone: "neutral" };
   if (!order.configuration.answers?.systemSku && !order.salesOrderId) {

@@ -12,6 +12,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,6 +59,21 @@ class OrderCancellationIntegrationTest {
         orders.markPaid(paidAttempt.orderId());
         assertThrows(ResponseStatusException.class, () -> history.cancel(auth(customer), paidRequestId));
         assertEquals("RECEIVED", jdbc.queryForObject("SELECT status FROM build_requests WHERE id = ?", String.class, paidRequestId));
+    }
+
+    @Test
+    void expiredStripePaymentDoesNotPreventOrderCancellation() {
+        UUID customer = user();
+        UUID requestId = request(customer);
+        address(requestId);
+        var payment = payments.createStripe(customer, "REQ-" + requestId, UUID.randomUUID().toString(),
+                OffsetDateTime.now().plusMinutes(30));
+        jdbc.update("UPDATE payments SET status = 'CANCELLED' WHERE id = ?", payment.id());
+
+        history.cancel(auth(customer), requestId);
+
+        assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM sales_orders WHERE id = ?", String.class, payment.orderId()));
+        assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM build_requests WHERE id = ?", String.class, requestId));
     }
 
     private UsernamePasswordAuthenticationToken auth(UUID userId) {
