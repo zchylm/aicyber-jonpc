@@ -39,6 +39,11 @@ public class StripeJavaCheckoutGateway implements StripeCheckoutGateway {
                 .setSuccessUrl(properties.returnUrl("success", payment.id()))
                 .setCancelUrl(properties.returnUrl("cancelled", payment.id()))
                 .setExpiresAt(expiresAtEpochSeconds)
+                .setWalletOptions(SessionCreateParams.WalletOptions.builder()
+                        .setLink(SessionCreateParams.WalletOptions.Link.builder()
+                                .setDisplay(SessionCreateParams.WalletOptions.Link.Display.NEVER)
+                                .build())
+                        .build())
                 .setPaymentIntentData(intentData)
                 .putMetadata("jonpc_payment_id", paymentId)
                 .putMetadata("jonpc_order_id", payment.orderId().toString());
