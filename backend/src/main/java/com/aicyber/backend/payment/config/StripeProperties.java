@@ -29,7 +29,7 @@ public class StripeProperties {
 
     public void requireCheckoutConfigured() {
         if (!enabled) throw new IllegalStateException("Stripe checkout is not available");
-        if (!(secretKey.startsWith("sk_test_") || secretKey.startsWith("sk_live_"))) {
+        if (!(testMode() || liveMode())) {
             throw new IllegalStateException("Stripe checkout is not fully configured");
         }
         if (checkoutMinutes < 30 || checkoutMinutes > 1440) {
@@ -53,8 +53,8 @@ public class StripeProperties {
     }
 
     public boolean enabled() { return enabled; }
-    public boolean testMode() { return secretKey.startsWith("sk_test_"); }
-    public boolean liveMode() { return secretKey.startsWith("sk_live_"); }
+    public boolean testMode() { return secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_"); }
+    public boolean liveMode() { return secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_"); }
     public String secretKey() { return secretKey; }
     public String webhookSecret() { return webhookSecret; }
     public long checkoutMinutes() { return checkoutMinutes; }
