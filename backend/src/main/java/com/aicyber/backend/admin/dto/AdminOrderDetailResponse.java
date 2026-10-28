@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.aicyber.backend.order.dto.OrderFulfilmentResponse;
 
 public record AdminOrderDetailResponse(
         UUID id,
@@ -25,12 +26,13 @@ public record AdminOrderDetailResponse(
         DeliveryItem delivery,
         List<PaymentItem> payments,
         InvoiceItem invoice,
-        RewardItem reward
+        RewardItem reward,
+        OrderFulfilmentResponse fulfilment
 ) {
     public record SystemItem(String sku, String name, long unitPriceCents, int quantity, long lineTotalCents) {}
 
     public record DeliveryItem(
-            String recipientName, String phone, String addressLine1, String addressLine2,
+            String deliveryMethod, String recipientName, String phone, String addressLine1, String addressLine2,
             String suburb, String state, String postcode, String country
     ) {}
 
@@ -76,7 +78,6 @@ public record AdminOrderDetailResponse(
             long cashbackAmountCents,
             String status,
             OffsetDateTime lockedAt,
-            OffsetDateTime payableAt,
             OffsetDateTime paidAt
     ) {
     }

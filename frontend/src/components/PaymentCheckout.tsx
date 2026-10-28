@@ -11,8 +11,18 @@ type PaymentCheckoutProps = {
   onUserChange: (user: AuthUser) => void;
 };
 
+function stripeReturnFromUrl(): { result: "success" | "cancelled"; paymentId: string } | null {
+  const params = new URLSearchParams(window.location.search);
+  const result = params.get("stripe_result");
+  const paymentId = params.get("stripe_payment");
+  return (result === "success" || result === "cancelled") && paymentId
+    ? { result, paymentId }
+    : null;
+}
+
 function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [initialStripeReturn] = useState(stripeReturnFromUrl);
+  const [isOpen, setIsOpen] = useState(Boolean(initialStripeReturn));
   const [requestReference, setRequestReference] = useState<string | null>(null);
   const [payment, setPayment] = useState<MockPayment | BankTransferPayment | StripePayment | null>(null);
   const [choosingPayment, setChoosingPayment] = useState(false);
@@ -21,8 +31,9 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
   const [error, setError] = useState<string | null>(null);
   const [verificationBusy, setVerificationBusy] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [restoringStripePayment, setRestoringStripePayment] = useState(Boolean(initialStripeReturn));
   const [transferAcknowledged, setTransferAcknowledged] = useState(false);
-  const [delivery, setDelivery] = useState<DeliveryDetails>({ recipientName: "", phone: "", addressLine1: "", addressLine2: "", suburb: "", state: "VIC", postcode: "" });
+  const [delivery, setDelivery] = useState<DeliveryDetails>({ deliveryMethod: "DELIVERY", recipientName: "", phone: "", addressLine1: "", addressLine2: "", suburb: "", state: "VIC", postcode: "" });
   const [deliveryLoadedFor, setDeliveryLoadedFor] = useState<string | null>(null);
   const deliveryLoading = Boolean(isOpen && user?.emailVerified && requestReference && deliveryLoadedFor !== requestReference);
   const { open: openCheckoutPanel, close: closeCheckoutPanel, dismiss: dismissCheckoutPanel } = useHistoryPanel("checkout", isOpen, setIsOpen);
@@ -44,20 +55,15 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
       setVerificationMessage(null);
       setTransferAcknowledged(false);
       setDeliveryLoadedFor(null);
-      setDelivery({ recipientName: user.displayName ?? "", phone: "", addressLine1: "", addressLine2: "", suburb: "", state: "VIC", postcode: "" });
+      setDelivery({ deliveryMethod: "DELIVERY", recipientName: user.displayName ?? "", phone: "", addressLine1: "", addressLine2: "", suburb: "", state: "VIC", postcode: "" });
     };
     window.addEventListener("jonpc:open-checkout", openCheckout);
     return () => window.removeEventListener("jonpc:open-checkout", openCheckout);
   }, [openCheckoutPanel, user]);
 
   useEffect(() => {
-    if (!user?.emailVerified) return;
-    const params = new URLSearchParams(window.location.search);
-    const result = params.get("stripe_result");
-    const paymentId = params.get("stripe_payment");
-    if ((result !== "success" && result !== "cancelled") || !paymentId) return;
-    const token = window.localStorage.getItem(authTokenKey);
-    if (!token) return;
+    if (!initialStripeReturn || !user?.emailVerified) return;
+    const { result, paymentId } = initialStripeReturn;
     let cancelled = false;
     const clean = new URL(window.location.href);
     clean.searchParams.delete("stripe_result");
@@ -66,6 +72,12 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
     const restoreStripePayment = async () => {
       await Promise.resolve();
       if (cancelled) return;
+      const token = window.localStorage.getItem(authTokenKey);
+      if (!token) {
+        setRestoringStripePayment(false);
+        setError("Sign in again to confirm this Stripe payment.");
+        return;
+      }
       setBusy(true);
       setError(null);
       setStripeReturn(result);
@@ -76,6 +88,9 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
         const savedRequestReference = window.sessionStorage.getItem(`jonpc:stripe-request:${paymentId}`);
         setPayment(response);
         setRequestReference(savedRequestReference);
+        if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(response.status) && savedRequestReference) {
+          window.sessionStorage.removeItem(`jonpc:stripe:${savedRequestReference}`);
+        }
         if (response.status === "SUCCEEDED") {
           window.dispatchEvent(new CustomEvent("jonpc:checkout-committed", { detail: { requestReference: savedRequestReference } }));
           window.dispatchEvent(new CustomEvent("jonpc:payment-completed"));
@@ -83,12 +98,15 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
       } catch (requestError) {
         if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Unable to confirm the Stripe payment.");
       } finally {
-        if (!cancelled) setBusy(false);
+        if (!cancelled) {
+          setBusy(false);
+          setRestoringStripePayment(false);
+        }
       }
     };
     void restoreStripePayment();
     return () => { cancelled = true; };
-  }, [openCheckoutPanel, user?.emailVerified]);
+  }, [initialStripeReturn, openCheckoutPanel, user?.emailVerified]);
 
   useEffect(() => {
     if (!isOpen || !user?.emailVerified || !requestReference) return;
@@ -228,10 +246,12 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
       const response = await createStripePayment(token, reference, key);
       if (!response.checkoutUrl) throw new Error("Stripe did not return a secure checkout page.");
       window.sessionStorage.setItem(`jonpc:stripe-request:${response.paymentId}`, reference);
-      window.location.assign(response.checkoutUrl);
+      setStripeReturn(null);
+      setPayment(response);
     } catch (requestError) {
       window.sessionStorage.removeItem(`jonpc:stripe:${reference}`);
       setError(requestError instanceof Error ? requestError.message : "Unable to prepare secure payment.");
+    } finally {
       setBusy(false);
     }
   }
@@ -337,11 +357,11 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
       <section className="payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-title">
         <button className="payment-close" type="button" onClick={closeCheckoutPanel} disabled={busy} aria-label="Close checkout">×</button>
 
-        {deliveryLoading && !payment && user?.emailVerified && (
-          <div className="payment-loading" aria-live="polite"><i /> Preparing your secure checkout...</div>
+        {(restoringStripePayment || (deliveryLoading && !payment && user?.emailVerified)) && (
+          <div className="payment-loading" aria-live="polite"><i /> {restoringStripePayment ? "Confirming your secure payment..." : "Preparing your secure checkout..."}</div>
         )}
 
-        {!user?.emailVerified && (
+        {!restoringStripePayment && !user?.emailVerified && (
           <div className="payment-verification" aria-live="polite">
             <span className="section-kicker">JON. PC / Checkout</span>
             <h2 id="payment-title">Verify to continue.</h2>
@@ -354,35 +374,42 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           </div>
         )}
 
-        {user?.emailVerified && !deliveryLoading && !payment && !choosingPayment && (
+        {!restoringStripePayment && user?.emailVerified && !deliveryLoading && !payment && !choosingPayment && (
           <>
             <span className="section-kicker">JON. PC / Checkout</span>
             <h2 id="payment-title">Delivery details.</h2>
-            <p className="payment-intro">Confirm where your build should arrive.</p>
+            <p className="payment-intro">Choose Melbourne delivery or collect from West Melbourne.</p>
             <div className="payment-account-line"><span>Signed in as</span><span>{user.email}</span></div>
             <form className="payment-delivery-form" onSubmit={(event) => void confirmDelivery(event)}>
+              <div className="payment-fulfilment-options" role="radiogroup" aria-label="Delivery method">
+                <button className={delivery.deliveryMethod === "DELIVERY" ? "active" : ""} type="button" role="radio" aria-checked={delivery.deliveryMethod === "DELIVERY"} onClick={() => setDelivery({ ...delivery, deliveryMethod: "DELIVERY" })}><strong>Melbourne delivery</strong><span>A$25 · metro postcodes</span></button>
+                <button className={delivery.deliveryMethod === "PICKUP" ? "active" : ""} type="button" role="radio" aria-checked={delivery.deliveryMethod === "PICKUP"} onClick={() => setDelivery({ ...delivery, deliveryMethod: "PICKUP" })}><strong>West Melbourne pickup</strong><span>Free · by appointment</span></button>
+              </div>
               <div className="payment-delivery-grid">
                 <label>Recipient name<input autoComplete="name" required maxLength={160} value={delivery.recipientName} onChange={(event) => setDelivery({ ...delivery, recipientName: event.target.value })} /></label>
                 <label>Phone<input autoComplete="tel" type="tel" inputMode="tel" required maxLength={40} value={delivery.phone} onChange={(event) => setDelivery({ ...delivery, phone: event.target.value })} /></label>
               </div>
-              <label>Street address<input autoComplete="address-line1" required maxLength={200} value={delivery.addressLine1} onChange={(event) => setDelivery({ ...delivery, addressLine1: event.target.value })} /></label>
-              <label>Apartment / unit <small>If applicable</small><input autoComplete="address-line2" maxLength={200} value={delivery.addressLine2} onChange={(event) => setDelivery({ ...delivery, addressLine2: event.target.value })} /></label>
-              <div className="payment-delivery-grid payment-delivery-location">
-                <label>Suburb<input autoComplete="address-level2" required maxLength={100} value={delivery.suburb} onChange={(event) => setDelivery({ ...delivery, suburb: event.target.value })} /></label>
-                <label>State<select autoComplete="address-level1" value={delivery.state} onChange={(event) => setDelivery({ ...delivery, state: event.target.value })}>{["VIC", "NSW", "QLD", "SA", "WA", "TAS", "ACT", "NT"].map((state) => <option key={state}>{state}</option>)}</select></label>
-                <label>Postcode<input autoComplete="postal-code" required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={delivery.postcode} onChange={(event) => setDelivery({ ...delivery, postcode: event.target.value })} /></label>
-              </div>
+              {delivery.deliveryMethod === "DELIVERY" ? <>
+                <label>Street address<input autoComplete="address-line1" required maxLength={200} value={delivery.addressLine1} onChange={(event) => setDelivery({ ...delivery, addressLine1: event.target.value })} /></label>
+                <label>Apartment / unit <small>If applicable</small><input autoComplete="address-line2" maxLength={200} value={delivery.addressLine2} onChange={(event) => setDelivery({ ...delivery, addressLine2: event.target.value })} /></label>
+                <div className="payment-delivery-grid payment-delivery-location">
+                  <label>Suburb<input autoComplete="address-level2" required maxLength={100} value={delivery.suburb} onChange={(event) => setDelivery({ ...delivery, suburb: event.target.value })} /></label>
+                  <label>State<select autoComplete="address-level1" value={delivery.state} onChange={(event) => setDelivery({ ...delivery, state: event.target.value })}>{["VIC", "NSW", "QLD", "SA", "WA", "TAS", "ACT", "NT"].map((state) => <option key={state}>{state}</option>)}</select></label>
+                  <label>Postcode<input autoComplete="postal-code" required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={delivery.postcode} onChange={(event) => setDelivery({ ...delivery, postcode: event.target.value })} /></label>
+                </div>
+                <small className="payment-area-note">Outside Melbourne metro? Contact support for a delivery quote.</small>
+              </> : <div className="payment-pickup-note"><span>Pickup location</span><strong>205 Kensington Road, West Melbourne VIC 3003</strong><p>We’ll email you when your system is ready to collect.</p></div>}
               {error && <p className="payment-error" role="alert">{error}</p>}
               <button className="button button-primary payment-primary" type="submit" disabled={busy}>{busy ? "Preparing..." : "Continue to payment"}<span aria-hidden="true">↗</span></button>
             </form>
           </>
         )}
 
-        {user?.emailVerified && !deliveryLoading && !payment && choosingPayment && requestReference && (
+        {!restoringStripePayment && user?.emailVerified && !deliveryLoading && !payment && choosingPayment && requestReference && (
           <>
             <span className="section-kicker">JON. PC / Payment</span>
             <h2 id="payment-title">Choose how to pay.</h2>
-            <p className="payment-intro">Your total is confirmed at the next step.</p>
+            <p className="payment-intro">See your original price, 5% Founder discount and final total before you pay.</p>
             <div className="payment-methods">
               {stripeEnabled && <button className="payment-method payment-method-featured" type="button" onClick={() => void beginStripeCheckout(requestReference)} disabled={busy}>
                 <span className="payment-method-icon" aria-hidden="true">S</span>
@@ -415,10 +442,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
               <BankDetail label="Payment reference" value={payment.paymentReference} copy highlight />
             </div>
             <div className="payment-transfer-window"><span>Pay before</span><strong>{formatDateTime(payment.expiresAt)}</strong></div>
-            {payment.rewardPreview?.available && <div className="payment-reward-preview">
-              <div className="payment-reward-preview-heading"><span>Founder cashback preview</span><strong>{formatAudExact(payment.rewardPreview.cashbackAmountCents!)}</strong></div>
-              <div className="payment-reward-preview-details"><span>{payment.rewardPreview.tierName} · confirmed only after payment verification</span></div>
-            </div>}
+            {payment.discountCents > 0 && <DiscountConfirmation payment={payment} hold="Reserved for 24 hours" />}
             {error && <p className="payment-error" role="alert">{error}</p>}
             <label className="payment-transfer-confirm"><input type="checkbox" checked={transferAcknowledged} onChange={(event) => setTransferAcknowledged(event.target.checked)} /><span>I&apos;ve completed the bank transfer using reference <strong>{payment.paymentReference}</strong>.</span></label>
             <button className="button button-primary payment-primary" type="button" onClick={markTransferred} disabled={busy || !transferAcknowledged}>{busy ? "Submitting…" : "Submit for review"}<span aria-hidden="true">↗</span></button>
@@ -429,11 +453,12 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
         {payment?.status === "CREATED" && isStripePayment(payment) && (
           <>
             <span className="section-kicker">JON. PC / Secure payment</span>
-            <h2 id="payment-title">{stripeReturn === "success" ? "Confirming payment." : "Payment paused."}</h2>
-            <p className="payment-intro">{stripeReturn === "success" ? "Stripe is securely confirming your payment. Keep this window open for a moment." : "Nothing was charged. Continue whenever you’re ready."}</p>
+            <h2 id="payment-title">{stripeReturn === "success" ? "Confirming payment." : stripeReturn === "cancelled" ? "Payment paused." : "Review and pay."}</h2>
+            <p className="payment-intro">{stripeReturn === "success" ? "Stripe is securely confirming your payment. Keep this window open for a moment." : stripeReturn === "cancelled" ? "Nothing was charged. Continue whenever you’re ready." : "Your 5% Founder discount is already included in the total below."}</p>
             <PaymentSummary payment={payment} />
+            {payment.discountCents > 0 && <DiscountConfirmation payment={payment} hold="Reserved while this checkout is open" />}
             {error && <p className="payment-error" role="alert">{error}</p>}
-            {stripeReturn !== "success" && payment.checkoutUrl && <button className="button button-primary payment-primary" type="button" onClick={() => window.location.assign(payment.checkoutUrl!)}>Return to secure payment <span aria-hidden="true">↗</span></button>}
+            {stripeReturn !== "success" && payment.checkoutUrl && <button className="button button-primary payment-primary" type="button" onClick={() => window.location.assign(payment.checkoutUrl!)}>{stripeReturn === "cancelled" ? "Return to secure payment" : "Continue to secure payment"} <span aria-hidden="true">↗</span></button>}
             <button className="payment-secondary" type="button" onClick={payLater}>View My Orders</button>
           </>
         )}
@@ -444,20 +469,12 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
             <h2 id="payment-title">Review and pay.</h2>
             <p className="payment-intro">Review your order and current Founder offer before payment.</p>
             <PaymentSummary payment={payment} />
-            <div className="payment-build-window"><span>Build & dispatch</span><strong>Allow 30–45 days after payment confirmation.</strong></div>
-            {payment.rewardPreview?.available && <div className="payment-reward-preview">
-              <div className="payment-reward-preview-heading"><span>Founder cashback</span><strong>{formatAudExact(payment.rewardPreview.cashbackAmountCents!)}</strong></div>
-              <div className="payment-reward-preview-details">
-                <span>{payment.rewardPreview.tierName} · {payment.rewardPreview.rateBasisPoints! / 100}% up to {formatAudExact(payment.rewardPreview.capCents!)}</span>
-                <span>Effective price after cashback · {formatAudExact(payment.rewardPreview.effectivePriceCents!)}</span>
-              </div>
-              <small>Current offer · confirmed when payment succeeds</small>
-            </div>}
-            {payment.rewardPreview && !payment.rewardPreview.available && <div className="payment-reward-unavailable"><span>Founder cashback</span><p>{payment.rewardPreview.reason}</p></div>}
+            <div className="payment-build-window"><span>Build & dispatch</span><strong>7–14 business days after cleared payment.</strong></div>
+            {payment.discountCents > 0 && <DiscountConfirmation payment={payment} hold="Applied to this checkout" />}
             {payment.invoiceNumber && <div className="payment-invoice-reference"><span>Tax invoice</span><strong>{payment.invoiceNumber}</strong></div>}
             <div className="payment-assurance">
               <span><i /> Amount confirmed by JON. PC</span>
-              <span><i /> Founder cashback shown before payment</span>
+              <span><i /> Founder discount applied before payment</span>
             </div>
             {error && <p className="payment-error" role="alert">{error}</p>}
             <button className="button button-primary payment-primary" type="button" onClick={() => complete("SUCCEEDED")} disabled={busy}>{busy ? "Confirming..." : `Complete payment · ${formatAud(payment.amountCents)}`} <span aria-hidden="true">↗</span></button>
@@ -497,7 +514,7 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
             <PaymentSummary payment={payment} />
             {error && <p className="payment-error" role="alert">{error}</p>}
             {isStripePayment(payment)
-              ? <button className="button button-primary payment-primary" type="button" onClick={payLater}>View My Orders <span aria-hidden="true">→</span></button>
+              ? <button className="button button-primary payment-primary" type="button" onClick={() => requestReference && beginStripeCheckout(requestReference, true)} disabled={busy}>{busy ? "Preparing..." : "Try payment again"} <span aria-hidden="true">↗</span></button>
               : <button className="button button-primary payment-primary" type="button" onClick={() => requestReference && beginBankCheckout(requestReference, true)} disabled={busy}>{busy ? "Preparing..." : "Try payment again"} <span aria-hidden="true">↗</span></button>}
           </>
         )}
@@ -510,7 +527,9 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
               ? "The secure payment session ended before payment was completed. Nothing was charged and no Founder place was assigned."
               : "The 24-hour payment window ended before the transfer was submitted. Your reservation was released and no Founder place was assigned."}</p>
             <PaymentSummary payment={payment} />
-            <button className="button button-primary payment-primary" type="button" onClick={payLater}>View my orders <span aria-hidden="true">→</span></button>
+            {isStripePayment(payment)
+              ? <button className="button button-primary payment-primary" type="button" onClick={() => requestReference && beginStripeCheckout(requestReference, true)} disabled={busy}>{busy ? "Preparing..." : "Start a new secure payment"} <span aria-hidden="true">↗</span></button>
+              : <button className="button button-primary payment-primary" type="button" onClick={payLater}>View my orders <span aria-hidden="true">→</span></button>}
           </>
         )}
 
@@ -518,19 +537,18 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
           <>
             <span className="section-kicker payment-success-kicker"><i /> Payment confirmed</span>
             <h2 id="payment-title">You&apos;re in.</h2>
-            <p className="payment-intro">Your order is confirmed{payment.rewardState === "JOINED" ? " and your Founder cashback is locked." : "."} Build and dispatch are expected within 30–45 days.</p>
+            <p className="payment-intro">Your order is confirmed{payment.discountCents > 0 ? ` and you saved ${formatAudExact(payment.discountCents)}.` : "."} We’ll dispatch within 7–14 business days.</p>
             <PaymentSummary payment={payment} />
-            {payment.reward && (
+            {payment.discountCents > 0 && (
               <div className="payment-reward-result">
-                <div><span>Founder number</span><strong>#{formatRewardId(payment.reward.founderNumber)}</strong></div>
-                <div><span>Reward tier</span><strong>{payment.reward.tierName}</strong></div>
-                <div><span>Cashback locked</span><strong>{formatAudExact(payment.reward.cashbackAmountCents)}</strong></div>
+                <div><span>Monthly place</span><strong>Confirmed</strong></div>
+                <div><span>Founder discount</span><strong>5% off</strong></div>
+                <div><span>You saved</span><strong>{formatAudExact(payment.discountCents)}</strong></div>
               </div>
             )}
-            {payment.reward && <div className="payment-reward-timing"><span>Cashback return</span><strong>{isBankTransfer(payment) ? "Bank transfer" : "Original payment method"}</strong><p>Initiated within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.</p></div>}
             {error && <p className="payment-error" role="alert">{error}</p>}
             {payment.invoiceId && payment.invoiceNumber && <button className="payment-invoice-download" type="button" onClick={downloadInvoice}>Download tax invoice ↓</button>}
-            <button className="button button-primary payment-primary" type="button" onClick={viewRewards}>View my rewards <span aria-hidden="true">→</span></button>
+            <button className="button button-primary payment-primary" type="button" onClick={viewRewards}>View my savings <span aria-hidden="true">→</span></button>
           </>
         )}
       </section>
@@ -541,10 +559,19 @@ function PaymentCheckout({ user, onUserChange }: PaymentCheckoutProps) {
 function PaymentSummary({ payment }: { payment: MockPayment | BankTransferPayment | StripePayment }) {
   return (
     <div className="payment-summary">
-      <div><span>Order</span><strong>{payment.orderReference}</strong></div>
-      <div><span>Total</span><strong>{formatAud(payment.amountCents)}</strong></div>
+      <div className="payment-summary-reference"><span>Order</span><strong>{payment.orderReference}</strong></div>
+      <div className="payment-summary-total"><span>Total</span><strong>{formatAudExact(payment.amountCents)}</strong></div>
+      <div className="payment-summary-breakdown">
+        <span><i>Product subtotal</i><b>{formatAudExact(payment.productSubtotalCents)}</b></span>
+        {payment.discountCents > 0 && <span className="payment-summary-discount"><i>Founder discount · 5% off</i><b>−{formatAudExact(payment.discountCents)}</b></span>}
+        <span><i>{payment.shippingFeeCents > 0 ? "Melbourne delivery" : "West Melbourne pickup"}</i><b>{payment.shippingFeeCents > 0 ? formatAudExact(payment.shippingFeeCents) : "Free"}</b></span>
+      </div>
     </div>
   );
+}
+
+function DiscountConfirmation({ payment, hold }: { payment: MockPayment | BankTransferPayment | StripePayment; hold: string }) {
+  return <div className="payment-reward-preview"><div className="payment-reward-preview-heading"><span>Founder 5% discount</span><strong>−{formatAudExact(payment.discountCents)}</strong></div><div className="payment-reward-preview-details"><span>Applied to the product subtotal · delivery excluded</span><span>{hold}</span></div></div>;
 }
 
 function BankDetail({ label, value, copy = false, highlight = false }: { label: string; value: string; copy?: boolean; highlight?: boolean }) {
@@ -575,10 +602,6 @@ function formatAud(amountCents: number) {
 
 function formatAudExact(amountCents: number) {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amountCents / 100);
-}
-
-function formatRewardId(founderNumber: number) {
-  return String(founderNumber).padStart(2, "0");
 }
 
 export default PaymentCheckout;

@@ -15,6 +15,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,7 +25,7 @@ public class InvoiceService {
     private static final ZoneId MELBOURNE = ZoneId.of("Australia/Melbourne");
     private static final int GST_RATE_BASIS_POINTS = 1000;
     private static final String FOUNDER_TERMS =
-            "Separate from the amount paid. JON.PC initiates eligible cashback within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.";
+            "Founder 5% Discount applied to the product subtotal before payment. Delivery is excluded.";
 
     private final InvoiceRepository repository;
     private final GstCalculator gstCalculator;
@@ -61,26 +62,46 @@ public class InvoiceService {
         String invoiceNumber = repository.nextInvoiceNumber(issuedAt.getYear());
         GstBreakdown amounts = gstCalculator.fromGstInclusiveTotal(source.paymentAmountCents());
         List<InvoiceRepository.OrderSystemLine> systemLines = repository.systemLines(orderId);
-        List<InvoiceLine> lines;
+        List<InvoiceLine> lines = new ArrayList<>();
         if (systemLines.isEmpty()) {
-            lines = List.of(new InvoiceLine(
+            GstBreakdown productAmounts = gstCalculator.fromGstInclusiveTotal(source.productSubtotalCents());
+            lines.add(new InvoiceLine(
                     UUID.randomUUID(), 1, source.systemSku(),
                     source.systemName() == null ? description(source.direction()) : source.systemName(), 1,
-                    amounts.subtotalExGstCents(), GST_RATE_BASIS_POINTS, amounts.gstCents(),
-                    amounts.totalCents(), true
+                    productAmounts.subtotalExGstCents(), GST_RATE_BASIS_POINTS, productAmounts.gstCents(),
+                    productAmounts.totalCents(), true
             ));
         } else {
             long lineTotal = systemLines.stream().mapToLong(InvoiceRepository.OrderSystemLine::lineTotalCents).sum();
-            if (lineTotal != source.paymentAmountCents())
+            if (lineTotal != source.productSubtotalCents())
                 throw new IllegalStateException("Shopping bag total does not match the successful payment");
             java.util.concurrent.atomic.AtomicInteger lineNumber = new java.util.concurrent.atomic.AtomicInteger(1);
-            lines = systemLines.stream().map(item -> {
+            lines.addAll(systemLines.stream().map(item -> {
                 GstBreakdown lineAmounts = gstCalculator.fromGstInclusiveTotal(item.lineTotalCents());
                 long unitExGst = Math.round((double) lineAmounts.subtotalExGstCents() / item.quantity());
                 return new InvoiceLine(UUID.randomUUID(), lineNumber.getAndIncrement(), item.sku(), item.name(),
                         item.quantity(), unitExGst, GST_RATE_BASIS_POINTS, lineAmounts.gstCents(),
                         lineAmounts.totalCents(), true);
-            }).toList();
+            }).toList());
+        }
+        if (source.shippingFeeCents() > 0) {
+            GstBreakdown shippingAmounts = gstCalculator.fromGstInclusiveTotal(source.shippingFeeCents());
+            lines.add(new InvoiceLine(
+                    UUID.randomUUID(), lines.size() + 1, "DELIVERY-MEL-METRO", "Melbourne metro delivery", 1,
+                    shippingAmounts.subtotalExGstCents(), GST_RATE_BASIS_POINTS, shippingAmounts.gstCents(),
+                    shippingAmounts.totalCents(), true
+            ));
+        }
+        if (source.discountCents() > 0) {
+            GstBreakdown discountAmounts = gstCalculator.fromGstInclusiveTotal(source.discountCents());
+            lines.add(new InvoiceLine(
+                    UUID.randomUUID(), lines.size() + 1, "FOUNDER-5-OFF", "Founder 5% Discount", 1,
+                    -discountAmounts.subtotalExGstCents(), GST_RATE_BASIS_POINTS, -discountAmounts.gstCents(),
+                    -discountAmounts.totalCents(), true
+            ));
+        }
+        if (lines.stream().mapToLong(InvoiceLine::lineTotalCents).sum() != source.paymentAmountCents()) {
+            throw new IllegalStateException("Invoice lines do not match the successful payment");
         }
         SalesInvoice draft = invoice(
                 source, invoiceNumber, issuedAt, amounts, lines, null, null
@@ -132,7 +153,7 @@ public class InvoiceService {
         if (!"SUCCEEDED".equals(source.paymentStatus())) {
             throw new IllegalStateException("A tax invoice can only be issued for a successful payment");
         }
-        if (!List.of("PAID", "REWARD_ELIGIBLE").contains(source.orderStatus())) {
+        if (!"PAID".equals(source.orderStatus())) {
             throw new IllegalStateException("A tax invoice can only be issued for a paid order");
         }
         if (source.orderAmountCents() != source.paymentAmountCents()) {

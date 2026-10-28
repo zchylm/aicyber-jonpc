@@ -48,7 +48,7 @@ jobs:
           VITE_JONPC_INTERNAL_DEMO: "false"
           VITE_JONPC_BANK_TRANSFER: "true"
           VITE_JONPC_STRIPE: "true"
-          VITE_JONPC_STRIPE_TEST_MODE: "true"
+          VITE_JONPC_STRIPE_TEST_MODE: "false"
         run: npm run build
 
       - name: Upload Pages artifact

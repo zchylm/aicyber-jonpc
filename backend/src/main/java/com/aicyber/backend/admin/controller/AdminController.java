@@ -17,6 +17,8 @@ import com.aicyber.backend.payment.dto.ConfirmBankTransferRequest;
 import com.aicyber.backend.payment.dto.RejectBankTransferRequest;
 import com.aicyber.backend.payment.service.AdminBankTransferService;
 import com.aicyber.backend.payment.service.BankTransferWorkflowService;
+import com.aicyber.backend.order.dto.OrderFulfilmentResponse;
+import com.aicyber.backend.order.service.OrderFulfilmentService;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.List;
 
@@ -44,6 +47,7 @@ public class AdminController {
     private final AdminInvoiceService invoiceService;
     private final AdminBankTransferService bankTransferService;
     private final BankTransferWorkflowService bankTransferWorkflowService;
+    private final OrderFulfilmentService fulfilmentService;
 
     public AdminController(
             AdminOverviewService overviewService,
@@ -51,7 +55,8 @@ public class AdminController {
             AdminRewardService rewardService,
             AdminInvoiceService invoiceService,
             AdminBankTransferService bankTransferService,
-            BankTransferWorkflowService bankTransferWorkflowService
+            BankTransferWorkflowService bankTransferWorkflowService,
+            OrderFulfilmentService fulfilmentService
     ) {
         this.overviewService = overviewService;
         this.orderService = orderService;
@@ -59,6 +64,7 @@ public class AdminController {
         this.invoiceService = invoiceService;
         this.bankTransferService = bankTransferService;
         this.bankTransferWorkflowService = bankTransferWorkflowService;
+        this.fulfilmentService = fulfilmentService;
     }
 
     @GetMapping("/overview")
@@ -83,6 +89,27 @@ public class AdminController {
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
         }
+    }
+
+    @PostMapping("/orders/{orderId}/dispatch")
+    public OrderFulfilmentResponse dispatch(
+            @PathVariable UUID orderId,
+            @org.springframework.web.bind.annotation.RequestBody DispatchRequest request
+    ) {
+        return fulfilmentService.dispatch(orderId, request.carrier(), request.trackingNumber());
+    }
+
+    @PostMapping("/orders/{orderId}/delivered")
+    public OrderFulfilmentResponse delivered(
+            @PathVariable UUID orderId,
+            @org.springframework.web.bind.annotation.RequestBody DeliveredRequest request
+    ) {
+        return fulfilmentService.deliver(orderId, request.deliveredAt());
+    }
+
+    @PostMapping("/orders/{orderId}/resolve-delivery-issue")
+    public OrderFulfilmentResponse resolveDeliveryIssue(@PathVariable UUID orderId) {
+        return fulfilmentService.resolveIssue(orderId);
     }
 
     @GetMapping("/rewards")
@@ -151,4 +178,9 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
         }
     }
+
+    public record DispatchRequest(String carrier, String trackingNumber) {}
+
+    public record DeliveredRequest(OffsetDateTime deliveredAt) {}
+
 }

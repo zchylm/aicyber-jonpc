@@ -2,6 +2,8 @@ package com.aicyber.backend.ai.context;
 
 import com.aicyber.backend.catalog.SystemCatalogService;
 import com.aicyber.backend.catalog.SystemProduct;
+import com.aicyber.backend.payment.config.BankTransferProperties;
+import com.aicyber.backend.payment.config.StripeProperties;
 import com.aicyber.backend.reward.dto.RewardPublicSummaryResponse;
 import com.aicyber.backend.reward.service.RewardQueryService;
 import org.junit.jupiter.api.Test;
@@ -35,15 +37,24 @@ class JonPcKnowledgeContextServiceTest {
                 "10–15 business days", specifications, "DRAFT", true, true
         )));
 
-        String context = new JonPcKnowledgeContextService(catalog, rewards).currentContext();
+        String context = new JonPcKnowledgeContextService(catalog, rewards, testStripe(), bankTransfer()).currentContext();
 
         assertTrue(context.contains("JON PC Strike Ti 5060 Ti"));
         assertTrue(context.contains("$2,399 AUD incl. GST"));
         assertTrue(context.contains("Availability: SOLD OUT"));
         assertTrue(context.contains("GPU: NVIDIA GeForce RTX 5060 Ti"));
-        assertTrue(context.contains("Confirmed warranty for the listed systems: 3-year parts / 2-year return-to-base."));
-        assertTrue(context.contains("Current cashback: 15.0% of purchase price before GST, capped at A$500"));
-        assertTrue(context.contains("does not depend on later customers or future orders"));
+        assertTrue(context.contains("3-year parts / 2-year return-to-base"));
+        assertTrue(context.contains("do not volunteer legal commentary unless the visitor asks"));
+        assertTrue(context.contains("Do not invent unconfirmed coverage, freight, labour or repair-time details"));
+        assertTrue(context.contains("Stripe Checkout is currently in Test Mode and does not create a real card charge."));
+        assertTrue(context.contains("Bank transfer is available. The order is reserved for 24 hours"));
+        assertTrue(context.contains("Melbourne metro delivery is A$25"));
+        assertTrue(context.contains("dispatches within 7–14 business days"));
+        assertTrue(context.contains("48-hour delivery review period starts from the carrier's recorded Delivered event time"));
+        assertTrue(context.contains("Guided Custom PCs start with customer goals and preferences"));
+        assertTrue(context.contains("Current offer: 5.0% off the product subtotal"));
+        assertTrue(context.contains("Fifty order places are available each Melbourne calendar month"));
+        assertTrue(context.contains("There is no later cashback payout"));
         assertTrue(context.contains("Desktop and Compact AI products use the same catalogue"));
         assertTrue(context.contains("Saved builds are editable custom configurations"));
         assertTrue(context.contains("Selected hardware checks passed. Infrastructure integration requires engineering review."));
@@ -51,6 +62,8 @@ class JonPcKnowledgeContextServiceTest {
         assertTrue(context.contains("does not replace engineering review"));
         assertFalse(context.contains("0 available"));
         assertFalse(context.contains("Internal draft warranty"));
+        assertFalse(context.contains("two-year return-to-base warranty in addition"));
+        assertFalse(context.contains("Real online card payment is not currently available"));
         assertFalse(context.contains("Flagship"));
         assertFalse(context.contains("JON.PC guarantees complete data-centre construction"));
     }
@@ -62,7 +75,7 @@ class JonPcKnowledgeContextServiceTest {
         SystemProduct available = productWithAvailableQuantity(1);
         SystemProduct soldOut = productWithAvailableQuantity(0);
         when(catalog.previews()).thenReturn(List.of(available), List.of(soldOut));
-        JonPcKnowledgeContextService knowledge = new JonPcKnowledgeContextService(catalog, rewards);
+        JonPcKnowledgeContextService knowledge = new JonPcKnowledgeContextService(catalog, rewards, testStripe(), bankTransfer());
 
         String firstQuestionContext = knowledge.currentContext();
         String nextQuestionContext = knowledge.currentContext();
@@ -78,9 +91,24 @@ class JonPcKnowledgeContextServiceTest {
         RewardQueryService rewards = mock(RewardQueryService.class);
         when(rewards.publicSummary()).thenReturn(new RewardPublicSummaryResponse(
                 true, "JON. PC Founders Cashback", "ACTIVE", "AUD", 50, 0, 50,
-                "Launch Founder", 1500, 50_000L, 10
+                "Monthly Founder Cashback", 500, null, 50
         ));
         return rewards;
+    }
+
+    private StripeProperties testStripe() {
+        StripeProperties stripe = mock(StripeProperties.class);
+        when(stripe.enabled()).thenReturn(true);
+        when(stripe.testMode()).thenReturn(true);
+        when(stripe.liveMode()).thenReturn(false);
+        return stripe;
+    }
+
+    private BankTransferProperties bankTransfer() {
+        BankTransferProperties bankTransfer = mock(BankTransferProperties.class);
+        when(bankTransfer.enabled()).thenReturn(true);
+        when(bankTransfer.reservationHours()).thenReturn(24L);
+        return bankTransfer;
     }
 
     private SystemProduct productWithAvailableQuantity(int availableQuantity) {

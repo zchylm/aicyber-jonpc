@@ -53,6 +53,8 @@ public class StripeProperties {
     }
 
     public boolean enabled() { return enabled; }
+    public boolean testMode() { return secretKey.startsWith("sk_test_"); }
+    public boolean liveMode() { return secretKey.startsWith("sk_live_"); }
     public String secretKey() { return secretKey; }
     public String webhookSecret() { return webhookSecret; }
     public long checkoutMinutes() { return checkoutMinutes; }

@@ -60,6 +60,7 @@ export type AdminOrderDetail = {
   configuration: Record<string, unknown>;
   systems: Array<{ sku: string; name: string; unitPriceCents: number; quantity: number; lineTotalCents: number }>;
   delivery: null | {
+    deliveryMethod: "DELIVERY" | "PICKUP";
     recipientName: string;
     phone: string;
     addressLine1: string;
@@ -107,8 +108,18 @@ export type AdminOrderDetail = {
     cashbackAmountCents: number;
     status: string;
     lockedAt: string;
-    payableAt: string | null;
     paidAt: string | null;
+  };
+  fulfilment: null | {
+    status: "PREPARING" | "DISPATCHED" | "DELIVERED" | "ISSUE_REPORTED" | "RECEIVED";
+    carrier: string | null;
+    trackingNumber: string | null;
+    dispatchedAt: string | null;
+    deliveredAt: string | null;
+    autoConfirmAt: string | null;
+    receivedAt: string | null;
+    issueReportedAt: string | null;
+    issueSummary: string | null;
   };
 };
 
@@ -129,8 +140,7 @@ export type AdminBankTransfer = {
 
 export type AdminRewards = {
   campaign: { maxPositions: number; confirmedPositions: number; availablePositions: number; maxLiabilityCents: number; committedCents: number; paidCents: number; availableBudgetCents: number };
-  commitments: Array<{ id: string; founderNumber: number; tierName: string; orderReference: string; customerEmail: string; purchaseAmountCents: number; rateBasisPoints: number; capCents: number; cashbackAmountCents: number; status: string; lockedAt: string }>;
-  failedEvents: Array<{ id: string; externalEventId: string; orderReference: string; attemptCount: number; lastError: string | null; createdAt: string }>;
+  commitments: Array<{ id: string; founderNumber: number; tierName: string; orderReference: string; customerEmail: string; purchaseAmountCents: number; rateBasisPoints: number; capCents: number; cashbackAmountCents: number; paymentProvider: string; status: string; lockedAt: string; paidAt: string | null }>;
 };
 
 export type CustomBuildReviewItem = {
@@ -141,6 +151,7 @@ export type CustomBuildReviewItem = {
   phone: string | null;
   notes: string | null;
   direction: string;
+  budgetRange: string;
   estimatedPrice: number;
   configuration: { answers?: Record<string, string>; [key: string]: unknown };
   createdAt: string;
@@ -250,6 +261,18 @@ export function fetchAdminOrders(query = "", status = "") {
 
 export function fetchAdminOrder(orderId: string) {
   return request<AdminOrderDetail>(`/api/admin/orders/${orderId}`);
+}
+
+export function dispatchAdminOrder(orderId: string, input: { carrier: string; trackingNumber: string }) {
+  return request(`/api/admin/orders/${orderId}/dispatch`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function markAdminOrderDelivered(orderId: string, deliveredAt: string) {
+  return request(`/api/admin/orders/${orderId}/delivered`, { method: "POST", body: JSON.stringify({ deliveredAt }) });
+}
+
+export function resolveAdminDeliveryIssue(orderId: string) {
+  return request(`/api/admin/orders/${orderId}/resolve-delivery-issue`, { method: "POST" });
 }
 
 export function fetchAdminBankTransfers() {

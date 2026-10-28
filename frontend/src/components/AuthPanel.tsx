@@ -10,7 +10,7 @@ import {
   sendEmailVerification,
   type AuthUser,
 } from "../api/auth";
-import { acceptCustomQuote, cancelOrderRequest, deleteSavedBuild, fetchOrderHistory, fetchSavedBuilds, type OrderHistoryItem, type SavedBuild } from "../api/configurator";
+import { acceptCustomQuote, cancelOrderRequest, confirmOrderReceived, deleteSavedBuild, fetchOrderHistory, fetchSavedBuilds, reportOrderDeliveryIssue, type OrderHistoryItem, type SavedBuild } from "../api/configurator";
 import { downloadInvoicePdf } from "../api/payments";
 import { cpuOptions, gpuOptions } from "../data/performance";
 import { memoryOptions } from "../data/memory";
@@ -33,6 +33,10 @@ const paymentDemoEnabled = checkoutEnabled;
 function AuthPanel({ onAuthChange }: AuthPanelProps) {
   const [initialVerificationToken] = useState(() => new URL(window.location.href).searchParams.get("verifyEmailToken"));
   const [initialPasswordResetToken] = useState(() => new URL(window.location.href).searchParams.get("resetPasswordToken"));
+  const [initialOrderReference] = useState(() => {
+    const params = new URL(window.location.href).searchParams;
+    return params.get("open") === "orders" ? params.get("order") : null;
+  });
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isOpen, setIsOpen] = useState(Boolean(initialPasswordResetToken));
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -55,6 +59,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
   const [verificationFeedback, setVerificationFeedback] = useState<{ message: string; error?: boolean } | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const verificationHandledRef = useRef(false);
+  const orderDeepLinkHandledRef = useRef(false);
   const accountEntryRef = useRef<HTMLDivElement>(null);
   const { open: openAccountPanel, close: closeAccountPanel } = useHistoryPanel("account", isOpen, setIsOpen);
   const { open: openBuildsPanel, close: closeBuildsPanel, dismiss: dismissBuildsPanel } = useHistoryPanel("saved-builds", isBuildsOpen, setIsBuildsOpen);
@@ -155,6 +160,36 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
       window.removeEventListener("jonpc:order-requested", loadOrders);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!isOrdersOpen || !user) return;
+    const refresh = () => window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
+    const intervalId = window.setInterval(refresh, 15000);
+    const refreshWhenVisible = () => document.visibilityState === "visible" && refresh();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [isOrdersOpen, user]);
+
+  useEffect(() => {
+    if (!user || !initialOrderReference || orderDeepLinkHandledRef.current || orders.length === 0) return;
+    const matchingOrder = orders.find((order) => order.orderReference === initialOrderReference);
+    if (!matchingOrder) return;
+    orderDeepLinkHandledRef.current = true;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("open");
+    url.searchParams.delete("order");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    const openTimer = window.setTimeout(() => {
+      setExpandedOrderId(matchingOrder.id);
+      openOrdersPanel();
+    }, 0);
+    return () => window.clearTimeout(openTimer);
+  }, [initialOrderReference, openOrdersPanel, orders, user]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -304,9 +339,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
     try {
       const response = await sendEmailVerification(token);
       setVerificationFeedback({
-        message: import.meta.env.DEV && response.message === "Verification email sent."
-          ? "Link ready — check backend console."
-          : response.message,
+        message: response.message,
       });
     } catch (requestError) {
       setVerificationFeedback({
@@ -432,7 +465,7 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
               {!buildsLoading && savedBuilds.length === 0 && <p className="saved-builds-empty">No saved builds yet. Complete a configuration and save it here.</p>}
               {savedBuilds.map((build) => (
                 <article className="saved-build-row" key={build.id}>
-                  <div><strong>{build.name}</strong><span>{build.direction} / ${build.estimatedPrice.toLocaleString("en-AU")} AUD</span></div>
+                  <div><strong>{build.name}</strong><span>{build.direction} / {build.budgetRange} budget</span></div>
                   <div className="saved-build-row-actions">
                     <button type="button" onClick={() => { dismissBuildsPanel(); window.dispatchEvent(new CustomEvent("jonpc:load-build", { detail: build })); }}>Continue customising ↗</button>
                     <button type="button" onClick={() => { const token = window.localStorage.getItem(authTokenKey); if (!token) return; deleteSavedBuild(token, build.id).then(() => setSavedBuilds((current) => current.filter((item) => item.id !== build.id))).catch(() => undefined); }}>Delete ×</button>
@@ -458,13 +491,14 @@ function AuthPanel({ onAuthChange }: AuthPanelProps) {
                 <article className="order-history-row" key={order.id}>
                   <div className="order-history-row-heading">
                     <div><strong>{order.orderReference ?? order.requestReference}</strong><span>{order.direction} / {formatOrderDate(order.createdAt)}</span></div>
-                    <div className="order-history-price"><b>{order.items.length ? `${formatRewardMoney(order.items.reduce((sum, item) => sum + item.lineTotalCents, 0))} incl. GST` : order.quoteTotalCents != null ? `$${(order.quoteTotalCents / 100).toLocaleString("en-AU")} AUD incl. GST` : order.direction === "AI Infrastructure" ? "Engineering review" : order.configuration.answers?.systemSku ? `$${order.estimatedPrice.toLocaleString("en-AU")} AUD incl. GST` : `$${order.estimatedPrice.toLocaleString("en-AU")} AUD estimated`}</b>{order.reward && <span>{formatRewardMoney(order.reward.cashbackAmountCents)} cashback · {rewardStatusLabel(order.reward.status)}</span>}</div>
+                    <div className="order-history-price"><b>{order.items.length ? `${formatRewardMoney(order.items.reduce((sum, item) => sum + item.lineTotalCents, 0))} incl. GST` : order.quoteTotalCents != null ? `$${(order.quoteTotalCents / 100).toLocaleString("en-AU")} AUD incl. GST` : order.direction === "AI Infrastructure" ? "Engineering review" : order.configuration.answers?.systemSku ? `$${order.estimatedPrice.toLocaleString("en-AU")} AUD incl. GST` : "Quote under review"}</b>{order.reward && <span>{formatRewardMoney(order.reward.cashbackAmountCents)} saved · {order.reward.status === "PROCESSING" ? "Reserved" : "Applied"}</span>}</div>
                   </div>
                   <div className="order-history-row-footer">
                     {(!paymentDemoEnabled || customerOrderState(order).label !== "Ready to checkout") && <span className={`order-status order-status-${customerOrderState(order).tone}`}>{customerOrderState(order).label}</span>}
                     <div className="order-history-row-actions">
+                      {order.fulfilment?.trackingNumber && <TrackingLink carrier={order.fulfilment.carrier} trackingNumber={order.fulfilment.trackingNumber} compact />}
                       <button className="order-details-action" type="button" aria-expanded={expandedOrderId === order.id} onClick={() => setExpandedOrderId((current) => current === order.id ? null : order.id)}>{expandedOrderId === order.id ? "Hide details" : "View details"}</button>
-                      {(!order.salesOrderId || (paymentDemoEnabled && ["CREATED", "FAILED", "CANCELLED"].includes(order.paymentStatus ?? ""))) && <CancelRequestAction order={order} />}
+                      {(!order.salesOrderId || (order.orderStatus === "PENDING_PAYMENT" && ["CREATED", "FAILED", "CANCELLED"].includes(order.paymentStatus ?? ""))) && <CancelRequestAction order={order} />}
                       {order.invoiceId && order.invoiceNumber && <InvoiceDownloadButton invoiceId={order.invoiceId} invoiceNumber={order.invoiceNumber} compact />}
                       <OrderPrimaryAction order={order} onClose={dismissOrdersPanel} />
                     </div>
@@ -492,8 +526,13 @@ function formatOrderDate(value: string) {
 function customerOrderState(order: OrderHistoryItem): { label: string; tone: string } {
   if (order.orderStatus === "REFUNDED") return { label: "Refunded", tone: "neutral" };
   if (order.orderStatus === "CANCELLED") return { label: "Cancelled", tone: "neutral" };
+  if (order.fulfilment?.status === "RECEIVED") return { label: "Delivery confirmed", tone: "success" };
+  if (order.fulfilment?.status === "ISSUE_REPORTED") return { label: "Issue reported", tone: "failed" };
+  if (order.fulfilment?.status === "DELIVERED") return { label: "Delivered · confirm receipt", tone: "processing" };
+  if (order.fulfilment?.status === "DISPATCHED") return { label: "Dispatched", tone: "ready" };
+  if (order.fulfilment?.status === "PREPARING" && (order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID")) return { label: "Preparing", tone: "processing" };
   if (order.paymentStatus === "CANCELLED") return { label: "Payment window expired", tone: "neutral" };
-  if (order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID" || order.orderStatus === "REWARD_ELIGIBLE") return { label: "Paid", tone: "success" };
+  if (order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID") return { label: "Paid", tone: "success" };
   if (order.paymentStatus === "FAILED") return { label: "Payment failed", tone: "failed" };
   if (order.paymentStatus === "PROCESSING") return { label: "Payment under review", tone: "processing" };
   if (order.paymentStatus === "CREATED") return { label: "Awaiting payment", tone: "pending" };
@@ -523,7 +562,7 @@ function OrderPrimaryAction({ order, onClose }: { order: OrderHistoryItem; onClo
     window.dispatchEvent(new CustomEvent("jonpc:open-checkout", { detail: { requestReference: order.requestReference } }));
   };
 
-  if (order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID" || order.orderStatus === "REWARD_ELIGIBLE") {
+  if (order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID") {
     return <button className="order-primary-action" type="button" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent("jonpc:open-rewards")); }}>View rewards →</button>;
   }
   if (order.paymentStatus === "FAILED") {
@@ -542,7 +581,7 @@ function OrderPrimaryAction({ order, onClose }: { order: OrderHistoryItem; onClo
   }
   if (!order.configuration.answers?.systemSku) {
     if (order.quoteStatus === "SENT" && order.quoteValidUntil && new Date(order.quoteValidUntil).getTime() < openedAt) return null;
-    if (order.quoteStatus === "SENT" && order.quoteId) return <div className="order-quote-action"><span>Build & dispatch · 30–45 days after payment</span><button className="order-primary-action" type="button" disabled={accepting} onClick={async () => {
+    if (order.quoteStatus === "SENT" && order.quoteId) return <div className="order-quote-action"><span>Build & dispatch · 7–14 business days after cleared payment</span><button className="order-primary-action" type="button" disabled={accepting} onClick={async () => {
       const token = window.localStorage.getItem(authTokenKey);
       if (!token) return;
       setAccepting(true);
@@ -587,12 +626,13 @@ function OrderDetails({ order }: { order: OrderHistoryItem }) {
       <div className="order-history-references">
         <div><span>Build request</span><strong>{order.requestReference}</strong></div>
         {order.invoiceId && order.invoiceNumber && <div><span>Tax invoice</span><InvoiceDownloadButton invoiceId={order.invoiceId} invoiceNumber={order.invoiceNumber} /></div>}
-        {(order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID" || order.orderStatus === "REWARD_ELIGIBLE") && <div><span>Delivery estimate</span><strong>30–45 days</strong></div>}
+        {(order.paymentStatus === "SUCCEEDED" || order.orderStatus === "PAID") && <div><span>Dispatch commitment</span><strong>7–14 business days</strong></div>}
       </div>
-      {quotePending && order.quoteTotalCents != null && <div className="order-quote-summary"><div><span>Final quote</span><strong>${(order.quoteTotalCents / 100).toLocaleString("en-AU")} incl. GST</strong></div>{order.quoteValidUntil && <small>Valid until {formatOrderDate(order.quoteValidUntil)}</small>}{order.quoteNote && <p>{order.quoteNote}</p>}<em>Build & dispatch · 30–45 days after payment</em></div>}
+      {order.salesOrderId && order.fulfilment && <DeliveryProgress order={order} />}
+      {quotePending && order.quoteTotalCents != null && <div className="order-quote-summary"><div><span>Final quote</span><strong>${(order.quoteTotalCents / 100).toLocaleString("en-AU")} incl. GST</strong></div>{order.quoteValidUntil && <small>Valid until {formatOrderDate(order.quoteValidUntil)}</small>}{order.quoteNote && <p>{order.quoteNote}</p>}<em>Build & dispatch · 7–14 business days after cleared payment</em></div>}
       {order.reward && <div className="order-founder-summary">
-        <div><span>Founder reward</span><strong>#{String(order.reward.founderNumber).padStart(2, "0")} · {order.reward.tierName}</strong></div>
-        <div><span>Cashback</span><strong>{formatRewardMoney(order.reward.cashbackAmountCents)}</strong></div>
+        <div><span>Founder discount</span><strong>{order.reward.rateBasisPoints / 100}% off</strong></div>
+        <div><span>You saved</span><strong>{formatRewardMoney(order.reward.cashbackAmountCents)}</strong></div>
         <div><span>Status</span><strong>{rewardStatusLabel(order.reward.status)}</strong></div>
       </div>}
       {order.items.length ? <details className="order-configuration-details">
@@ -606,12 +646,70 @@ function OrderDetails({ order }: { order: OrderHistoryItem }) {
   );
 }
 
+function DeliveryProgress({ order }: { order: OrderHistoryItem }) {
+  const [fulfilment, setFulfilment] = useState(order.fulfilment);
+  const [reporting, setReporting] = useState(false);
+  const [summary, setSummary] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!order.salesOrderId || !fulfilment) return null;
+  const labels: Record<string, string> = {
+    PREPARING: "Preparing your system",
+    DISPATCHED: "Dispatched",
+    DELIVERED: "Delivered · awaiting confirmation",
+    ISSUE_REPORTED: "Delivery issue reported",
+    RECEIVED: "Delivery confirmed",
+  };
+  async function confirm() {
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token || !order.salesOrderId) return;
+    setBusy(true); setError(null);
+    try {
+      setFulfilment(await confirmOrderReceived(token, order.salesOrderId));
+      window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Unable to confirm delivery."); }
+    finally { setBusy(false); }
+  }
+  async function report() {
+    const token = window.localStorage.getItem(authTokenKey);
+    if (!token || !order.salesOrderId || !summary.trim()) return;
+    setBusy(true); setError(null);
+    try {
+      setFulfilment(await reportOrderDeliveryIssue(token, order.salesOrderId, summary));
+      setReporting(false); setSummary("");
+      window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Unable to report the issue."); }
+    finally { setBusy(false); }
+  }
+  return <div className="order-delivery-progress">
+    <div><span>Delivery status</span><strong>{labels[fulfilment.status] ?? fulfilment.status}</strong></div>
+    {fulfilment.dispatchedAt && <p>Dispatched {formatOrderDateTime(fulfilment.dispatchedAt)}</p>}
+    {fulfilment.trackingNumber && <TrackingLink carrier={fulfilment.carrier} trackingNumber={fulfilment.trackingNumber} />}
+    {fulfilment.deliveredAt && <p>Recorded delivered {formatOrderDateTime(fulfilment.deliveredAt)}</p>}
+    {fulfilment.status === "DELIVERED" && <><small>Please check your system. If no issue is reported, receipt is confirmed automatically 48 hours after delivery.</small><div className="order-delivery-actions"><button type="button" disabled={busy} onClick={() => void confirm()}>Confirm received</button><button type="button" disabled={busy} onClick={() => setReporting(true)}>Report an issue</button></div></>}
+    {fulfilment.status === "ISSUE_REPORTED" && <small>Support has been notified. Automatic receipt confirmation is paused while the issue is open.</small>}
+    {reporting && <div className="order-delivery-report"><textarea maxLength={500} rows={3} value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Briefly tell us what is wrong" /><div><button type="button" disabled={busy || !summary.trim()} onClick={() => void report()}>Send to support</button><button type="button" disabled={busy} onClick={() => setReporting(false)}>Cancel</button></div></div>}
+    {error && <small className="auth-error" role="alert">{error}</small>}
+  </div>;
+}
+
+function TrackingLink({ carrier, trackingNumber, compact = false }: { carrier: string | null; trackingNumber: string; compact?: boolean }) {
+  const isAustraliaPost = carrier?.toLowerCase().replace(/\s+/g, "").includes("australiapost");
+  const label = compact ? "Track parcel ↗" : `${carrier ?? "Carrier"} · ${trackingNumber}`;
+  if (!isAustraliaPost) return <span className={compact ? "order-tracking-compact" : "order-tracking-reference"}>{label}</span>;
+  return <a className={compact ? "order-tracking-compact" : "order-tracking-reference"} href={`https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(trackingNumber)}`} target="_blank" rel="noreferrer">{label}</a>;
+}
+
+function formatOrderDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
 function formatRewardMoney(cents: number) {
   return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
 }
 
 function rewardStatusLabel(status: string) {
-  return ({ LOCKED: "Locked", PAYABLE: "Ready for payout", PROCESSING: "Processing", PAID: "Paid", FAILED: "Needs attention", VOID: "Cancelled" } as Record<string, string>)[status] ?? status;
+  return ({ PROCESSING: "Reserved", PAID: "Applied", VOID: "Released" } as Record<string, string>)[status] ?? status;
 }
 
 function CancelRequestAction({ order }: { order: OrderHistoryItem }) {

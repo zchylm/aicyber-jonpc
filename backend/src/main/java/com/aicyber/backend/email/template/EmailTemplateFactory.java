@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.text.NumberFormat;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -23,7 +25,7 @@ public class EmailTemplateFactory {
     }
 
     public EmailContent verification(String displayName, String verificationUrl) {
-        return action(
+        return actionWithFallbackLink(
                 "Verify your JON. PC email",
                 "Verify your email",
                 "Hi " + safeName(displayName) + ", verify this email address to secure your JON. PC account.",
@@ -59,6 +61,27 @@ public class EmailTemplateFactory {
                 "Review quote", accountUrl, "Sign in to review and accept the quote before payment.");
     }
 
+    public EmailContent orderDispatched(String displayName, String orderReference, String carrier, String trackingNumber) {
+        String tracking = trackingNumber == null || trackingNumber.isBlank()
+                ? "Tracking will appear in My Orders when it is available."
+                : "Tracking: " + trackingNumber + ".";
+        String intro = "Hi " + safeName(displayName) + ", " + orderReference + " has left JON. PC with "
+                + carrier + ". " + tracking;
+        return action("Your JON.PC is on the way · " + orderReference, "Your JON.PC is on the way.", intro,
+                "View my order", orderUrl(orderReference), "Carrier transit time begins after dispatch.");
+    }
+
+    public EmailContent deliveryConfirmationRequested(String displayName, String orderReference, boolean pickup,
+                                                       OffsetDateTime autoConfirmAt) {
+        String delivery = pickup ? "has been marked as collected" : "has been marked as delivered";
+        String intro = "Hi " + safeName(displayName) + ", " + orderReference + " " + delivery
+                + ". Please inspect your system, then confirm receipt or report a problem in My Orders.";
+        String footer = "If no issue is reported, receipt is confirmed automatically after 48 hours"
+                + (autoConfirmAt == null ? "." : " (on " + DATE.format(autoConfirmAt) + ").");
+        return action("Please check your JON.PC · " + orderReference, "Your JON.PC has arrived.", intro,
+                "Review delivery", orderUrl(orderReference), footer);
+    }
+
     public EmailContent invoice(String displayName, String invoiceNumber, String orderReference,
                                 String productName, long amountPaidCents, Long cashbackAmountCents) {
         return invoice(displayName, invoiceNumber, orderReference, productName, amountPaidCents,
@@ -68,12 +91,9 @@ public class EmailTemplateFactory {
     public EmailContent invoice(String displayName, String invoiceNumber, String orderReference,
                                 String productName, long amountPaidCents, Integer founderNumber,
                                 String founderTierName, Long cashbackAmountCents) {
-        String founderLabel = founderNumber == null ? "Founder reward" :
-                "Founder #" + String.format(Locale.ENGLISH, "%02d", founderNumber)
-                        + (founderTierName == null || founderTierName.isBlank() ? "" : " · " + founderTierName);
+        String founderLabel = "Founder 5% discount";
         String rewardText = cashbackAmountCents != null && cashbackAmountCents > 0
-                ? founderLabel + " locked: " + money(cashbackAmountCents)
-                        + ". We’ll initiate it within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved."
+                ? founderLabel + " applied: you saved " + money(cashbackAmountCents) + "."
                 : "Your paid tax invoice is attached for your records.";
         String text = "Your JON.PC is confirmed\n\n"
                 + "Hi " + safeName(displayName) + ", your payment is complete and your tax invoice is attached.\n\n"
@@ -88,9 +108,9 @@ public class EmailTemplateFactory {
 
         String reward = cashbackAmountCents != null && cashbackAmountCents > 0
                 ? "<div style=\"margin-top:18px;padding:18px 20px;background:#effbdc;border-left:4px solid #a8e95f\">"
-                    + "<div style=\"font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4f635d\">" + escape(founderLabel) + " locked</div>"
-                    + "<div style=\"margin-top:5px;font-size:22px;font-weight:700;color:#0b1513\">" + escape(money(cashbackAmountCents)) + "</div>"
-                    + "<div style=\"margin-top:5px;font-size:13px;line-height:1.5;color:#52615e\">We’ll initiate it within 1 business day after delivery is confirmed and any active cancellation or refund request is resolved.</div>"
+                    + "<div style=\"font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4f635d\">" + escape(founderLabel) + " applied</div>"
+                    + "<div style=\"margin-top:5px;font-size:22px;font-weight:700;color:#0b1513\">You saved " + escape(money(cashbackAmountCents)) + "</div>"
+                    + "<div style=\"margin-top:5px;font-size:13px;line-height:1.5;color:#52615e\">Already deducted from the product subtotal shown on your invoice.</div>"
                     + "</div>"
                 : "";
 
@@ -122,6 +142,19 @@ public class EmailTemplateFactory {
                 + "<a href=\"" + escape(url) + "\" style=\"display:inline-block;background:#bdf278;color:#07100e;"
                 + "padding:14px 20px;text-decoration:none;font-weight:700\">" + escape(action) + "</a>"
                 + "<p style=\"margin:24px 0 0;color:#71807d;font-size:13px;line-height:1.5\">" + escape(footer) + "</p>";
+        return new EmailContent(subject, text, wrapper(body));
+    }
+
+    private EmailContent actionWithFallbackLink(String subject, String heading, String intro,
+                                                String action, String url, String footer) {
+        String text = heading + "\n\n" + intro + "\n\n" + action + ": " + url + "\n\n" + footer;
+        String body = "<h1 style=\"margin:0 0 20px;font-size:30px;line-height:1.15\">" + escape(heading) + "</h1>"
+                + "<p style=\"margin:0 0 24px;color:#40504d;line-height:1.6\">" + escape(intro) + "</p>"
+                + "<a href=\"" + escape(url) + "\" style=\"display:inline-block;background:#bdf278;color:#07100e;"
+                + "padding:14px 20px;text-decoration:none;font-weight:700\">" + escape(action) + "</a>"
+                + "<p style=\"margin:20px 0 7px;color:#71807d;font-size:12px;line-height:1.5\">If your email app blocks a local test link, copy and paste this address into the browser running JON. PC:</p>"
+                + "<div style=\"padding:11px 12px;background:#f3f6f4;color:#40504d;font-size:11px;line-height:1.5;word-break:break-all\">" + escape(url) + "</div>"
+                + "<p style=\"margin:20px 0 0;color:#71807d;font-size:13px;line-height:1.5\">" + escape(footer) + "</p>";
         return new EmailContent(subject, text, wrapper(body));
     }
 
@@ -164,6 +197,12 @@ public class EmailTemplateFactory {
     private String money(long cents) {
         NumberFormat format = NumberFormat.getCurrencyInstance(new Locale("en", "AU"));
         return format.format(cents / 100.0);
+    }
+
+    private String orderUrl(String orderReference) {
+        String separator = accountUrl.contains("?") ? "&" : "?";
+        return accountUrl + separator + "open=orders&order="
+                + URLEncoder.encode(orderReference, StandardCharsets.UTF_8);
     }
 
     private String safeName(String value) {

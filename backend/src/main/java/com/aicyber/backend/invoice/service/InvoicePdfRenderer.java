@@ -123,12 +123,11 @@ public class InvoicePdfRenderer {
         if (invoice.founderNumber() != null && invoice.founderCashbackAmountCents() != null) {
             y -= 46;
             fill(canvas, left, y - 50, right - left, 68, PALE);
-            text(canvas, BOLD, 8, GREEN, left + 12, y, "FOUNDER CASHBACK COMMITMENT");
-            text(canvas, BOLD, 10, INK, left + 12, y - 18,
-                    "Founder #%02d  |  %s".formatted(invoice.founderNumber(), invoice.founderTierName()));
-            rightText(canvas, BOLD, 11, GREEN, right - 12, y - 18, money(invoice.founderCashbackAmountCents()));
+            text(canvas, BOLD, 8, GREEN, left + 12, y, "FOUNDER 5% DISCOUNT");
+            text(canvas, BOLD, 10, INK, left + 12, y - 18, "SAVED AT CHECKOUT");
+            rightText(canvas, BOLD, 11, GREEN, right - 12, y - 18, "-" + money(invoice.founderCashbackAmountCents()));
             text(canvas, REGULAR, 7.5f, MUTED, left + 12, y - 36,
-                    "Separate from this invoice total. Initiated within 1 business day after delivery confirmation.");
+                    "Applied to the product subtotal before payment. Delivery excluded.");
         }
 
         y = 92;

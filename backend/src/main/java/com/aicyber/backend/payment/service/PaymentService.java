@@ -7,6 +7,7 @@ import com.aicyber.backend.order.service.SalesOrderService;
 import com.aicyber.backend.payment.model.Payment;
 import com.aicyber.backend.payment.config.BankTransferProperties;
 import com.aicyber.backend.payment.repository.PaymentRepository;
+import com.aicyber.backend.reward.service.FounderDiscountService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +23,15 @@ public class PaymentService {
     private final PaymentRepository repository;
     private final JdbcTemplate jdbc;
     private final BankTransferProperties bankTransferProperties;
+    private final FounderDiscountService founderDiscounts;
 
-    public PaymentService(UserRepository userRepository, SalesOrderService salesOrderService, PaymentRepository repository, JdbcTemplate jdbc, BankTransferProperties bankTransferProperties) {
+    public PaymentService(UserRepository userRepository, SalesOrderService salesOrderService, PaymentRepository repository, JdbcTemplate jdbc, BankTransferProperties bankTransferProperties, FounderDiscountService founderDiscounts) {
         this.userRepository = userRepository;
         this.salesOrderService = salesOrderService;
         this.repository = repository;
         this.jdbc = jdbc;
         this.bankTransferProperties = bankTransferProperties;
+        this.founderDiscounts = founderDiscounts;
     }
 
     @Transactional
@@ -39,6 +42,8 @@ public class PaymentService {
             return repository.findSuccessfulByOrder(order.id())
                     .orElseThrow(() -> new IllegalStateException("Sales order is not awaiting payment"));
         }
+        founderDiscounts.reserve(order.id(), userId, OffsetDateTime.now().plusMinutes(30));
+        order = salesOrderService.find(order.id());
         return repository.create(order, paymentReference(), key);
     }
 
@@ -54,6 +59,8 @@ public class PaymentService {
             return repository.findSuccessfulByOrder(order.id())
                     .orElseThrow(() -> new IllegalStateException("Sales order is not awaiting payment"));
         }
+        founderDiscounts.reserve(order.id(), userId, expiresAt);
+        order = salesOrderService.find(order.id());
         return repository.createBankTransfer(order, bankReference(), key, expiresAt);
     }
 
@@ -67,6 +74,8 @@ public class PaymentService {
             return repository.findSuccessfulByOrder(order.id())
                     .orElseThrow(() -> new IllegalStateException("Sales order is not awaiting payment"));
         }
+        founderDiscounts.reserve(order.id(), userId, expiresAt);
+        order = salesOrderService.find(order.id());
         return repository.createStripe(order, stripeReference(), key);
     }
 
@@ -79,8 +88,9 @@ public class PaymentService {
                 SELECT COUNT(*) FROM build_requests b
                 JOIN build_delivery_details d ON d.build_request_id = b.id
                 WHERE b.user_id = ? AND b.request_reference = ?
-                  AND d.recipient_name <> '' AND d.phone <> '' AND d.address_line_1 <> ''
-                  AND d.suburb <> '' AND d.state <> '' AND d.postcode <> ''
+                  AND d.recipient_name <> '' AND d.phone <> ''
+                  AND (d.delivery_method = 'PICKUP' OR (d.address_line_1 <> ''
+                       AND d.suburb <> '' AND d.state <> '' AND d.postcode <> ''))
                 """, Long.class, userId, requestReference);
         if (completeAddress == null || completeAddress == 0)
             throw new IllegalStateException("Confirm a complete delivery address before payment");

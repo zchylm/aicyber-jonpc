@@ -6,8 +6,7 @@ import java.util.UUID;
 
 public record AdminRewardSnapshotResponse(
         CampaignSummary campaign,
-        List<CommitmentItem> commitments,
-        List<FailedEventItem> failedEvents
+        List<CommitmentItem> commitments
 ) {
     public record CampaignSummary(
             int maxPositions,
@@ -29,16 +28,9 @@ public record AdminRewardSnapshotResponse(
             int rateBasisPoints,
             long capCents,
             long cashbackAmountCents,
+            String paymentProvider,
             String status,
-            OffsetDateTime lockedAt
-    ) {}
-
-    public record FailedEventItem(
-            UUID id,
-            String externalEventId,
-            String orderReference,
-            int attemptCount,
-            String lastError,
-            OffsetDateTime createdAt
+            OffsetDateTime lockedAt,
+            OffsetDateTime paidAt
     ) {}
 }

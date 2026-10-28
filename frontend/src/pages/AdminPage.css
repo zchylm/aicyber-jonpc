@@ -148,6 +148,8 @@
 .admin-invoice-actions button:hover, .admin-invoice-actions button:focus-visible { border-color: var(--admin-green); }
 .admin-invoice-actions button:disabled { opacity: .55; cursor: wait; }
 .admin-inline-error { margin: 12px 0 0; color: #a13f3f; font-size: 9px; }
+.admin-reward-note { margin: 0 0 14px; padding: 13px 15px; color: #50615a; background: #f0f5f1; border-left: 3px solid #7ab94f; font-size: 10px; line-height: 1.55; }
+.admin-reward-paid small { max-width: 170px; white-space: normal; overflow-wrap: anywhere; }
 .admin-reward-detail > strong { margin-right: 12px; font: 500 13px 'DM Mono', monospace; }
 .admin-reward-detail > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 15px; background: var(--admin-line); }
 .admin-reward-detail > div span { padding: 13px; background: #fff; color: #65716c; font-size: 9px; }
@@ -192,6 +194,15 @@
 .admin-bank-reject-action { color: #7d3838; background: transparent; border: 1px solid #d8c2c2; }
 .admin-bank-confirm-action:disabled, .admin-bank-reject-action:disabled { opacity: .55; cursor: wait; }
 .admin-bank-warning { grid-column: 2 / 4; color: #64716b; font-size: 10px; line-height: 1.5; }
+.admin-fulfilment-card { display: grid; gap: 14px; }
+.admin-fulfilment-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-fulfilment-status > span:last-child { color: var(--admin-muted); font: 10px 'DM Mono', monospace; }
+.admin-fulfilment-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; background: #f4f7f5; border: 1px solid var(--admin-line); }
+.admin-fulfilment-form label { color: #596760; font: 9px 'DM Mono', monospace; letter-spacing: .04em; text-transform: uppercase; }
+.admin-fulfilment-form input { width: 100%; box-sizing: border-box; margin-top: 7px; padding: 10px; border: 1px solid #cbd5d0; background: #fff; color: var(--admin-ink); }
+.admin-fulfilment-form button, .admin-fulfilment-issue button { grid-column: 1 / -1; min-height: 42px; padding: 0 13px; border: 0; background: var(--admin-green); color: #fff; font: 9px 'DM Mono', monospace; text-transform: uppercase; cursor: pointer; }
+.admin-fulfilment-card > p, .admin-fulfilment-issue p { margin: 0; color: var(--admin-muted); font-size: 11px; line-height: 1.55; }
+.admin-fulfilment-issue { display: grid; gap: 10px; padding: 14px; border-left: 3px solid #c39435; background: #fcf8ee; }
 .admin-login-page { display: grid; grid-template-columns: minmax(420px, .85fr) 1.15fr; min-height: 100svh; }
 .admin-login-page > section { display: flex; flex-direction: column; justify-content: center; padding: 8vw; background: #fbfcfb; }
 .admin-login-page .brand-lockup { color: var(--admin-ink); }
@@ -248,6 +259,7 @@
   .admin-section-heading h2 { font-size: 40px; }
   .admin-drawer { padding: 35px 21px; }
   .admin-detail-grid, .admin-detail-section dl, .admin-reward-detail > div { grid-template-columns: 1fr; }
+  .admin-fulfilment-form { grid-template-columns: 1fr; }
   .admin-login-page > section { padding: 34px 24px; }
   .admin-login-page h1 { font-size: 54px; }
 }

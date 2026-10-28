@@ -39,19 +39,20 @@ class StripePaymentWorkflowServiceIntegrationTest {
         UUID userId = createUser();
         String requestReference = createBuildRequest(userId, 3_299);
         when(stripe.create(any(), anyString(), anyLong())).thenReturn(
-                new StripeCheckoutGateway.CheckoutSession("cs_test_jonpc", "https://checkout.stripe.test/session", "unpaid", null)
+                new StripeCheckoutGateway.CheckoutSession("cs_test_jonpc", "https://checkout.stripe.test/session", "open", "unpaid", null)
         );
 
         StripePaymentResponse checkout = service.create(userId, requestReference, "stripe-attempt-1");
 
-        assertEquals(329_900L, checkout.amountCents());
+        assertEquals(315_905L, checkout.amountCents());
+        assertEquals(16_495L, checkout.discountCents());
         assertEquals("CREATED", checkout.status());
         assertEquals("https://checkout.stripe.test/session", checkout.checkoutUrl());
         assertNotNull(checkout.rewardPreview());
 
         StripeCheckoutGateway.CheckoutEvent paid = new StripeCheckoutGateway.CheckoutEvent(
                 "evt_test_paid", "checkout.session.completed", "cs_test_jonpc", "paid",
-                "pi_test_jonpc", 329_900L, "aud"
+                "pi_test_jonpc", 315_905L, "aud"
         );
         when(stripe.parseWebhook("payload", "signature")).thenReturn(paid);
 
@@ -70,7 +71,7 @@ class StripePaymentWorkflowServiceIntegrationTest {
         UUID userId = createUser();
         String requestReference = createBuildRequest(userId, 1_899);
         when(stripe.create(any(), anyString(), anyLong())).thenReturn(
-                new StripeCheckoutGateway.CheckoutSession("cs_test_wrong_amount", "https://checkout.stripe.test/session", "unpaid", null)
+                new StripeCheckoutGateway.CheckoutSession("cs_test_wrong_amount", "https://checkout.stripe.test/session", "open", "unpaid", null)
         );
         StripePaymentResponse checkout = service.create(userId, requestReference, "stripe-attempt-2");
         when(stripe.parseWebhook("payload", "signature")).thenReturn(new StripeCheckoutGateway.CheckoutEvent(
@@ -84,6 +85,72 @@ class StripePaymentWorkflowServiceIntegrationTest {
         assertEquals("Stripe payment amount does not match the order", exception.getMessage());
         assertEquals("CREATED", value("SELECT status FROM payments WHERE id = ?", checkout.paymentId(), String.class));
         assertEquals(0L, count("SELECT COUNT(*) FROM sales_invoices WHERE sales_order_id = ?", checkout.orderId()));
+    }
+
+    @Test
+    void authenticatedStatusCheckRecoversACompletedSessionWhenWebhookIsUnavailable() {
+        isolateRewardProgram();
+        UUID userId = createUser();
+        String requestReference = createBuildRequest(userId, 2_799);
+        when(stripe.create(any(), anyString(), anyLong())).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_return", "https://checkout.stripe.test/session", "open", "unpaid", null)
+        );
+        StripePaymentResponse checkout = service.create(userId, requestReference, "stripe-return-attempt");
+        when(stripe.retrieve("cs_test_return")).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_return", null, "complete", "paid", "pi_test_return")
+        );
+
+        StripePaymentResponse confirmed = service.status(userId, checkout.paymentId());
+
+        assertEquals("SUCCEEDED", confirmed.status());
+        assertEquals("JOINED", confirmed.rewardState());
+        assertNotNull(confirmed.invoiceId());
+        assertNotNull(confirmed.reward());
+        assertEquals(1L, count("SELECT COUNT(*) FROM reward_commitments WHERE order_id = ?", checkout.orderId()));
+    }
+
+    @Test
+    void authenticatedStatusCheckClosesAnExpiredSessionWithoutDeletingTheOrder() {
+        isolateRewardProgram();
+        UUID userId = createUser();
+        String requestReference = createBuildRequest(userId, 1_899);
+        when(stripe.create(any(), anyString(), anyLong())).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_expired", "https://checkout.stripe.test/session", "open", "unpaid", null)
+        );
+        StripePaymentResponse checkout = service.create(userId, requestReference, "stripe-expired-attempt");
+        when(stripe.retrieve("cs_test_expired")).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_expired", null, "expired", "unpaid", null)
+        );
+
+        StripePaymentResponse expired = service.status(userId, checkout.paymentId());
+
+        assertEquals("CANCELLED", expired.status());
+        assertEquals("PENDING_PAYMENT", value("SELECT status FROM sales_orders WHERE id = ?", checkout.orderId(), String.class));
+        assertEquals(0L, count("SELECT COUNT(*) FROM reward_commitments WHERE order_id = ? AND status <> 'VOID'", checkout.orderId()));
+    }
+
+    @Test
+    void verifiedPaidSessionWinsIfAnExpiredEventWasProcessedFirst() {
+        isolateRewardProgram();
+        UUID userId = createUser();
+        String requestReference = createBuildRequest(userId, 2_799);
+        when(stripe.create(any(), anyString(), anyLong())).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_late_paid", "https://checkout.stripe.test/session", "open", "unpaid", null)
+        );
+        StripePaymentResponse checkout = service.create(userId, requestReference, "stripe-late-paid-attempt");
+        when(stripe.retrieve("cs_test_late_paid")).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_late_paid", null, "expired", "unpaid", null)
+        );
+        assertEquals("CANCELLED", service.status(userId, checkout.paymentId()).status());
+
+        when(stripe.retrieve("cs_test_late_paid")).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_late_paid", null, "complete", "paid", "pi_test_late_paid")
+        );
+        StripePaymentResponse recovered = service.status(userId, checkout.paymentId());
+
+        assertEquals("SUCCEEDED", recovered.status());
+        assertEquals("JOINED", recovered.rewardState());
+        assertEquals(1L, count("SELECT COUNT(*) FROM reward_commitments WHERE order_id = ?", checkout.orderId()));
     }
 
     private UUID createUser() {
@@ -128,6 +195,7 @@ class StripePaymentWorkflowServiceIntegrationTest {
             jdbc.update("DELETE FROM reward_queue_entries WHERE program_id = ?", programId);
             jdbc.update("DELETE FROM reward_policy_versions WHERE program_id = ?", programId);
             jdbc.update("DELETE FROM reward_founder_tiers WHERE program_id = ?", programId);
+            jdbc.update("DELETE FROM reward_months WHERE program_id = ?", programId);
             jdbc.update("DELETE FROM reward_programs WHERE id = ?", programId);
             return null;
         });

@@ -228,14 +228,12 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
   const activeMemory = memorySelection ?? recommendedMemory;
   const memoryOption = optionFor("memory", activeMemory);
   const recommendedMemoryOption = optionFor("memory", recommendedMemory);
-  const memoryDelta = memoryOption.price - recommendedMemoryOption.price;
   const isRecommendedMemory = activeMemory === recommendedMemory;
   const estimatedBuildPrice = estimatedPrice + memoryOption.price;
   const recommendedStorage = backendRecommendation?.storageId ?? catalogStorageOptions[0]?.id ?? "";
   const activeStorage = storageSelection ?? recommendedStorage;
   const storageOption = optionFor("storage", activeStorage);
   const recommendedStorageOption = optionFor("storage", recommendedStorage);
-  const storageDelta = storageOption.price - recommendedStorageOption.price;
   const isRecommendedStorage = activeStorage === recommendedStorage;
   const estimatedFullPrice = estimatedBuildPrice + storageOption.price;
   const recommendedMotherboard = backendRecommendation?.motherboardId ?? optionsFor("motherboard")[0]?.id ?? "";
@@ -323,7 +321,6 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
   const localRecommendedTotal = recommendedCorePrice + recommendedMemoryOption.price + recommendedStorageOption.price
     + recommendedMotherboardOption.price + recommendedPsuOption.price + recommendedCaseOption.price + recommendedCoolingOption.price;
   const selectedAdjustments = estimatedFinalPrice - localRecommendedTotal;
-  const budgetStatus = estimatedFinalPrice > budgetRange.max ? "Above selected budget" : estimatedFinalPrice < budgetRange.min ? "Below selected range" : "Within selected budget";
   const serializedAnswers = JSON.stringify(answers);
 
   const currentQuoteRequest: ConfiguratorQuoteRequest = {
@@ -948,9 +945,9 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                     <h4>{answers.resolution || answers.workload || answers.creativeWork || answers.use || "Your workload"}</h4>
                   </div>
                   <div className="performance-price-block">
-                    <span className="performance-price-label">Your budget / {budgetRange.label}</span>
-                    <strong className="performance-price">${(backendQuote?.estimatedTotal ?? estimatedFinalPrice).toLocaleString("en-AU")} AUD</strong>
-                    <span className="performance-price-status">{budgetStatus}</span>
+                    <span className="performance-price-label">Your selected budget</span>
+                    <strong className="performance-price">{budgetRange.label}</strong>
+                    <span className="performance-price-status">Final quote after review</span>
                   </div>
                 </div>
                 <div className="performance-pair">
@@ -977,12 +974,10 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                     {catalogGpuOptions.filter((option) => option.id !== "integrated" || activePerformance.cpuId !== "ryzen-5-7500f").map((option) => {
                       const selected = option.id === activePerformance.gpuId;
                       const recommended = option.id === recommendedPerformanceSelection.gpuId;
-                      const recommendedOption = optionFor("gpu", recommendedPerformanceSelection.gpuId);
-                      const delta = option.price - recommendedOption.price;
                       return (
                         <button className={selected ? "performance-choice performance-choice-selected" : "performance-choice"} type="button" key={option.id} onClick={() => choosePerformance("gpuId", option.id)} aria-pressed={selected}>
                           <span><strong>{option.label}</strong><small>{option.family} / {option.detail}</small></span>
-                          <em>{recommended ? "Recommended" : delta === 0 ? "Same tier" : `${delta > 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString("en-AU")}`}</em>
+                          {recommended && <em>Recommended</em>}
                         </button>
                       );
                     })}
@@ -995,12 +990,10 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                     {catalogCpuOptions.filter((option) => activePerformance.gpuId !== "integrated" || option.id !== "ryzen-5-7500f").map((option) => {
                       const selected = option.id === activePerformance.cpuId;
                       const recommended = option.id === recommendedPerformanceSelection.cpuId;
-                      const recommendedOption = optionFor("cpu", recommendedPerformanceSelection.cpuId);
-                      const delta = option.price - recommendedOption.price;
                       return (
                         <button className={selected ? "performance-choice performance-choice-selected" : "performance-choice"} type="button" key={option.id} onClick={() => choosePerformance("cpuId", option.id)} aria-pressed={selected}>
                           <span><strong>{option.label}</strong><small>{option.family} / {option.detail}</small></span>
-                          <em>{recommended ? "Recommended" : delta === 0 ? "Same tier" : `${delta > 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString("en-AU")}`}</em>
+                          {recommended && <em>Recommended</em>}
                         </button>
                       );
                     })}
@@ -1031,19 +1024,18 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                   <strong>{memoryOption.label}</strong>
                   <small>{isRecommendedMemory ? `${memoryOption.recommendedFor} for your selected direction.` : `${memoryOption.recommendedFor} / Adjusted from the recommended baseline.`}</small>
                 </div>
-                <span>{isRecommendedMemory ? "Recommended baseline" : `${memoryDelta > 0 ? "+" : "-"}$${Math.abs(memoryDelta).toLocaleString("en-AU")} from recommendation`}</span>
+                {isRecommendedMemory && <span>Recommended</span>}
               </div>
 
               <div className="memory-choice-grid">
                 {catalogMemoryOptions.map((option) => {
                   const selected = option.id === activeMemory;
                   const recommended = option.id === recommendedMemory;
-                  const delta = option.price - recommendedMemoryOption.price;
                   return (
                     <button className={selected ? "memory-choice memory-choice-selected" : "memory-choice"} type="button" key={option.id} onClick={() => chooseMemory(option.id)} aria-pressed={selected}>
                       <span className="memory-choice-capacity">{option.label}</span>
                       <small>{option.detail}</small>
-                      <em>{recommended ? "Recommended" : `${delta > 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString("en-AU")}`}</em>
+                      {recommended && <em>Recommended</em>}
                     </button>
                   );
                 })}
@@ -1073,19 +1065,18 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                   <strong>{storageOption.label}</strong>
                   <small>{isRecommendedStorage ? `${storageOption.recommendedFor} for your selected direction.` : `${storageOption.recommendedFor} / Adjusted from the recommended baseline.`}</small>
                 </div>
-                <span>{isRecommendedStorage ? "Recommended baseline" : `${storageDelta > 0 ? "+" : "-"}$${Math.abs(storageDelta).toLocaleString("en-AU")} from recommendation`}</span>
+                {isRecommendedStorage && <span>Recommended</span>}
               </div>
 
               <div className="storage-choice-grid">
                 {catalogStorageOptions.map((option) => {
                   const selected = option.id === activeStorage;
                   const recommended = option.id === recommendedStorage;
-                  const delta = option.price - recommendedStorageOption.price;
                   return (
                     <button className={selected ? "storage-choice storage-choice-selected" : "storage-choice"} type="button" key={option.id} onClick={() => chooseStorage(option.id)} aria-pressed={selected}>
                       <span className="storage-choice-capacity">{option.label}</span>
                       <small>{option.detail}</small>
-                      <em>{recommended ? "Recommended" : `${delta > 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString("en-AU")}`}</em>
+                      {recommended && <em>Recommended</em>}
                     </button>
                   );
                 })}
@@ -1117,11 +1108,10 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                     {catalogMotherboardOptions.map((option) => {
                       const selected = option.id === activeMotherboard.id;
                       const recommended = option.id === compatibleMotherboardDefault;
-                      const delta = option.price - optionFor("motherboard", compatibleMotherboardDefault).price;
                       return (
                         <button className={selected ? "platform-choice platform-choice-selected" : "platform-choice"} type="button" key={option.id} onClick={() => chooseMotherboard(option.id)} aria-pressed={selected}>
                           <span><strong>{option.label}</strong><small>{option.chipset} / {option.detail}</small></span>
-                          <em>{recommended ? "Recommended" : delta === 0 ? "Same tier" : `${delta > 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString("en-AU")}`}</em>
+                          {recommended && <em>Recommended</em>}
                         </button>
                       );
                     })}
@@ -1134,11 +1124,10 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                     {catalogPsuOptions.map((option) => {
                       const selected = option.id === activePsu.id;
                       const recommended = option.id === compatiblePsuDefault;
-                      const delta = option.price - optionFor("psu", compatiblePsuDefault).price;
                       return (
                         <button className={selected ? "platform-choice platform-choice-selected" : "platform-choice"} type="button" key={option.id} onClick={() => choosePsu(option.id)} aria-pressed={selected}>
                           <span><strong>{option.label}</strong><small>{option.detail} / {option.modular}</small></span>
-                          <em>{recommended ? "Recommended" : delta === 0 ? "Same tier" : `${delta > 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString("en-AU")}`}</em>
+                          {recommended && <em>Recommended</em>}
                         </button>
                       );
                     })}
@@ -1173,12 +1162,11 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                     {catalogCoolingOptions.map((option) => {
                       const selected = option.id === activeCooling.id;
                       const recommended = option.id === compatibleCoolingDefault;
-                      const delta = option.price - optionFor("cooling", compatibleCoolingDefault).price;
                       return (
                         <button className={selected ? "cooling-choice cooling-choice-selected" : "cooling-choice"} type="button" key={option.id} onClick={() => chooseCooling(option.id)} aria-pressed={selected}>
                           <img src={coolingImages[option.id] ?? coolingAir} alt="" />
                           <span><strong>{option.label}</strong><small>{option.detail}</small></span>
-                          <em>{recommended ? "Recommended" : delta === 0 ? "Same tier" : `${delta > 0 ? "+" : "-"}$${Math.abs(delta).toLocaleString("en-AU")}`}</em>
+                          {recommended && <em>Recommended</em>}
                         </button>
                       );
                     })}
@@ -1230,7 +1218,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                   <strong>{buildOrigin ? buildOrigin.modified ? `Customised from ${buildOrigin.name}` : buildOrigin.name : `JON. Custom / ${directionLabel}`}</strong>
                   <p>{answers.resolution || answers.workload || answers.creativeWork || answers.use || "Configured for your direction"} / {budgetRange.label}</p>
                 </div>
-                  <div className="review-price"><span>Estimated build</span><strong>${reviewPrice.toLocaleString("en-AU")} AUD</strong></div>
+                  <div className="review-price"><span>Pricing</span><strong>Quote after review</strong></div>
               </div>
 
               <div className="review-grid">
@@ -1244,7 +1232,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                 </div>
 
                 <div className="review-side-panel">
-                  <div className="review-side-section"><span>Price breakdown</span><div><small>Recommended baseline</small><strong>${reviewBaseline.toLocaleString("en-AU")} AUD</strong></div><div><small>Selected adjustments</small><strong>{reviewAdjustments >= 0 ? "+" : "-"}${Math.abs(reviewAdjustments).toLocaleString("en-AU")} AUD</strong></div><div className="review-total"><small>Estimated total</small><strong>${reviewPrice.toLocaleString("en-AU")} AUD</strong></div></div>
+                  <div className="review-side-section"><span>Quote process</span><div><small>Selected budget</small><strong>{budgetRange.label}</strong></div><div><small>Next step</small><strong>Component and stock review</strong></div><div className="review-total"><small>Final price</small><strong>Sent for your approval</strong></div></div>
                   <div className="review-side-section"><span>JON. validation</span>{backendValidation.length > 0 ? backendValidation.map((message) => <p key={message}><i /> {message}</p>) : <p><i /> All selected components are compatible.</p>}<p><i /> {activePsu.wattage}W power coverage for {performanceOptions.gpu.label}.</p><p><i /> {activeMotherboard.formFactor} case fit and {activeCooling.label.toLowerCase()} matched.</p></div>
                 </div>
               </div>
@@ -1257,7 +1245,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                   </div>
                   <button className="button button-primary" type="button" onClick={openBuildRequest} disabled={!backendQuote || !backendQuote.compatible}>Request this build <span aria-hidden="true">↗</span></button>
                 </div>
-                <span>{requestSubmitted ? "Request noted. A JON. PC specialist will confirm the final quote." : "Estimated pricing is a starting point. Final availability and quote will be confirmed by JON. PC."}</span>
+                <span>{requestSubmitted ? "Request noted. A JON. PC specialist will confirm the final quote." : "We’ll check live component pricing and availability before sending a final quote."}</span>
               </div>
             </div>
           )}
@@ -1274,9 +1262,9 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
           {isReady ? (
             <>
               <div className="summary-performance"><span>Core performance</span><strong>{performanceOptions.cpu.label}</strong><strong>{performanceOptions.gpu.label}</strong></div>
-              <div className="summary-price"><span>Estimated / {budgetRange.label}</span><strong>${(backendQuote?.estimatedTotal ?? estimatedFinalPrice).toLocaleString("en-AU")} AUD</strong></div>
-              {isMemoryReady && <div className="summary-memory"><span>Memory</span><strong>{memoryOption.label}</strong><small>{memoryDelta === 0 ? "Recommended baseline" : `${memoryDelta > 0 ? "+" : "-"}$${Math.abs(memoryDelta).toLocaleString("en-AU")} from recommendation`}</small></div>}
-              {isStorageReady && <div className="summary-memory"><span>Storage</span><strong>{storageOption.label}</strong><small>{storageDelta === 0 ? "Recommended baseline" : `${storageDelta > 0 ? "+" : "-"}$${Math.abs(storageDelta).toLocaleString("en-AU")} from recommendation`}</small></div>}
+              <div className="summary-price"><span>Selected budget</span><strong>{budgetRange.label}</strong></div>
+              {isMemoryReady && <div className="summary-memory"><span>Memory</span><strong>{memoryOption.label}</strong>{isRecommendedMemory && <small>Recommended</small>}</div>}
+              {isStorageReady && <div className="summary-memory"><span>Storage</span><strong>{storageOption.label}</strong>{isRecommendedStorage && <small>Recommended</small>}</div>}
               {isPlatformReady && <>
                 <div className="summary-memory"><span>Platform</span><strong>{activeMotherboard.label}</strong><strong>{activePsu.label}</strong></div>
               </>}
@@ -1303,7 +1291,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                 <span className="section-kicker">JON. PC / Build request</span>
                 <h3 id="request-modal-title">Send your configuration.</h3>
                 <p className="request-modal-intro">We&apos;ll review it and send you a final quote.</p>
-                <div className="request-build-chip"><span>{directionLabel} / {performanceOptions.gpu.label}</span><strong>${reviewPrice.toLocaleString("en-AU")} AUD estimated</strong></div>
+                <div className="request-build-chip"><span>{directionLabel} / {performanceOptions.gpu.label}</span><strong>{budgetRange.label} budget</strong></div>
                 <div className="request-form-grid">
                   <label><span>Name</span><input name="name" type="text" value={user?.displayName ?? ""} readOnly /></label>
                   <label><span>Email</span><input name="email" type="email" value={user?.email ?? ""} readOnly /></label>
@@ -1313,7 +1301,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                 <label className="request-check"><input name="contact" type="checkbox" defaultChecked /><span>Contact me by email about this build request.</span></label>
                 {requestError && <p className="request-error" role="alert">{requestError}</p>}
                 <button className="button button-primary request-submit" type="submit" disabled={requestSubmitting}>{requestSubmitting ? "Validating build..." : "Send build request"} <span aria-hidden="true">↗</span></button>
-                <small className="request-disclaimer">Estimated pricing only. Final pricing depends on availability, assembly and component validation.</small>
+                <small className="request-disclaimer">No payment is required. We’ll send a final quote after component and availability review.</small>
               </form>
             ) : (
               <div className="request-success">

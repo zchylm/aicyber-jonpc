@@ -76,7 +76,7 @@ class AdminInvoiceIntegrationTest {
                 .andExpect(jsonPath("$.delivery.addressLine1").value("1 Test Street"))
                 .andExpect(jsonPath("$.delivery.postcode").value("3000"))
                 .andExpect(jsonPath("$.invoice.invoiceNumber").value(paid.invoiceNumber()))
-                .andExpect(jsonPath("$.invoice.gstCents").value(21336));
+                .andExpect(jsonPath("$.invoice.gstCents").value(20497));
 
         jdbcTemplate.update("UPDATE build_delivery_details SET address_line_1 = 'Changed request address' WHERE build_request_id = (SELECT build_request_id FROM sales_orders WHERE id = ?)", paid.orderId());
         mockMvc.perform(get("/api/admin/orders/{orderId}", paid.orderId())

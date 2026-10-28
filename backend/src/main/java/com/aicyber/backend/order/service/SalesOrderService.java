@@ -64,9 +64,8 @@ public class SalesOrderService {
         return repository.markPaid(orderId);
     }
 
-    @Transactional
-    public SalesOrder markRewardEligible(UUID orderId) {
-        return repository.markRewardEligible(orderId);
+    public SalesOrder find(UUID orderId) {
+        return repository.findById(orderId).orElseThrow(() -> new IllegalArgumentException("Sales order was not found"));
     }
 
     @Transactional

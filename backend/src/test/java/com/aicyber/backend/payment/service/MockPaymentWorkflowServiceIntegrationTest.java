@@ -39,12 +39,12 @@ class MockPaymentWorkflowServiceIntegrationTest {
         MockPaymentResponse secondTabCheckout = service.create(userId, requestReference, "checkout-2");
 
         assertEquals(checkout.paymentId(), duplicateCheckout.paymentId());
-        assertEquals(234_700, checkout.amountCents());
+        assertEquals(225_465, checkout.amountCents());
+        assertEquals(11_735, checkout.discountCents());
         assertEquals("CREATED", checkout.status());
         assertNotNull(checkout.rewardPreview());
         assertEquals(true, checkout.rewardPreview().available());
-        assertEquals("Launch Founder", checkout.rewardPreview().tierName());
-        assertEquals(32_004L, checkout.rewardPreview().cashbackAmountCents());
+        assertEquals("Founder 5% Discount", checkout.rewardPreview().tierName());
 
         MockPaymentResponse completed = service.complete(userId, checkout.paymentId(), "SUCCEEDED");
         MockPaymentResponse replayed = service.complete(userId, checkout.paymentId(), "SUCCEEDED");
@@ -57,36 +57,36 @@ class MockPaymentWorkflowServiceIntegrationTest {
         assertNotNull(completed.invoiceNumber());
         assertEquals(completed.invoiceId(), replayed.invoiceId());
         assertEquals(completed.invoiceNumber(), replayed.invoiceNumber());
-        assertEquals(32_004, completed.reward().cashbackAmountCents());
+        assertEquals(11_735, completed.reward().cashbackAmountCents());
         assertEquals(completed.reward().id(), replayed.reward().id());
         assertEquals(completed.paymentId(), secondTabCompleted.paymentId());
         assertEquals(1L, count("SELECT COUNT(*) FROM payments p JOIN sales_orders s ON s.id = p.order_id " +
                 "WHERE s.user_id = ? AND p.status = 'SUCCEEDED'", userId));
         assertEquals(1L, count("SELECT COUNT(*) FROM reward_commitments c " +
                 "JOIN sales_orders s ON s.id = c.order_id WHERE s.user_id = ?", userId));
-        assertEquals(1L, count("SELECT COUNT(*) FROM reward_inbox_events e " +
+        assertEquals(0L, count("SELECT COUNT(*) FROM reward_inbox_events e " +
                 "JOIN sales_orders s ON s.id = e.order_id WHERE s.user_id = ?", userId));
         assertEquals(1L, count("SELECT COUNT(*) FROM sales_invoices i " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
-        assertEquals(1L, count("SELECT COUNT(*) FROM sales_invoice_lines l " +
+        assertEquals(3L, count("SELECT COUNT(*) FROM sales_invoice_lines l " +
                 "JOIN sales_invoices i ON i.id = l.invoice_id " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
         assertEquals(1L, count("SELECT COUNT(*) FROM invoice_delivery_attempts d " +
                 "JOIN sales_invoices i ON i.id = d.invoice_id " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id " +
-                "WHERE s.user_id = ? AND d.status = 'SENT'", userId));
-        assertEquals(234_700L, value("SELECT i.total_cents FROM sales_invoices i " +
+                "WHERE s.user_id = ?", userId));
+        assertEquals(225_465L, value("SELECT i.total_cents FROM sales_invoices i " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
-        assertEquals(21_336L, value("SELECT i.gst_cents FROM sales_invoices i " +
+        assertEquals(20_497L, value("SELECT i.gst_cents FROM sales_invoices i " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
-        assertEquals(213_364L, value("SELECT i.subtotal_ex_gst_cents FROM sales_invoices i " +
+        assertEquals(204_968L, value("SELECT i.subtotal_ex_gst_cents FROM sales_invoices i " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
         assertEquals(1L, value("SELECT i.founder_number FROM sales_invoices i " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
-        assertEquals(32_004L, value("SELECT i.founder_cashback_amount_cents FROM sales_invoices i " +
+        assertEquals(11_735L, value("SELECT i.founder_cashback_amount_cents FROM sales_invoices i " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
         assertNotNull(orderHistoryRepository.findAllByUserId(userId).get(0).reward());
-        assertEquals(32_004L, orderHistoryRepository.findAllByUserId(userId).get(0).reward().cashbackAmountCents());
+        assertEquals(11_735L, orderHistoryRepository.findAllByUserId(userId).get(0).reward().cashbackAmountCents());
     }
 
     @Test
@@ -102,7 +102,7 @@ class MockPaymentWorkflowServiceIntegrationTest {
         assertEquals(0L, count("SELECT COUNT(*) FROM sales_invoices i " +
                 "JOIN sales_orders s ON s.id = i.sales_order_id WHERE s.user_id = ?", userId));
         assertEquals(0L, count("SELECT COUNT(*) FROM reward_commitments c " +
-                "JOIN sales_orders s ON s.id = c.order_id WHERE s.user_id = ?", userId));
+                "JOIN sales_orders s ON s.id = c.order_id WHERE s.user_id = ? AND c.status <> 'VOID'", userId));
 
         MockPaymentResponse secondAttempt = service.create(userId, requestReference, "attempt-2");
         MockPaymentResponse completed = service.complete(userId, secondAttempt.paymentId(), "SUCCEEDED");
@@ -142,6 +142,29 @@ class MockPaymentWorkflowServiceIntegrationTest {
                 "WHERE s.user_id = ?", userId));
     }
 
+    @Test
+    void monthlyDiscountStopsAtFiftyAndAReleasedPlaceCanBeReused() {
+        isolateRewardProgram();
+        MockPaymentResponse first = null;
+        UUID firstUser = null;
+        for (int index = 0; index < 50; index++) {
+            UUID userId = createUser();
+            MockPaymentResponse checkout = service.create(userId, createBuildRequest(userId, 2_000), "place-" + index);
+            assertEquals(10_000L, checkout.discountCents());
+            if (index == 0) { first = checkout; firstUser = userId; }
+        }
+
+        UUID fullUser = createUser();
+        String fullReference = createBuildRequest(fullUser, 2_000);
+        assertEquals(0L, service.create(fullUser, fullReference, "full").discountCents());
+
+        service.complete(firstUser, first.paymentId(), "FAILED");
+        UUID nextUser = createUser();
+        MockPaymentResponse next = service.create(nextUser, createBuildRequest(nextUser, 2_000), "reused");
+        assertEquals(10_000L, next.discountCents());
+        assertEquals(50L, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM reward_commitments WHERE status <> 'VOID' AND reward_month = date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Melbourne')::date", Long.class));
+    }
+
     private void isolateRewardProgram() {
         jdbcTemplate.query(
                 "SELECT id FROM reward_programs WHERE code = 'JON_FOUNDERS_CASHBACK'",
@@ -161,6 +184,7 @@ class MockPaymentWorkflowServiceIntegrationTest {
                     jdbcTemplate.update("DELETE FROM reward_queue_entries WHERE program_id = ?", programId);
                     jdbcTemplate.update("DELETE FROM reward_policy_versions WHERE program_id = ?", programId);
                     jdbcTemplate.update("DELETE FROM reward_founder_tiers WHERE program_id = ?", programId);
+                    jdbcTemplate.update("DELETE FROM reward_months WHERE program_id = ?", programId);
                     jdbcTemplate.update("DELETE FROM reward_programs WHERE id = ?", programId);
                     return null;
                 }

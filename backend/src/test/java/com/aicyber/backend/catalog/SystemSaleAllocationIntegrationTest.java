@@ -2,7 +2,6 @@ package com.aicyber.backend.catalog;
 
 import com.aicyber.backend.payment.dto.MockPaymentResponse;
 import com.aicyber.backend.payment.service.MockPaymentWorkflowService;
-import com.aicyber.backend.reward.service.RewardDemoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,7 +23,6 @@ class SystemSaleAllocationIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired SystemCatalogService catalog;
     @Autowired MockPaymentWorkflowService payments;
-    @Autowired RewardDemoService demo;
     @Autowired LocalSystemRequestController localRequests;
 
     @Test
@@ -61,18 +59,6 @@ class SystemSaleAllocationIntegrationTest {
     }
 
     @Test
-    void localResetRestoresTheTestSaleableLimit() {
-        SystemProduct system = system("JON-STK-5060TI");
-        UUID user = user();
-        setOnHand(system.id(), 1);
-        MockPaymentResponse payment = payments.create(user, request(user, system), "reset-stock");
-        payments.complete(user, payment.paymentId(), "SUCCEEDED");
-        assertEquals(0, system(system.sku()).availableQuantity());
-        demo.reset(user, "RESET_LOCAL_REWARD_DEMO");
-        assertEquals(8, system(system.sku()).availableQuantity());
-    }
-
-    @Test
     void soldOutSystemCannotCreateANewLocalRequest() {
         SystemProduct system = system("JON-STM-5070");
         Integer allocated = jdbc.queryForObject("SELECT COUNT(*) FROM system_sale_allocations WHERE system_build_id = ?", Integer.class, system.id());
@@ -91,6 +77,14 @@ class SystemSaleAllocationIntegrationTest {
 
     private void setOnHand(UUID systemId, int quantity) {
         jdbc.update("UPDATE system_inventory_balances SET on_hand_quantity = ? WHERE system_build_id = ?", quantity, systemId);
+    }
+
+    private int allocatedQuantity(UUID systemId) {
+        Integer quantity = jdbc.queryForObject("""
+                SELECT (SELECT COUNT(*) FROM system_sale_allocations WHERE system_build_id = ?)
+                     + (SELECT COALESCE(SUM(quantity), 0) FROM system_sale_allocation_items WHERE system_build_id = ?)
+                """, Integer.class, systemId, systemId);
+        return quantity == null ? 0 : quantity;
     }
 
     private UUID user() {

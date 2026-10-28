@@ -15,12 +15,6 @@ public record RewardEntryResponse(
         long effectivePriceCents,
         String status,
         OffsetDateTime lockedAt,
-        OffsetDateTime payableAt,
-        OffsetDateTime payoutDueAt,
-        OffsetDateTime processingAt,
-        OffsetDateTime paidAt,
-        String payoutMethod,
-        String payoutReference,
-        String payoutFailureReason
+        OffsetDateTime paidAt
 ) {
 }

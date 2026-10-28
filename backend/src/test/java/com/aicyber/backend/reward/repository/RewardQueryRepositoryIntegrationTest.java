@@ -1,6 +1,5 @@
 package com.aicyber.backend.reward.repository;
 
-import com.aicyber.backend.reward.service.RewardEventProcessor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,15 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class RewardQueryRepositoryIntegrationTest {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired RewardQueryRepository repository;
-    @Autowired RewardEventProcessor processor;
 
     @Test
     void returnsOnlyCommitmentsOwnedByTheRequestedUser() {
         UUID programId = createProgram();
         UUID firstUser = createUser();
         UUID secondUser = createUser();
-        createEligibleOrderAndProcess(programId, firstUser);
-        createEligibleOrderAndProcess(programId, secondUser);
+        createDiscountedOrder(programId, firstUser, 1);
+        createDiscountedOrder(programId, secondUser, 2);
 
         assertEquals(1, repository.findEntries(programId, firstUser).size());
         assertEquals(1, repository.findEntries(programId, secondUser).size());
@@ -47,10 +45,19 @@ class RewardQueryRepositoryIntegrationTest {
         return id;
     }
 
-    private void createEligibleOrderAndProcess(UUID programId, UUID userId) {
+    private void createDiscountedOrder(UUID programId, UUID userId, int position) {
         UUID orderId = UUID.randomUUID();
-        jdbcTemplate.update("INSERT INTO sales_orders (id, user_id, order_reference, amount_cents, status, paid_at, reward_eligible_at) VALUES (?, ?, ?, 200000, 'REWARD_ELIGIBLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", orderId, userId, "SO-" + orderId);
-        jdbcTemplate.update("INSERT INTO reward_inbox_events (id, program_id, external_event_id, event_type, order_id) VALUES (?, ?, ?, 'ORDER_REWARD_ELIGIBLE', ?)", UUID.randomUUID(), programId, "EVENT-" + orderId, orderId);
-        processor.processNext(programId);
+        jdbcTemplate.update("INSERT INTO sales_orders (id, user_id, order_reference, amount_cents, product_subtotal_cents, discount_cents, status, paid_at) VALUES (?, ?, ?, 190000, 200000, 10000, 'PAID', CURRENT_TIMESTAMP)", orderId, userId, "SO-" + orderId);
+        UUID tierId = jdbcTemplate.queryForObject(
+                "SELECT id FROM reward_founder_tiers WHERE program_id = ? AND ? BETWEEN position_start AND position_end",
+                UUID.class, programId, position);
+        jdbcTemplate.update("""
+                INSERT INTO reward_commitments
+                    (id, program_id, tier_id, order_id, user_id, founder_sequence, reward_month,
+                     qualifying_at, purchase_amount_cents, eligible_spend_cents, rate_basis_points,
+                     cap_cents, cashback_amount_cents, status, paid_at)
+                VALUES (?, ?, ?, ?, ?, ?, date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Melbourne')::date,
+                        CURRENT_TIMESTAMP, 200000, 200000, 500, 999999999999, 10000, 'PAID', CURRENT_TIMESTAMP)
+                """, UUID.randomUUID(), programId, tierId, orderId, userId, position);
     }
 }

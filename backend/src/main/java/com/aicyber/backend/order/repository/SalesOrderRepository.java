@@ -13,6 +13,7 @@ import java.util.UUID;
 
 @Repository
 public class SalesOrderRepository {
+    private static final long MELBOURNE_METRO_SHIPPING_CENTS = 2_500;
     private final JdbcTemplate jdbcTemplate;
 
     public SalesOrderRepository(JdbcTemplate jdbcTemplate) {
@@ -61,22 +62,30 @@ public class SalesOrderRepository {
 
     public SalesOrder createFromBuildRequest(BuildRequestOrderSource source, String orderReference) {
         UUID orderId = UUID.randomUUID();
+        String deliveryMethod = jdbcTemplate.query(
+                "SELECT delivery_method FROM build_delivery_details WHERE build_request_id = ?",
+                (resultSet, rowNumber) -> resultSet.getString("delivery_method"), source.id())
+                .stream().findFirst().orElse("PICKUP");
+        long shippingFeeCents = "PICKUP".equals(deliveryMethod) ? 0 : MELBOURNE_METRO_SHIPPING_CENTS;
+        long totalCents = source.estimatedPriceCents() + shippingFeeCents;
         jdbcTemplate.update(
                 "INSERT INTO sales_orders " +
-                        "(id, user_id, build_request_id, order_reference, amount_cents, currency, status) " +
-                        "VALUES (?, ?, ?, ?, ?, 'AUD', 'PENDING_PAYMENT') " +
+                        "(id, user_id, build_request_id, order_reference, amount_cents, product_subtotal_cents, shipping_fee_cents, currency, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'AUD', 'PENDING_PAYMENT') " +
                         "ON CONFLICT (build_request_id) DO NOTHING",
                 orderId,
                 source.userId(),
                 source.id(),
                 orderReference,
-                source.estimatedPriceCents()
+                totalCents,
+                source.estimatedPriceCents(),
+                shippingFeeCents
         );
         SalesOrder order = findByBuildRequestId(source.id()).orElseThrow();
         jdbcTemplate.update("""
                 INSERT INTO sales_order_delivery
-                    (sales_order_id, recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country)
-                SELECT ?, recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country
+                    (sales_order_id, delivery_method, recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country)
+                SELECT ?, delivery_method, recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country
                 FROM build_delivery_details WHERE build_request_id = ?
                 ON CONFLICT (sales_order_id) DO NOTHING
                 """, order.id(), source.id());
@@ -87,11 +96,12 @@ public class SalesOrderRepository {
         UUID orderId = UUID.randomUUID();
         jdbcTemplate.update(
                 "INSERT INTO sales_orders " +
-                        "(id, user_id, order_reference, amount_cents, currency, status) " +
-                        "VALUES (?, ?, ?, ?, 'AUD', 'PENDING_PAYMENT')",
+                        "(id, user_id, order_reference, amount_cents, product_subtotal_cents, currency, status) " +
+                        "VALUES (?, ?, ?, ?, ?, 'AUD', 'PENDING_PAYMENT')",
                 orderId,
                 userId,
                 orderReference,
+                amountCents,
                 amountCents
         );
         return findById(orderId).orElseThrow();
@@ -104,16 +114,6 @@ public class SalesOrderRepository {
                 orderId
         );
         requireSingleUpdate(updated, "Sales order was not pending payment");
-        return findById(orderId).orElseThrow();
-    }
-
-    public SalesOrder markRewardEligible(UUID orderId) {
-        int updated = jdbcTemplate.update(
-                "UPDATE sales_orders SET status = 'REWARD_ELIGIBLE', reward_eligible_at = CURRENT_TIMESTAMP, " +
-                        "updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'PAID'",
-                orderId
-        );
-        requireSingleUpdate(updated, "Sales order was not paid");
         return findById(orderId).orElseThrow();
     }
 

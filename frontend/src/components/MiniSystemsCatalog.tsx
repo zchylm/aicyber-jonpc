@@ -38,7 +38,7 @@ function MiniSystemsCatalog({ systems, onAddToBag, onBuyNow }: { systems: Previe
   return <div className="mini-systems-catalog" id="compact-ai-systems">
     <div className="first-batch-toolbar first-batch-toolbar-mini"><div><span>JON.PC compact AI systems</span><strong>Local AI → Edge compute</strong></div><button type="button" onClick={openComparePanel} aria-haspopup="dialog">Compare mini PCs <span aria-hidden="true">↗</span></button></div>
     <div className="first-batch-grid">{systems.map((system, index) => <article className="first-batch-card mini-system-card" key={system.id}>
-      <div className="first-batch-visual mini-system-visual"><img src={images[system.sku]} alt={`${system.name} illustrative JON.PC mini PC`} /><span className="first-batch-visual-label">JON.PC / 0{index + 1} · Illustrative</span></div>
+      <div className="first-batch-visual mini-system-visual"><img src={images[system.sku]} alt={`${system.name} JON.PC mini PC preview`} /><span className="first-batch-visual-label">JON.PC / 0{index + 1}</span></div>
       <div className="first-batch-card-body"><div className="first-batch-card-top"><span>{system.available ? "In stock" : "Unavailable"}</span></div><h3>{system.name}</h3><p>{system.recommendedFor}</p><div className="first-batch-card-bottom"><strong>{money(system.priceCents)} <small>incl. GST</small></strong><div className="first-batch-card-actions"><button type="button" onClick={() => showSystem(system)}>View system <span aria-hidden="true">↗</span></button><button type="button" className="first-batch-request" onClick={() => onAddToBag(system)} disabled={!system.saleEnabled || !system.available}>Add to cart <span aria-hidden="true">→</span></button></div></div></div>
     </article>)}</div>
 

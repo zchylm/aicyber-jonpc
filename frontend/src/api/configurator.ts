@@ -127,8 +127,21 @@ export type OrderHistoryItem = {
   quoteTotalCents: number | null;
   quoteValidUntil: string | null;
   quoteNote: string | null;
+  fulfilment: OrderFulfilment | null;
   reward: RewardEntry | null;
   items: Array<{ systemId: string; sku: string; name: string; unitPriceCents: number; quantity: number; lineTotalCents: number }>;
+};
+
+export type OrderFulfilment = {
+  status: "PREPARING" | "DISPATCHED" | "DELIVERED" | "ISSUE_REPORTED" | "RECEIVED";
+  carrier: string | null;
+  trackingNumber: string | null;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
+  autoConfirmAt: string | null;
+  receivedAt: string | null;
+  issueReportedAt: string | null;
+  issueSummary: string | null;
 };
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -262,6 +275,25 @@ export async function cancelOrderRequest(token: string, requestId: string): Prom
     const body = await response.json().catch(() => null) as { detail?: string; message?: string } | null;
     throw new Error(body?.detail ?? body?.message ?? `Unable to cancel request (${response.status})`);
   }
+}
+
+export async function confirmOrderReceived(token: string, orderId: string): Promise<OrderFulfilment> {
+  return updateFulfilment(token, orderId, "confirm-received");
+}
+
+export async function reportOrderDeliveryIssue(token: string, orderId: string, summary: string): Promise<OrderFulfilment> {
+  return updateFulfilment(token, orderId, "delivery-issue", { summary });
+}
+
+async function updateFulfilment(token: string, orderId: string, action: string, body?: object): Promise<OrderFulfilment> {
+  const response = await fetch(`${apiBaseUrl}/api/orders/${encodeURIComponent(orderId)}/${action}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const result = await response.json().catch(() => null) as (OrderFulfilment & { detail?: string; message?: string }) | null;
+  if (!response.ok) throw new Error(result?.detail ?? result?.message ?? `Unable to update delivery (${response.status})`);
+  return result as OrderFulfilment;
 }
 
 export async function acceptCustomQuote(token: string, quoteId: string): Promise<void> {

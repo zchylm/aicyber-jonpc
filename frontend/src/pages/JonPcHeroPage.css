@@ -97,6 +97,8 @@
 .order-primary-action { color: var(--cyan); border-bottom: 1px solid var(--line) !important; }
 .order-history-row-footer button:hover, .order-history-row-footer button:focus-visible { color: var(--lime); border-color: var(--lime); }
 .order-history-row-footer .order-invoice-download-compact { color: var(--cyan); border-bottom: 1px solid rgba(126, 232, 227, .22); }
+.order-tracking-compact { padding: 7px 0; color: var(--cyan); border-bottom: 1px solid rgba(126, 232, 227, .22); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .045em; text-decoration: none; text-transform: uppercase; }
+.order-tracking-compact:hover, .order-tracking-compact:focus-visible { color: var(--lime); border-color: var(--lime); }
 .order-next-step { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .045em; text-transform: uppercase; }
 .order-quote-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 16px; }
 .order-quote-action > span { color: #8d9a96; font: 8px 'DM Mono', monospace; letter-spacing: .04em; text-transform: uppercase; }
@@ -119,6 +121,17 @@
 .order-founder-summary span { color: #71807c; font: 8px 'DM Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
 .order-founder-summary strong { color: var(--ink); font-size: 11px; font-weight: 500; }
 .order-founder-summary > div:nth-child(2) strong { color: var(--lime); }
+.order-delivery-progress { display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(143, 232, 226, .28); background: rgba(143, 232, 226, .045); }
+.order-delivery-progress > div:first-child { display: grid; gap: 5px; }
+.order-delivery-progress span { color: #71807c; font: 9px 'DM Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
+.order-delivery-progress strong { color: var(--ink); font-size: 14px; font-weight: 500; }
+.order-delivery-progress p, .order-delivery-progress small { margin: 0; color: #aab4b1; font-size: 11px; line-height: 1.55; }
+.order-delivery-progress .order-tracking-reference { width: fit-content; color: var(--cyan); font: 10px 'DM Mono', monospace; letter-spacing: .03em; text-decoration: none; }
+.order-delivery-progress a.order-tracking-reference:hover, .order-delivery-progress a.order-tracking-reference:focus-visible { color: var(--lime); }
+.order-delivery-actions, .order-delivery-report > div { display: flex; gap: 10px; flex-wrap: wrap; }
+.order-delivery-actions button, .order-delivery-report button { border: 1px solid var(--line); background: transparent; color: var(--cyan); padding: 9px 12px; font: 9px 'DM Mono', monospace; letter-spacing: .04em; text-transform: uppercase; }
+.order-delivery-report { display: grid; gap: 10px; }
+.order-delivery-report textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line); background: rgba(0, 0, 0, .25); color: var(--ink); padding: 11px; font: 12px/1.5 'Inter', sans-serif; resize: vertical; }
 .order-invoice-download { width: fit-content; padding: 0 0 3px; color: var(--cyan); background: transparent; border: 0; border-bottom: 1px solid #31514e; font-family: 'DM Mono', monospace; font-size: 9px; text-align: left; cursor: pointer; }
 .order-invoice-download:hover, .order-invoice-download:focus-visible { color: var(--lime); border-color: var(--lime); }
 .order-invoice-download:disabled { cursor: wait; opacity: .55; }

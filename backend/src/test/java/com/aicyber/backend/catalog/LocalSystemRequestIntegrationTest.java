@@ -55,14 +55,14 @@ class LocalSystemRequestIntegrationTest {
                 """, requestId);
 
         var checkout = payments.create(userId, request.requestReference(), UUID.randomUUID().toString());
-        assertEquals(system.priceCents(), checkout.amountCents());
+        assertEquals(system.priceCents() + 2_500, checkout.amountCents());
         assertNotNull(checkout.orderReference());
         var settled = payments.complete(userId, checkout.paymentId(), "SUCCEEDED");
         assertNotNull(settled.invoiceId());
         assertEquals(system.sku(), jdbc.queryForObject(
-                "SELECT sku_snapshot FROM sales_invoice_lines WHERE invoice_id = ?", String.class, settled.invoiceId()));
+                "SELECT sku_snapshot FROM sales_invoice_lines WHERE invoice_id = ? AND line_number = 1", String.class, settled.invoiceId()));
         assertEquals(system.name(), jdbc.queryForObject(
-                "SELECT description_snapshot FROM sales_invoice_lines WHERE invoice_id = ?", String.class, settled.invoiceId()));
+                "SELECT description_snapshot FROM sales_invoice_lines WHERE invoice_id = ? AND line_number = 1", String.class, settled.invoiceId()));
         assertEquals(stockBefore, count("SELECT COALESCE(SUM(on_hand_quantity), 0) FROM inventory_balances"));
         assertEquals(0L, count("SELECT COUNT(*) FROM inventory_reservations"));
     }

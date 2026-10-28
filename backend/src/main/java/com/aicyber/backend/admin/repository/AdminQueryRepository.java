@@ -29,12 +29,13 @@ public class AdminQueryRepository {
                 SELECT
                     (SELECT COUNT(*) FROM sales_orders) AS total_orders,
                     (SELECT COUNT(*) FROM sales_orders WHERE status = 'PENDING_PAYMENT') AS pending_orders,
-                    (SELECT COUNT(*) FROM sales_orders WHERE status IN ('PAID', 'REWARD_ELIGIBLE')) AS paid_orders,
+                    (SELECT COUNT(*) FROM sales_orders WHERE status = 'PAID') AS paid_orders,
                     COALESCE((SELECT SUM(amount_cents) FROM payments WHERE status = 'SUCCEEDED'), 0) AS payment_cents,
-                    (SELECT COUNT(*) FROM reward_commitments WHERE status IN ('LOCKED', 'PAYABLE')) AS waiting_rewards,
+                    (SELECT COUNT(*) FROM reward_commitments WHERE status = 'PROCESSING' AND reservation_expires_at > CURRENT_TIMESTAMP) AS waiting_rewards,
                     (SELECT COUNT(*) FROM reward_commitments WHERE status = 'PAID') AS completed_rewards,
-                    COALESCE((SELECT SUM(cashback_amount_cents) FROM reward_commitments WHERE status <> 'VOID'), 0) AS allocated_cents,
-                    (SELECT COUNT(*) FROM reward_inbox_events WHERE status = 'FAILED') AS failed_events,
+                    COALESCE((SELECT SUM(cashback_amount_cents) FROM reward_commitments WHERE status <> 'VOID'
+                        AND (status <> 'PROCESSING' OR reservation_expires_at > CURRENT_TIMESTAMP)), 0) AS allocated_cents,
+                    0 AS failed_events,
                     (SELECT COUNT(*) FROM build_requests b
                      WHERE b.user_id IS NOT NULL AND b.status <> 'CANCELLED'
                        AND b.configuration_snapshot->'answers'->>'systemSku' IS NULL
@@ -72,7 +73,8 @@ public class AdminQueryRepository {
                         AND (p.succeeded_at AT TIME ZONE 'Australia/Melbourne')::date =
                             (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Melbourne')::date), 0) AS revenue_today
                     ,COALESCE((SELECT SUM(c.cashback_amount_cents) FROM reward_commitments c
-                        WHERE c.status <> 'VOID' AND (c.locked_at AT TIME ZONE 'Australia/Melbourne')::date =
+                        WHERE c.status <> 'VOID' AND (c.status <> 'PROCESSING' OR c.reservation_expires_at > CURRENT_TIMESTAMP)
+                          AND (c.locked_at AT TIME ZONE 'Australia/Melbourne')::date =
                             (CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Melbourne')::date), 0) AS rewards_allocated_today
                     ,(SELECT COUNT(*) FROM build_requests b WHERE b.user_id IS NOT NULL
                         AND b.configuration_snapshot->'answers'->>'systemSku' IS NULL
@@ -159,11 +161,11 @@ public class AdminQueryRepository {
                            NULL::bigint, m.created_at
                     FROM system_inventory_movements m JOIN system_builds s ON s.id = m.system_build_id
                     UNION ALL
-                    SELECT 'REWARD', 'Founder cashback locked',
+                    SELECT 'REWARD', 'Founder discount reserved',
                            s.order_reference, c.cashback_amount_cents, c.locked_at
                     FROM reward_commitments c
                     JOIN sales_orders s ON s.id = c.order_id
-                    WHERE c.status <> 'VOID'
+                    WHERE c.status <> 'VOID' AND (c.status <> 'PROCESSING' OR c.reservation_expires_at > CURRENT_TIMESTAMP)
                 ) activity ORDER BY occurred_at DESC LIMIT 8
                 """, (rs, row) -> new AdminOverviewResponse.ActivityItem(
                 rs.getString("type"), rs.getString("title"), rs.getString("detail"),
@@ -199,7 +201,8 @@ public class AdminQueryRepository {
                 ) p ON TRUE
                 LEFT JOIN LATERAL (
                     SELECT status FROM reward_commitments
-                    WHERE order_id = s.id ORDER BY locked_at DESC LIMIT 1
+                    WHERE order_id = s.id AND (status <> 'PROCESSING' OR reservation_expires_at > CURRENT_TIMESTAMP)
+                    ORDER BY locked_at DESC LIMIT 1
                 ) q ON TRUE
                 LEFT JOIN sales_invoices i ON i.sales_order_id = s.id
                 WHERE (? = '' OR LOWER(s.order_reference) LIKE ? OR LOWER(u.email) LIKE ?
@@ -256,8 +259,24 @@ public class AdminQueryRepository {
                 value.id(), value.orderReference(), value.customerName(), value.customerEmail(), value.customerReference(),
                 value.amountCents(), value.currency(), value.status(), value.paidAt(), value.rewardEligibleAt(),
                 value.createdAt(), value.updatedAt(), value.buildRequestReference(), value.direction(),
-                value.configuration(), systems(orderId), delivery(orderId).orElse(null), payments(orderId), invoice(orderId).orElse(null), reward(orderId).orElse(null)
+                value.configuration(), systems(orderId), delivery(orderId).orElse(null), payments(orderId), invoice(orderId).orElse(null),
+                reward(orderId).orElse(null), fulfilment(orderId).orElse(null)
         ));
+    }
+
+    private Optional<com.aicyber.backend.order.dto.OrderFulfilmentResponse> fulfilment(UUID orderId) {
+        return jdbcTemplate.query("""
+                SELECT status, carrier, tracking_number, dispatched_at, delivered_at, auto_confirm_at,
+                       received_at, issue_reported_at, issue_summary
+                FROM order_fulfilments WHERE sales_order_id = ?
+                """, (rs, row) -> new com.aicyber.backend.order.dto.OrderFulfilmentResponse(
+                rs.getString("status"), rs.getString("carrier"), rs.getString("tracking_number"),
+                rs.getObject("dispatched_at", java.time.OffsetDateTime.class),
+                rs.getObject("delivered_at", java.time.OffsetDateTime.class),
+                rs.getObject("auto_confirm_at", java.time.OffsetDateTime.class),
+                rs.getObject("received_at", java.time.OffsetDateTime.class),
+                rs.getObject("issue_reported_at", java.time.OffsetDateTime.class), rs.getString("issue_summary")
+        ), orderId).stream().findFirst();
     }
 
     private List<AdminOrderDetailResponse.SystemItem> systems(UUID orderId) {
@@ -272,7 +291,7 @@ public class AdminQueryRepository {
     }
 
     public AdminRewardSnapshotResponse rewards() {
-        return new AdminRewardSnapshotResponse(campaignSummary(), commitments(), failedEvents());
+        return new AdminRewardSnapshotResponse(campaignSummary(), commitments());
     }
 
     private List<AdminOrderDetailResponse.PaymentItem> payments(UUID orderId) {
@@ -298,10 +317,10 @@ public class AdminQueryRepository {
 
     private Optional<AdminOrderDetailResponse.DeliveryItem> delivery(UUID orderId) {
         return jdbcTemplate.query("""
-                SELECT recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country
+                SELECT delivery_method, recipient_name, phone, address_line_1, address_line_2, suburb, state, postcode, country
                 FROM sales_order_delivery WHERE sales_order_id = ?
                 """, (rs, row) -> new AdminOrderDetailResponse.DeliveryItem(
-                rs.getString("recipient_name"), rs.getString("phone"), rs.getString("address_line_1"),
+                rs.getString("delivery_method"), rs.getString("recipient_name"), rs.getString("phone"), rs.getString("address_line_1"),
                 rs.getString("address_line_2"), rs.getString("suburb"), rs.getString("state"),
                 rs.getString("postcode"), rs.getString("country")
         ), orderId).stream().findFirst();
@@ -310,7 +329,7 @@ public class AdminQueryRepository {
     private Optional<AdminOrderDetailResponse.RewardItem> reward(UUID orderId) {
         return jdbcTemplate.query("""
                 SELECT c.id, c.founder_sequence, t.display_name, c.rate_basis_points, c.cap_cents,
-                       c.purchase_amount_cents, c.cashback_amount_cents, c.status, c.locked_at, c.payable_at, c.paid_at
+                       c.purchase_amount_cents, c.cashback_amount_cents, c.status, c.locked_at, c.paid_at
                 FROM reward_commitments c JOIN reward_founder_tiers t ON t.id = c.tier_id
                 WHERE c.order_id = ?
                 """, (resultSet, rowNum) -> new AdminOrderDetailResponse.RewardItem(
@@ -319,7 +338,6 @@ public class AdminQueryRepository {
                 resultSet.getLong("cap_cents"), resultSet.getLong("purchase_amount_cents"),
                 resultSet.getLong("cashback_amount_cents"), resultSet.getString("status"),
                 resultSet.getObject("locked_at", java.time.OffsetDateTime.class),
-                resultSet.getObject("payable_at", java.time.OffsetDateTime.class),
                 resultSet.getObject("paid_at", java.time.OffsetDateTime.class)
         ), orderId).stream().findFirst();
     }
@@ -354,10 +372,11 @@ public class AdminQueryRepository {
                 FROM (SELECT 1) seed
                 LEFT JOIN reward_programs p ON p.code = 'JON_FOUNDERS_CASHBACK'
                 LEFT JOIN LATERAL (
-                    SELECT COUNT(*) FILTER (WHERE c.status <> 'VOID') AS confirmed,
-                           COALESCE(SUM(c.cashback_amount_cents) FILTER (WHERE c.status <> 'VOID'), 0) AS committed,
+                    SELECT COUNT(*) FILTER (WHERE c.status <> 'VOID' AND (c.status <> 'PROCESSING' OR c.reservation_expires_at > CURRENT_TIMESTAMP)) AS confirmed,
+                           COALESCE(SUM(c.cashback_amount_cents) FILTER (WHERE c.status <> 'VOID' AND (c.status <> 'PROCESSING' OR c.reservation_expires_at > CURRENT_TIMESTAMP)), 0) AS committed,
                            COALESCE(SUM(c.cashback_amount_cents) FILTER (WHERE c.status = 'PAID'), 0) AS paid
                     FROM reward_commitments c WHERE c.program_id = p.id
+                      AND c.reward_month = date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'Australia/Melbourne')::date
                 ) t ON TRUE
                 """, (rs, row) -> {
             long confirmed = rs.getLong("confirmed");
@@ -375,31 +394,28 @@ public class AdminQueryRepository {
         return jdbcTemplate.query("""
                 SELECT c.id, c.founder_sequence, t.display_name, s.order_reference, u.email,
                        c.purchase_amount_cents, c.rate_basis_points, c.cap_cents, c.cashback_amount_cents,
-                       c.status, c.locked_at
+                       COALESCE(p.provider, 'UNKNOWN') AS payment_provider,
+                       c.status, c.locked_at, c.paid_at
                 FROM reward_commitments c
                 JOIN reward_founder_tiers t ON t.id = c.tier_id
                 JOIN sales_orders s ON s.id = c.order_id
                 JOIN users u ON u.id = c.user_id
-                ORDER BY c.founder_sequence DESC LIMIT 100
+                LEFT JOIN LATERAL (
+                    SELECT provider FROM payments
+                    WHERE order_id = c.order_id AND status = 'SUCCEEDED'
+                    ORDER BY succeeded_at DESC NULLS LAST, created_at DESC LIMIT 1
+                ) p ON TRUE
+                WHERE c.status <> 'PROCESSING' OR c.reservation_expires_at > CURRENT_TIMESTAMP
+                ORDER BY c.reward_month DESC, c.founder_sequence DESC LIMIT 100
                 """, (resultSet, rowNum) -> new AdminRewardSnapshotResponse.CommitmentItem(
                 resultSet.getObject("id", UUID.class), resultSet.getLong("founder_sequence"),
                 resultSet.getString("display_name"), resultSet.getString("order_reference"),
                 resultSet.getString("email"), resultSet.getLong("purchase_amount_cents"),
                 resultSet.getInt("rate_basis_points"), resultSet.getLong("cap_cents"),
-                resultSet.getLong("cashback_amount_cents"), resultSet.getString("status"),
-                resultSet.getObject("locked_at", java.time.OffsetDateTime.class)
-        ));
-    }
-
-    private List<AdminRewardSnapshotResponse.FailedEventItem> failedEvents() {
-        return jdbcTemplate.query("""
-                SELECT e.id, e.external_event_id, s.order_reference, e.attempt_count, e.last_error, e.created_at
-                FROM reward_inbox_events e JOIN sales_orders s ON s.id = e.order_id
-                WHERE e.status = 'FAILED' ORDER BY e.created_at DESC LIMIT 100
-                """, (resultSet, rowNum) -> new AdminRewardSnapshotResponse.FailedEventItem(
-                resultSet.getObject("id", UUID.class), resultSet.getString("external_event_id"),
-                resultSet.getString("order_reference"), resultSet.getInt("attempt_count"),
-                resultSet.getString("last_error"), resultSet.getObject("created_at", java.time.OffsetDateTime.class)
+                resultSet.getLong("cashback_amount_cents"), resultSet.getString("payment_provider"),
+                resultSet.getString("status"),
+                resultSet.getObject("locked_at", java.time.OffsetDateTime.class),
+                resultSet.getObject("paid_at", java.time.OffsetDateTime.class)
         ));
     }
 
@@ -434,4 +450,5 @@ public class AdminQueryRepository {
             java.util.Map<String, Object> configuration
     ) {
     }
+
 }

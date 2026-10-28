@@ -42,8 +42,8 @@ class InvoicePdfRendererTest {
             assertTrue(text.contains("Total including GST"));
             assertTrue(text.contains("$2,347.00"));
             assertTrue(text.contains("Total price includes GST"));
-            assertTrue(text.contains("FOUNDER CASHBACK COMMITMENT"));
-            assertTrue(text.contains("Founder #08"));
+            assertTrue(text.contains("FOUNDER 5% DISCOUNT"));
+            assertTrue(text.contains("SAVED AT CHECKOUT"));
             assertTrue(text.contains("$381.68"));
         }
     }

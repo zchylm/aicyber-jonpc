@@ -84,12 +84,18 @@ class CartCheckoutIntegrationTest {
         MockPaymentResponse paid = payments.complete(userId, created.paymentId(), "SUCCEEDED");
 
         SalesInvoice invoice = invoices.invoice(paid.invoiceId());
-        assertEquals(prepared.totalCents(), paid.amountCents());
-        assertEquals(2, invoice.lines().size());
-        assertEquals(3, invoice.lines().stream().mapToInt(line -> line.quantity()).sum());
-        assertEquals(prepared.totalCents(), invoice.lines().stream().mapToLong(line -> line.lineTotalCents()).sum());
+        long founderDiscount = (prepared.totalCents() * 500 + 5_000) / 10_000;
+        long discountedTotal = prepared.totalCents() - founderDiscount + 2_500;
+        assertEquals(discountedTotal, paid.amountCents());
+        assertEquals(4, invoice.lines().size());
+        assertEquals(discountedTotal, invoice.lines().stream().mapToLong(line -> line.lineTotalCents()).sum());
+        assertEquals(-founderDiscount, invoice.lines().stream()
+                .filter(line -> "FOUNDER-5-OFF".equals(line.sku()))
+                .findFirst().orElseThrow().lineTotalCents());
         assertEquals(2, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM system_sale_allocation_items WHERE sales_order_id = ?", Integer.class, created.orderId()));
+        assertEquals(3, jdbc.queryForObject(
+                "SELECT SUM(quantity) FROM system_sale_allocation_items WHERE sales_order_id = ?", Integer.class, created.orderId()));
         assertEquals(0, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM system_sale_reservations WHERE sales_order_id = ?", Integer.class, created.orderId()));
         assertEquals(2, orderHistory.list(userId).get(0).items().size());

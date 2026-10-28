@@ -34,7 +34,7 @@ class SystemCatalogIntegrationTest {
                 .andExpect(jsonPath("$[1].specifications.GPU").value("NVIDIA GeForce RTX 5060 Ti 16GB GDDR7"))
                 .andExpect(jsonPath("$[3].priceCents").value(394900))
                 .andExpect(jsonPath("$[0].available").isBoolean())
-                .andExpect(jsonPath("$[0].saleEnabled").value(false))
+                .andExpect(jsonPath("$[0].saleEnabled").value(true))
                 .andExpect(jsonPath("$[0].availableQuantity").doesNotExist())
                 .andExpect(jsonPath("$[0].plannedPreorderQuantity").doesNotExist())
                 .andExpect(jsonPath("$[0].onHandQuantity").doesNotExist())
@@ -50,14 +50,25 @@ class SystemCatalogIntegrationTest {
                 .andExpect(jsonPath("$[0].salesMode").value("STOCK_CHECK_REQUIRED"))
                 .andExpect(jsonPath("$[0].onHandQuantity").value(0))
                 .andExpect(jsonPath("$[8].sku").value("JON-STK-5060"))
-                .andExpect(jsonPath("$[8].plannedPreorderQuantity").value(8))
-                .andExpect(jsonPath("$[8].onHandQuantity").value(8))
+                .andExpect(jsonPath("$[8].plannedPreorderQuantity").value(5))
+                .andExpect(jsonPath("$[8].onHandQuantity").value(5))
                 .andExpect(jsonPath("$[8].sourceRevision").value("2026-09-16"));
 
         Integer componentStock = jdbc.queryForObject("SELECT COALESCE(SUM(on_hand_quantity), 0) FROM inventory_balances", Integer.class);
         Integer systemStock = jdbc.queryForObject("SELECT COALESCE(SUM(on_hand_quantity), 0) FROM system_inventory_balances", Integer.class);
         org.junit.jupiter.api.Assertions.assertNotNull(componentStock);
-        org.junit.jupiter.api.Assertions.assertEquals(20, systemStock);
+        org.junit.jupiter.api.Assertions.assertEquals(40, systemStock);
+        org.junit.jupiter.api.Assertions.assertEquals(8, jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM system_builds s
+                JOIN system_inventory_balances b ON b.system_build_id = s.id
+                WHERE s.code IN (
+                    'JON-STK-5060', 'JON-STK-5060TI', 'JON-STM-5070', 'JON-STM-5070TI',
+                    'JON-EDGE-MINI', 'JON-EDGE-AI', 'JON-EDGE-PRO', 'JON-EDGE-MAX'
+                )
+                  AND s.sale_enabled = TRUE
+                  AND b.on_hand_quantity = 5
+                """, Integer.class));
     }
 
     @Test

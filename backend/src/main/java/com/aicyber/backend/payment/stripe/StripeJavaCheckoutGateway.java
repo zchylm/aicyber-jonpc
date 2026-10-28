@@ -31,7 +31,7 @@ public class StripeJavaCheckoutGateway implements StripeCheckoutGateway {
                 .putMetadata("jonpc_order_id", payment.orderId().toString())
                 .putMetadata("jonpc_order_reference", payment.orderReference())
                 .build();
-        SessionCreateParams params = SessionCreateParams.builder()
+        SessionCreateParams.Builder builder = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setSubmitType(SessionCreateParams.SubmitType.PAY)
                 .setCustomerEmail(customerEmail)
@@ -41,19 +41,36 @@ public class StripeJavaCheckoutGateway implements StripeCheckoutGateway {
                 .setExpiresAt(expiresAtEpochSeconds)
                 .setPaymentIntentData(intentData)
                 .putMetadata("jonpc_payment_id", paymentId)
-                .putMetadata("jonpc_order_id", payment.orderId().toString())
-                .addLineItem(SessionCreateParams.LineItem.builder()
+                .putMetadata("jonpc_order_id", payment.orderId().toString());
+        long productPriceCents = payment.productSubtotalCents() - payment.discountCents();
+        builder.addLineItem(SessionCreateParams.LineItem.builder()
                         .setQuantity(1L)
                         .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
                                 .setCurrency(payment.currency().toLowerCase(Locale.ROOT))
-                                .setUnitAmount(payment.amountCents())
+                                .setUnitAmount(productPriceCents)
                                 .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                         .setName("JON.PC order " + payment.orderReference())
-                                        .setDescription("Secure checkout · GST included")
+                                        .setDescription(payment.discountCents() > 0
+                                                ? "Original " + money(payment.productSubtotalCents()) + " · Founder 5% discount "
+                                                    + "-" + money(payment.discountCents()) + " · GST included"
+                                                : "Complete system order · GST included")
                                         .build())
                                 .build())
-                        .build())
-                .build();
+                        .build());
+        if (payment.shippingFeeCents() > 0) {
+            builder.addLineItem(SessionCreateParams.LineItem.builder()
+                    .setQuantity(1L)
+                    .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                            .setCurrency(payment.currency().toLowerCase(Locale.ROOT))
+                            .setUnitAmount(payment.shippingFeeCents())
+                            .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                    .setName("Melbourne delivery")
+                                    .setDescription("Flat-rate delivery · GST included")
+                                    .build())
+                            .build())
+                    .build());
+        }
+        SessionCreateParams params = builder.build();
         try {
             StripeClient client = new StripeClient(properties.secretKey());
             RequestOptions options = RequestOptions.builder()
@@ -77,6 +94,17 @@ public class StripeJavaCheckoutGateway implements StripeCheckoutGateway {
     }
 
     @Override
+    public CheckoutSession expire(String checkoutSessionId) {
+        properties.requireCheckoutConfigured();
+        try {
+            StripeClient client = new StripeClient(properties.secretKey());
+            return map(client.v1().checkout().sessions().expire(checkoutSessionId));
+        } catch (StripeException exception) {
+            throw new IllegalStateException("Stripe Checkout session could not be cancelled", exception);
+        }
+    }
+
+    @Override
     public CheckoutEvent parseWebhook(String payload, String signature) {
         properties.requireWebhookConfigured();
         Event event;
@@ -96,6 +124,10 @@ public class StripeJavaCheckoutGateway implements StripeCheckoutGateway {
     }
 
     private CheckoutSession map(Session session) {
-        return new CheckoutSession(session.getId(), session.getUrl(), session.getPaymentStatus(), session.getPaymentIntent());
+        return new CheckoutSession(session.getId(), session.getUrl(), session.getStatus(), session.getPaymentStatus(), session.getPaymentIntent());
+    }
+
+    private String money(long cents) {
+        return String.format(Locale.ROOT, "A$%.2f", cents / 100.0);
     }
 }

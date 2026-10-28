@@ -8,6 +8,7 @@ import AiInfrastructureSection from "../components/AiInfrastructureSection";
 import AuthPanel from "../components/AuthPanel";
 import QueueRewardsSection from "../components/QueueRewardsSection";
 import PaymentCheckout from "../components/PaymentCheckout";
+import PolicyPanel from "../components/PolicyPanel";
 import SiteSupport from "../components/SiteSupport";
 import ShoppingBag from "../components/ShoppingBag";
 import type { AuthUser } from "../api/auth";
@@ -54,6 +55,7 @@ function JonPcHeroPage() {
 
       <BuildConfigurator user={user} />
       <SiteSupport user={user} />
+      <PolicyPanel />
       <AiAssistant />
     </main>
   );

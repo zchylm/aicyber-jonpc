@@ -6,7 +6,7 @@ import com.aicyber.backend.order.service.SalesOrderService;
 import com.aicyber.backend.payment.model.Payment;
 import com.aicyber.backend.payment.model.PaymentSettlement;
 import com.aicyber.backend.payment.repository.PaymentRepository;
-import com.aicyber.backend.reward.repository.RewardDemoRepository;
+import com.aicyber.backend.reward.service.FounderDiscountService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,37 +20,36 @@ public class MockPaymentSettlementService {
 
     private final PaymentRepository paymentRepository;
     private final SalesOrderService salesOrderService;
-    private final RewardDemoRepository rewardDemoRepository;
     private final SuccessfulPaymentSettlementService successfulPaymentSettlementService;
     private final InvoiceService invoiceService;
+    private final FounderDiscountService founderDiscounts;
 
     public MockPaymentSettlementService(
             PaymentRepository paymentRepository,
             SalesOrderService salesOrderService,
-            RewardDemoRepository rewardDemoRepository,
             SuccessfulPaymentSettlementService successfulPaymentSettlementService,
-            InvoiceService invoiceService
+            InvoiceService invoiceService,
+            FounderDiscountService founderDiscounts
     ) {
         this.paymentRepository = paymentRepository;
         this.salesOrderService = salesOrderService;
-        this.rewardDemoRepository = rewardDemoRepository;
         this.successfulPaymentSettlementService = successfulPaymentSettlementService;
         this.invoiceService = invoiceService;
+        this.founderDiscounts = founderDiscounts;
     }
 
     @Transactional
     public PaymentSettlement succeed(UUID userId, UUID paymentId) {
         Payment payment = ownedPayment(userId, paymentId);
-        UUID programId = rewardDemoRepository.ensureProgram();
         if ("SUCCEEDED".equals(payment.status())) {
             SalesInvoice invoice = invoiceService.issueForSuccessfulPayment(payment.orderId(), payment.id());
-            return new PaymentSettlement(payment, programId, false, invoice.id());
+            return new PaymentSettlement(payment, false, invoice.id());
         }
         if (!"PENDING_PAYMENT".equals(payment.orderStatus())) {
             Payment succeeded = paymentRepository.findSuccessfulByOrder(payment.orderId())
                     .orElseThrow(() -> new IllegalStateException("Sales order is no longer awaiting payment"));
             SalesInvoice invoice = invoiceService.issueForSuccessfulPayment(succeeded.orderId(), succeeded.id());
-            return new PaymentSettlement(succeeded, programId, false, invoice.id());
+            return new PaymentSettlement(succeeded, false, invoice.id());
         }
         if (!"CREATED".equals(payment.status())) {
             throw new IllegalStateException("Create a new payment attempt before trying again");
@@ -58,7 +57,7 @@ public class MockPaymentSettlementService {
 
         Payment succeeded = paymentRepository.markSucceeded(payment.id());
         SuccessfulPaymentSettlementService.SettlementResult result = successfulPaymentSettlementService.settle(succeeded);
-        return new PaymentSettlement(succeeded, result.programId(), true, result.invoiceId());
+        return new PaymentSettlement(succeeded, true, result.invoiceId());
     }
 
     @Transactional
@@ -72,6 +71,7 @@ public class MockPaymentSettlementService {
         }
         Payment failed = paymentRepository.markFailed(payment.id(), DEMO_DECLINE_REASON);
         salesOrderService.releaseReservation(payment.orderId());
+        founderDiscounts.release(payment.orderId());
         return failed;
     }
 

@@ -9,7 +9,6 @@ import com.aicyber.backend.payment.model.PaymentSettlement;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 import com.aicyber.backend.reward.dto.RewardCheckoutPreviewResponse;
 import com.aicyber.backend.reward.dto.RewardMeResponse;
-import com.aicyber.backend.reward.repository.RewardDemoRepository;
 import com.aicyber.backend.reward.service.RewardQueryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +25,6 @@ public class MockPaymentWorkflowService {
     private final PaymentService paymentService;
     private final MockPaymentSettlementService settlementService;
     private final RewardQueryService rewardQueryService;
-    private final RewardDemoRepository rewardDemoRepository;
     private final InvoiceService invoiceService;
     private final InvoiceDeliveryService invoiceDeliveryService;
 
@@ -34,23 +32,20 @@ public class MockPaymentWorkflowService {
             PaymentService paymentService,
             MockPaymentSettlementService settlementService,
             RewardQueryService rewardQueryService,
-            RewardDemoRepository rewardDemoRepository,
             InvoiceService invoiceService,
             InvoiceDeliveryService invoiceDeliveryService
     ) {
         this.paymentService = paymentService;
         this.settlementService = settlementService;
         this.rewardQueryService = rewardQueryService;
-        this.rewardDemoRepository = rewardDemoRepository;
         this.invoiceService = invoiceService;
         this.invoiceDeliveryService = invoiceDeliveryService;
     }
 
     public MockPaymentResponse create(UUID userId, String requestReference, String idempotencyKey) {
-        rewardDemoRepository.ensureProgram();
         Payment payment = paymentService.createMockCheckout(userId, requestReference, idempotencyKey);
         if (!"SUCCEEDED".equals(payment.status())) {
-            return response(payment, "NOT_ELIGIBLE", rewardQueryService.checkoutPreview(userId, payment.amountCents()), null);
+            return response(payment, "NOT_ELIGIBLE", rewardQueryService.checkoutPreviewForOrder(userId, payment.orderId()), null);
         }
         RewardEntryResponse reward = rewardFor(userId, payment.orderReference());
         return response(payment, reward == null ? "PROCESSING" : "JOINED", null, reward);
@@ -99,6 +94,9 @@ public class MockPaymentWorkflowService {
                 payment.orderId(),
                 payment.orderReference(),
                 payment.amountCents(),
+                payment.productSubtotalCents(),
+                payment.discountCents(),
+                payment.shippingFeeCents(),
                 payment.currency(),
                 payment.status(),
                 payment.failureReason(),

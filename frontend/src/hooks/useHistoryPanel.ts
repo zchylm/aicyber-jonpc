@@ -59,6 +59,8 @@ export function useHistoryPanel(view: string, isOpen: boolean, setIsOpen: Dispat
 
   const close = useCallback(() => {
     if (activeView() === view) {
+      isOpenRef.current = false;
+      setIsOpen(false);
       window.history.back();
       return;
     }

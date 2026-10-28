@@ -68,9 +68,9 @@ class ClaudeProviderTest {
         assertTrue(systemPrompt.contains("Clarification mode is a strict output contract"));
         assertTrue(systemPrompt.contains("reply only \"What budget are you working with?\""));
         assertTrue(systemPrompt.contains("positioning, not benchmark evidence"));
-        assertTrue(systemPrompt.contains("Real online card payment is not currently available"));
+        assertTrue(systemPrompt.contains("Describe Stripe and bank-transfer availability only as stated"));
         assertTrue(systemPrompt.contains("Adding an item to the Shopping Bag does not place an order or submit a system request"));
-        assertTrue(systemPrompt.contains("direct them to Support; do not describe the Shopping Bag as a request form"));
+        assertTrue(systemPrompt.contains("Never describe Test Mode as a real charge"));
         assertTrue(systemPrompt.contains("paid tax invoice is emailed to the customer's account email"));
         assertTrue(systemPrompt.contains("support@jonpc.com.au"));
         assertTrue(systemPrompt.contains("Do not expand a short warranty label"));

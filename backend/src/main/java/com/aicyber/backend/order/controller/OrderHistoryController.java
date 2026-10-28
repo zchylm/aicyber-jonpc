@@ -2,6 +2,10 @@ package com.aicyber.backend.order.controller;
 
 import com.aicyber.backend.order.dto.OrderHistoryResponse;
 import com.aicyber.backend.order.service.OrderHistoryService;
+import com.aicyber.backend.order.service.OrderFulfilmentService;
+import com.aicyber.backend.order.dto.OrderFulfilmentResponse;
+import com.aicyber.backend.payment.stripe.StripeCheckoutGateway;
+import com.aicyber.backend.reward.service.FounderDiscountService;
 import org.springframework.security.core.Authentication;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
@@ -11,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,15 +36,36 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 public class OrderHistoryController {
     private final OrderHistoryService service;
     private final JdbcTemplate jdbc;
+    private final OrderFulfilmentService fulfilment;
+    private final FounderDiscountService founderDiscounts;
+    private final StripeCheckoutGateway stripe;
 
-    public OrderHistoryController(OrderHistoryService service, JdbcTemplate jdbc) {
+    public OrderHistoryController(OrderHistoryService service, JdbcTemplate jdbc, OrderFulfilmentService fulfilment,
+                                  FounderDiscountService founderDiscounts, StripeCheckoutGateway stripe) {
         this.service = service;
         this.jdbc = jdbc;
+        this.fulfilment = fulfilment;
+        this.founderDiscounts = founderDiscounts;
+        this.stripe = stripe;
     }
 
     @GetMapping
     public List<OrderHistoryResponse> list(Authentication authentication) {
         return service.list(userId(authentication));
+    }
+
+    @PostMapping("/{orderId}/confirm-received")
+    public OrderFulfilmentResponse confirmReceived(Authentication authentication, @PathVariable UUID orderId) {
+        return fulfilment.confirmReceived(orderId, userId(authentication));
+    }
+
+    @PostMapping("/{orderId}/delivery-issue")
+    public OrderFulfilmentResponse reportDeliveryIssue(
+            Authentication authentication,
+            @PathVariable UUID orderId,
+            @RequestBody DeliveryIssueRequest request
+    ) {
+        return fulfilment.reportIssue(orderId, userId(authentication), request.summary());
     }
 
     @PostMapping("/requests/{requestId}/cancel")
@@ -58,23 +84,39 @@ public class OrderHistoryController {
             OrderState order = orders.get(0);
             if (!"PENDING_PAYMENT".equals(order.status()))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "A paid order cannot be cancelled here");
-            Long unsupported = jdbc.queryForObject("""
-                    SELECT COUNT(*) FROM payments WHERE order_id = ?
-                      AND ((provider = 'MOCK' AND status NOT IN ('CREATED', 'FAILED', 'CANCELLED'))
-                           OR (provider = 'BANK_TRANSFER' AND status NOT IN ('CREATED', 'CANCELLED'))
-                           OR (provider = 'STRIPE' AND status NOT IN ('FAILED', 'CANCELLED'))
-                           OR provider NOT IN ('MOCK', 'BANK_TRANSFER', 'STRIPE'))
-                    """, Long.class, order.id());
-            if (unsupported != null && unsupported > 0)
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "This payment cannot be cancelled here");
+            List<PaymentState> paymentStates = jdbc.query("""
+                    SELECT provider, status, provider_checkout_session_id FROM payments
+                    WHERE order_id = ? ORDER BY created_at DESC FOR UPDATE
+                    """, (rs, row) -> new PaymentState(rs.getString(1), rs.getString(2), rs.getString(3)), order.id());
+            for (PaymentState payment : paymentStates) validateCancellation(payment);
             jdbc.update("UPDATE payments SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE order_id = ? AND status IN ('CREATED', 'FAILED')", order.id());
             jdbc.update("DELETE FROM system_sale_reservations WHERE sales_order_id = ?", order.id());
+            founderDiscounts.release(order.id());
             jdbc.update("UPDATE sales_orders SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", order.id());
         }
         jdbc.update("UPDATE build_requests SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", requestId);
     }
 
     private record OrderState(UUID id, String status) {}
+    private record PaymentState(String provider, String status, String checkoutSessionId) {}
+
+    private void validateCancellation(PaymentState payment) {
+        if ("MOCK".equals(payment.provider()) && List.of("CREATED", "FAILED", "CANCELLED").contains(payment.status())) return;
+        if ("BANK_TRANSFER".equals(payment.provider()) && List.of("CREATED", "CANCELLED").contains(payment.status())) return;
+        if ("STRIPE".equals(payment.provider()) && List.of("FAILED", "CANCELLED").contains(payment.status())) return;
+        if ("STRIPE".equals(payment.provider()) && "CREATED".equals(payment.status())) {
+            if (payment.checkoutSessionId() == null) return;
+            StripeCheckoutGateway.CheckoutSession session = stripe.retrieve(payment.checkoutSessionId());
+            if ("paid".equals(session.paymentStatus()) || "complete".equals(session.status())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Stripe has already completed this payment");
+            }
+            if ("open".equals(session.status())) stripe.expire(payment.checkoutSessionId());
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "This payment cannot be cancelled here");
+    }
+
+    public record DeliveryIssueRequest(String summary) {}
 
     private UUID userId(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {

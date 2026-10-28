@@ -7,6 +7,7 @@
 .reward-banner h2 { max-width: 720px; margin: 20px 0 18px; color: var(--ink); font-family: 'Manrope', Arial, sans-serif; font-size: clamp(50px, 5.1vw, 74px); font-weight: 500; letter-spacing: -.06em; line-height: .96; }
 .reward-banner h2 em { color: var(--cyan); font-style: normal; }
 .reward-banner-copy > p { max-width: 570px; margin: 0; color: #b5c0bc; font-size: 16px; line-height: 1.6; }
+.reward-banner-copy > p strong { color: var(--lime); font-weight: 700; }
 .reward-banner-actions { display: flex; flex-wrap: wrap; gap: 25px; align-items: center; margin-top: 31px; }
 .reward-banner-actions .button { justify-content: space-between; min-width: 250px; min-height: 56px; font-size: 12px; }
 .reward-text-link { display: inline-flex; gap: 13px; align-items: center; min-height: 44px; padding: 0 0 3px; color: var(--cyan); background: transparent; border: 0; border-bottom: 1px solid var(--line); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
@@ -103,9 +104,6 @@
 .reward-order-amounts strong { display: block; margin-top: 7px; color: var(--ink); font-size: 16px; font-weight: 500; }
 .reward-order-amounts div:first-child strong { color: var(--cyan); }
 .reward-order-card .reward-progress { margin-top: 13px; }
-.reward-order-payout { margin-top: 12px; padding: 12px 14px; background: rgba(143, 232, 226, .05); border-left: 2px solid var(--cyan); }
-.reward-order-payout span { color: var(--cyan); font: 9px 'DM Mono', monospace; letter-spacing: .05em; text-transform: uppercase; }
-.reward-order-payout p { margin: 6px 0 0; color: #8d9b96; font-size: 11px; line-height: 1.5; }
 .reward-order-progress-label { display: block; margin-top: 9px; color: #82908c; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
 .reward-centre-empty { margin: 30px 0 0; padding: 25px 0; color: #c6d0cc; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 16px; line-height: 1.5; }
 .reward-centre-note { margin: 12px 0 0; padding-top: 17px; color: #74817d; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.5; }

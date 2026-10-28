@@ -199,6 +199,7 @@ class BankTransferWorkflowIntegrationTest {
             jdbc.update("DELETE FROM reward_queue_entries WHERE program_id = ?", programId);
             jdbc.update("DELETE FROM reward_policy_versions WHERE program_id = ?", programId);
             jdbc.update("DELETE FROM reward_founder_tiers WHERE program_id = ?", programId);
+            jdbc.update("DELETE FROM reward_months WHERE program_id = ?", programId);
             jdbc.update("DELETE FROM reward_programs WHERE id = ?", programId);
             return null;
         });

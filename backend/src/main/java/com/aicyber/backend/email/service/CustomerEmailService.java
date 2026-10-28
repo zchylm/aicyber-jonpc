@@ -49,6 +49,20 @@ public class CustomerEmailService {
                 "CUSTOM_BUILD_QUOTE", quoteId, "custom-quote-ready:" + quoteId));
     }
 
+    public void orderDispatched(UUID orderId, String email, String name, String orderReference,
+                                String carrier, String trackingNumber) {
+        EmailContent content = templates.orderDispatched(name, orderReference, carrier, trackingNumber);
+        outbox.enqueue(draft("ORDER_DISPATCHED", email, name, content,
+                "SALES_ORDER", orderId, "order-dispatched:" + orderId));
+    }
+
+    public void deliveryConfirmationRequested(UUID orderId, String email, String name, String orderReference,
+                                               boolean pickup, OffsetDateTime autoConfirmAt) {
+        EmailContent content = templates.deliveryConfirmationRequested(name, orderReference, pickup, autoConfirmAt);
+        outbox.enqueue(draft("DELIVERY_CONFIRMATION_REQUESTED", email, name, content,
+                "SALES_ORDER", orderId, "delivery-confirmation-requested:" + orderId));
+    }
+
     private EmailDraft draft(String type, String recipient, String name, EmailContent content,
                              String aggregateType, UUID aggregateId, String idempotencyKey) {
         return new EmailDraft(type, recipient, name, null, content.subject(), content.text(), content.html(), null,

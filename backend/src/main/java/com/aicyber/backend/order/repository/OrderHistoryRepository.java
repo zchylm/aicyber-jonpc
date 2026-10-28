@@ -3,6 +3,7 @@ package com.aicyber.backend.order.repository;
 import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
 import com.aicyber.backend.order.dto.OrderHistoryResponse;
 import com.aicyber.backend.order.dto.OrderSystemItemResponse;
+import com.aicyber.backend.order.dto.OrderFulfilmentResponse;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,16 +35,18 @@ public class OrderHistoryRepository {
                         "i.id AS invoice_id, i.invoice_number, i.issued_at AS invoice_issued_at, " +
                         "q.id AS quote_id, q.status AS quote_status, q.total_cents AS quote_total_cents, " +
                         "q.valid_until AS quote_valid_until, q.review_note AS quote_note, " +
+                        "f.status AS fulfilment_status, f.carrier, f.tracking_number, f.dispatched_at, f.delivered_at, " +
+                        "f.auto_confirm_at, f.received_at, f.issue_reported_at, f.issue_summary, " +
                         "c.id AS reward_id, c.founder_sequence, t.display_name AS reward_tier_name, " +
                         "c.rate_basis_points, c.cap_cents, c.purchase_amount_cents, c.cashback_amount_cents, " +
-                        "c.status AS reward_status, c.locked_at, c.payable_at, c.payout_due_at, " +
-                        "c.processing_at, c.paid_at, c.payout_method, c.payout_reference, c.payout_failure_reason " +
+                        "c.status AS reward_status, c.locked_at, c.paid_at " +
                         "FROM build_requests b LEFT JOIN sales_orders s ON s.build_request_id = b.id " +
                         "LEFT JOIN LATERAL (SELECT p.payment_reference, p.status FROM payments p WHERE p.order_id = s.id " +
                         "ORDER BY p.created_at DESC, p.id DESC LIMIT 1) latest_payment ON TRUE " +
                         "LEFT JOIN sales_invoices i ON i.sales_order_id = s.id " +
                         "LEFT JOIN LATERAL (SELECT id, status, total_cents, valid_until, review_note FROM custom_build_quotes " +
                         "WHERE build_request_id = b.id ORDER BY version DESC LIMIT 1) q ON TRUE " +
+                        "LEFT JOIN order_fulfilments f ON f.sales_order_id = s.id " +
                         "LEFT JOIN reward_commitments c ON c.order_id = s.id AND c.status <> 'VOID' " +
                         "LEFT JOIN reward_founder_tiers t ON t.id = c.tier_id " +
                         "WHERE b.user_id = ? AND b.status <> 'CANCELLED' ORDER BY b.created_at DESC",
@@ -55,7 +58,7 @@ public class OrderHistoryRepository {
                 order.configuration(), order.salesOrderId(), order.orderReference(), order.orderStatus(),
                 order.paymentReference(), order.paymentStatus(), order.invoiceId(), order.invoiceNumber(),
                 order.invoiceIssuedAt(), order.quoteId(), order.quoteStatus(), order.quoteTotalCents(),
-                order.quoteValidUntil(), order.quoteNote(), order.reward(), items(order.id())
+                order.quoteValidUntil(), order.quoteNote(), order.fulfilment(), order.reward(), items(order.id())
         )).toList();
     }
 
@@ -84,12 +87,25 @@ public class OrderHistoryRepository {
                     resultSet.getObject("quote_total_cents", Long.class),
                     resultSet.getObject("quote_valid_until", OffsetDateTime.class),
                     resultSet.getString("quote_note"),
+                    mapFulfilment(resultSet),
                     mapReward(resultSet),
                     List.of()
             );
         } catch (JsonProcessingException exception) {
             throw new SQLException("Order configuration is invalid", exception);
         }
+    }
+
+    private OrderFulfilmentResponse mapFulfilment(ResultSet resultSet) throws SQLException {
+        if (resultSet.getString("fulfilment_status") == null) return null;
+        return new OrderFulfilmentResponse(
+                resultSet.getString("fulfilment_status"), resultSet.getString("carrier"),
+                resultSet.getString("tracking_number"), resultSet.getObject("dispatched_at", OffsetDateTime.class),
+                resultSet.getObject("delivered_at", OffsetDateTime.class),
+                resultSet.getObject("auto_confirm_at", OffsetDateTime.class),
+                resultSet.getObject("received_at", OffsetDateTime.class),
+                resultSet.getObject("issue_reported_at", OffsetDateTime.class), resultSet.getString("issue_summary")
+        );
     }
 
     private List<OrderSystemItemResponse> items(UUID buildRequestId) {
@@ -113,11 +129,7 @@ public class OrderHistoryRepository {
                 resultSet.getString("reward_tier_name"), resultSet.getInt("rate_basis_points"),
                 resultSet.getLong("cap_cents"), purchase, cashback, purchase - cashback,
                 resultSet.getString("reward_status"), resultSet.getObject("locked_at", OffsetDateTime.class),
-                resultSet.getObject("payable_at", OffsetDateTime.class),
-                resultSet.getObject("payout_due_at", OffsetDateTime.class),
-                resultSet.getObject("processing_at", OffsetDateTime.class),
-                resultSet.getObject("paid_at", OffsetDateTime.class), resultSet.getString("payout_method"),
-                resultSet.getString("payout_reference"), resultSet.getString("payout_failure_reason")
+                resultSet.getObject("paid_at", OffsetDateTime.class)
         );
     }
 }

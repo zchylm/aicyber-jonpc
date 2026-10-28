@@ -8,6 +8,9 @@ export type MockPayment = {
   orderId: string;
   orderReference: string;
   amountCents: number;
+  productSubtotalCents: number;
+  discountCents: number;
+  shippingFeeCents: number;
   currency: string;
   status: "CREATED" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
   failureReason: string | null;
@@ -32,6 +35,7 @@ export type StripePayment = MockPayment & {
 };
 
 export type DeliveryDetails = {
+  deliveryMethod: "DELIVERY" | "PICKUP";
   recipientName: string;
   phone: string;
   addressLine1: string;

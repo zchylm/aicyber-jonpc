@@ -156,7 +156,7 @@ public class PaymentRepository {
         return findById(paymentId).orElseThrow();
     }
 
-    public void lockBankSettlementSequence() {
+    public void lockRewardSettlementSequence() {
         jdbcTemplate.queryForObject("SELECT pg_advisory_xact_lock(74102501)", Object.class);
     }
 
@@ -213,7 +213,7 @@ public class PaymentRepository {
         int updated = jdbcTemplate.update(
                 "UPDATE payments SET status = 'SUCCEEDED', provider_payment_id = ?, failure_reason = NULL, " +
                         "succeeded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP " +
-                        "WHERE id = ? AND provider = 'STRIPE' AND status IN ('CREATED', 'PROCESSING')",
+                        "WHERE id = ? AND provider = 'STRIPE' AND status IN ('CREATED', 'PROCESSING', 'CANCELLED', 'FAILED')",
                 paymentIntentId, paymentId
         );
         requireSingleUpdate(updated, "Stripe payment was not ready to complete");
@@ -271,7 +271,7 @@ public class PaymentRepository {
         return jdbcTemplate.query(
                 "SELECT p.id, p.order_id, s.order_reference, s.user_id, p.payment_reference, p.provider, " +
                         "p.provider_payment_id, p.provider_checkout_session_id, " +
-                        "p.amount_cents, p.currency, s.status AS order_status, p.status, p.idempotency_key, " +
+                        "p.amount_cents, s.product_subtotal_cents, s.discount_cents, s.shipping_fee_cents, p.currency, s.status AS order_status, p.status, p.idempotency_key, " +
                         "p.failure_reason, p.succeeded_at, p.expires_at, p.customer_reported_at, p.bank_received_at, " +
                         "p.confirmed_by, p.confirmed_at, p.review_note " +
                         "FROM payments p JOIN sales_orders s ON s.id = p.order_id " + whereClause,
@@ -291,6 +291,9 @@ public class PaymentRepository {
                 resultSet.getString("provider_payment_id"),
                 resultSet.getString("provider_checkout_session_id"),
                 resultSet.getLong("amount_cents"),
+                resultSet.getLong("product_subtotal_cents"),
+                resultSet.getLong("discount_cents"),
+                resultSet.getLong("shipping_fee_cents"),
                 resultSet.getString("currency").trim(),
                 resultSet.getString("order_status"),
                 resultSet.getString("status"),

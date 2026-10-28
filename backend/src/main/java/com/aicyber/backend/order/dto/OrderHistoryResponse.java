@@ -30,6 +30,7 @@ public record OrderHistoryResponse(
         Long quoteTotalCents,
         OffsetDateTime quoteValidUntil,
         String quoteNote,
+        OrderFulfilmentResponse fulfilment,
         RewardEntryResponse reward,
         List<OrderSystemItemResponse> items
 ) {

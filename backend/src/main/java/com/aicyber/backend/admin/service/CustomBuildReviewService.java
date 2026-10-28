@@ -29,7 +29,9 @@ public class CustomBuildReviewService {
 
     public List<ReviewItem> list() {
         return jdbc.query("""
-                SELECT b.id, b.request_reference, b.name, b.email, b.phone, b.notes, b.direction, b.estimated_price,
+                SELECT b.id, b.request_reference, b.name, b.email, b.phone, b.notes, b.direction,
+                       COALESCE(b.configuration_snapshot->'answers'->>'budget', 'Not specified') AS budget_range,
+                       b.estimated_price,
                        b.configuration_snapshot::text, b.created_at, q.id AS quote_id,
                        q.version AS quote_version, q.status AS quote_status,
                        q.total_cents, q.review_note, q.valid_until
@@ -49,7 +51,7 @@ public class CustomBuildReviewService {
                 """, (rs, row) -> new ReviewItem(
                 UUID.fromString(rs.getString("id")), rs.getString("request_reference"),
                 rs.getString("name"), rs.getString("email"), rs.getString("phone"), rs.getString("notes"), rs.getString("direction"),
-                rs.getInt("estimated_price"), readConfiguration(rs.getString("configuration_snapshot")),
+                rs.getString("budget_range"), rs.getInt("estimated_price"), readConfiguration(rs.getString("configuration_snapshot")),
                 rs.getObject("created_at", OffsetDateTime.class),
                 rs.getString("quote_id") == null ? null : UUID.fromString(rs.getString("quote_id")),
                 rs.getInt("quote_version"), rs.getString("quote_status"), rs.getLong("total_cents"),
@@ -121,7 +123,7 @@ public class CustomBuildReviewService {
 
     public record PublishQuote(long totalCents, String reviewNote, OffsetDateTime validUntil) {}
     public record ReviewItem(UUID id, String requestReference, String name, String email, String phone, String notes, String direction,
-                             int estimatedPrice, Map<String, Object> configuration, OffsetDateTime createdAt,
+                             String budgetRange, int estimatedPrice, Map<String, Object> configuration, OffsetDateTime createdAt,
                              UUID quoteId, int quoteVersion, String quoteStatus, long totalCents,
                              String reviewNote, OffsetDateTime validUntil) {}
     private record QuoteOwner(UUID requestId, String status, OffsetDateTime validUntil, UUID userId) {}

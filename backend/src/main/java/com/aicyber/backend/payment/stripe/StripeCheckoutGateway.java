@@ -5,9 +5,10 @@ import com.aicyber.backend.payment.model.Payment;
 public interface StripeCheckoutGateway {
     CheckoutSession create(Payment payment, String customerEmail, long expiresAtEpochSeconds);
     CheckoutSession retrieve(String checkoutSessionId);
+    CheckoutSession expire(String checkoutSessionId);
     CheckoutEvent parseWebhook(String payload, String signature);
 
-    record CheckoutSession(String id, String url, String paymentStatus, String paymentIntentId) {}
+    record CheckoutSession(String id, String url, String status, String paymentStatus, String paymentIntentId) {}
 
     record CheckoutEvent(
             String id,

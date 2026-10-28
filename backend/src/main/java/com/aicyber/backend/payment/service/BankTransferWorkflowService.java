@@ -10,7 +10,6 @@ import com.aicyber.backend.payment.model.PaymentSettlement;
 import com.aicyber.backend.payment.repository.PaymentRepository;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 import com.aicyber.backend.reward.dto.RewardMeResponse;
-import com.aicyber.backend.reward.repository.RewardDemoRepository;
 import com.aicyber.backend.reward.service.RewardQueryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +28,6 @@ public class BankTransferWorkflowService {
     private final BankTransferSettlementService settlementService;
     private final BankTransferExpiryService expiryService;
     private final BankTransferProperties properties;
-    private final RewardDemoRepository rewardDemoRepository;
     private final RewardQueryService rewardQueryService;
     private final InvoiceService invoiceService;
     private final InvoiceDeliveryService invoiceDeliveryService;
@@ -40,7 +38,6 @@ public class BankTransferWorkflowService {
             BankTransferSettlementService settlementService,
             BankTransferExpiryService expiryService,
             BankTransferProperties properties,
-            RewardDemoRepository rewardDemoRepository,
             RewardQueryService rewardQueryService,
             InvoiceService invoiceService,
             InvoiceDeliveryService invoiceDeliveryService
@@ -50,7 +47,6 @@ public class BankTransferWorkflowService {
         this.settlementService = settlementService;
         this.expiryService = expiryService;
         this.properties = properties;
-        this.rewardDemoRepository = rewardDemoRepository;
         this.rewardQueryService = rewardQueryService;
         this.invoiceService = invoiceService;
         this.invoiceDeliveryService = invoiceDeliveryService;
@@ -59,7 +55,6 @@ public class BankTransferWorkflowService {
     public BankTransferResponse create(UUID userId, String requestReference, String idempotencyKey) {
         expiryService.expireDue();
         properties.requireConfigured();
-        rewardDemoRepository.ensureProgram();
         Payment payment = paymentService.createBankTransfer(userId, requestReference, idempotencyKey);
         return response(userId, payment);
     }
@@ -115,11 +110,12 @@ public class BankTransferWorkflowService {
         RewardEntryResponse reward = rewardFor(userId, payment.orderReference());
         return new BankTransferResponse(
                 payment.id(), payment.paymentReference(), payment.orderId(), payment.orderReference(),
-                payment.amountCents(), payment.currency(), payment.status(), payment.failureReason(),
+                payment.amountCents(), payment.productSubtotalCents(), payment.discountCents(), payment.shippingFeeCents(),
+                payment.currency(), payment.status(), payment.failureReason(),
                 payment.expiresAt(), payment.customerReportedAt(), properties.bankName(), properties.accountName(),
                 properties.bsb(), properties.accountNumber(), invoice == null ? null : invoice.id(),
                 invoice == null ? null : invoice.invoiceNumber(), reward == null ? "NOT_ELIGIBLE" : "JOINED",
-                "CREATED".equals(payment.status()) ? rewardQueryService.checkoutPreview(userId, payment.amountCents()) : null,
+                "CREATED".equals(payment.status()) ? rewardQueryService.checkoutPreviewForOrder(userId, payment.orderId()) : null,
                 reward
         );
     }

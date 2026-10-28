@@ -57,7 +57,7 @@ class CustomBuildReviewIntegrationTest {
 
         reviews.accept(revised.quoteId(), customer);
         var payment = payments.createMockCheckout(customer, reference, UUID.randomUUID().toString());
-        assertEquals(259_900, payment.amountCents());
+        assertEquals(262_400, payment.amountCents());
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> reviews.publish(requestId, reviewer, new CustomBuildReviewService.PublishQuote(269_900, null, null)));
     }
@@ -92,6 +92,13 @@ class CustomBuildReviewIntegrationTest {
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> addresses.save(new UsernamePasswordAuthenticationToken(customer.toString(), null), reference,
                         new DeliveryDetailsController.DeliveryDetails("Test User", "0400000000", "1 Test Street", null, "Melbourne", "VIC", "300")));
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> addresses.save(new UsernamePasswordAuthenticationToken(customer.toString(), null), reference,
+                        new DeliveryDetailsController.DeliveryDetails("DELIVERY", "Test User", "0400000000", "1 Test Street", null, "Sydney", "NSW", "2000")));
+        var pickup = addresses.save(new UsernamePasswordAuthenticationToken(customer.toString(), null), reference,
+                new DeliveryDetailsController.DeliveryDetails("PICKUP", "Test User", "0400000000", "", null, "", "", ""));
+        assertEquals("PICKUP", pickup.deliveryMethod());
+        assertEquals("3003", pickup.postcode());
         assertEquals("Unit 2", addresses.save(new UsernamePasswordAuthenticationToken(customer.toString(), null), reference, valid).addressLine2());
         assertEquals(org.springframework.http.HttpStatus.OK,
                 addresses.get(new UsernamePasswordAuthenticationToken(customer.toString(), null), reference).getStatusCode());

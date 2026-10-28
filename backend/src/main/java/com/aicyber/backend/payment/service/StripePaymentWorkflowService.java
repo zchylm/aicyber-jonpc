@@ -13,7 +13,6 @@ import com.aicyber.backend.payment.repository.PaymentRepository;
 import com.aicyber.backend.payment.stripe.StripeCheckoutGateway;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 import com.aicyber.backend.reward.dto.RewardMeResponse;
-import com.aicyber.backend.reward.repository.RewardDemoRepository;
 import com.aicyber.backend.reward.service.RewardQueryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +39,6 @@ public class StripePaymentWorkflowService {
     private final PaymentRepository payments;
     private final StripePaymentSettlementService settlement;
     private final UserRepository users;
-    private final RewardDemoRepository rewardDemoRepository;
     private final RewardQueryService rewardQueryService;
     private final InvoiceService invoiceService;
     private final InvoiceDeliveryService invoiceDeliveryService;
@@ -52,7 +50,6 @@ public class StripePaymentWorkflowService {
             PaymentRepository payments,
             StripePaymentSettlementService settlement,
             UserRepository users,
-            RewardDemoRepository rewardDemoRepository,
             RewardQueryService rewardQueryService,
             InvoiceService invoiceService,
             InvoiceDeliveryService invoiceDeliveryService
@@ -63,7 +60,6 @@ public class StripePaymentWorkflowService {
         this.payments = payments;
         this.settlement = settlement;
         this.users = users;
-        this.rewardDemoRepository = rewardDemoRepository;
         this.rewardQueryService = rewardQueryService;
         this.invoiceService = invoiceService;
         this.invoiceDeliveryService = invoiceDeliveryService;
@@ -71,7 +67,6 @@ public class StripePaymentWorkflowService {
 
     public StripePaymentResponse create(UUID userId, String requestReference, String idempotencyKey) {
         properties.requireCheckoutConfigured();
-        rewardDemoRepository.ensureProgram();
         User user = users.findById(userId).orElseThrow(() -> new IllegalArgumentException("User account not found"));
         OffsetDateTime expiresAt = OffsetDateTime.now().plusMinutes(properties.checkoutMinutes());
         Payment payment = paymentService.createStripe(userId, requestReference, idempotencyKey, expiresAt);
@@ -85,6 +80,11 @@ public class StripePaymentWorkflowService {
                 payment = payments.attachStripeSession(payment.id(), session.id());
             } else {
                 session = stripe.retrieve(payment.providerCheckoutSessionId());
+            }
+            if ("paid".equals(session.paymentStatus())) {
+                complete(payment, session.paymentIntentId());
+                payment = payments.findOwned(payment.id(), userId).orElseThrow();
+                return response(userId, payment, null);
             }
             if (session.url() == null || session.url().isBlank()) {
                 settlement.cancel(payment.id());
@@ -103,8 +103,18 @@ public class StripePaymentWorkflowService {
                 .orElseThrow(() -> new IllegalArgumentException("Stripe payment was not found for this account"));
         if (!"STRIPE".equals(payment.provider())) throw new IllegalArgumentException("Payment is not a Stripe payment");
         String checkoutUrl = null;
-        if ("CREATED".equals(payment.status()) && payment.providerCheckoutSessionId() != null) {
-            checkoutUrl = stripe.retrieve(payment.providerCheckoutSessionId()).url();
+        if (!"SUCCEEDED".equals(payment.status()) && payment.providerCheckoutSessionId() != null) {
+            StripeCheckoutGateway.CheckoutSession session = stripe.retrieve(payment.providerCheckoutSessionId());
+            if ("paid".equals(session.paymentStatus())) {
+                complete(payment, session.paymentIntentId());
+                payment = payments.findOwned(payment.id(), userId).orElseThrow();
+            } else if ("expired".equals(session.status())
+                    && ("CREATED".equals(payment.status()) || "PROCESSING".equals(payment.status()))) {
+                settlement.cancel(payment.id());
+                payment = payments.findOwned(payment.id(), userId).orElseThrow();
+            } else if ("CREATED".equals(payment.status()) || "PROCESSING".equals(payment.status())) {
+                checkoutUrl = session.url();
+            }
         }
         return response(userId, payment, checkoutUrl);
     }
@@ -129,14 +139,15 @@ public class StripePaymentWorkflowService {
         }
     }
 
-    private void complete(Payment payment, String paymentIntentId) {
+    private PaymentSettlement complete(Payment payment, String paymentIntentId) {
         PaymentSettlement result = settlement.succeed(payment.id(), paymentIntentId);
-        if (!result.newlySucceeded()) return;
+        if (!result.newlySucceeded()) return result;
         try {
             invoiceDeliveryService.deliver(result.invoiceId());
         } catch (RuntimeException exception) {
             LOGGER.error("Invoice {} was issued but email delivery remains pending", result.invoiceId(), exception);
         }
+        return result;
     }
 
     private void validateAmount(Payment payment, StripeCheckoutGateway.CheckoutEvent event) {
@@ -153,10 +164,11 @@ public class StripePaymentWorkflowService {
         RewardEntryResponse reward = rewardFor(userId, payment.orderReference());
         return new StripePaymentResponse(
                 payment.id(), payment.paymentReference(), payment.orderId(), payment.orderReference(),
-                payment.amountCents(), payment.currency(), payment.status(), payment.failureReason(), checkoutUrl,
+                payment.amountCents(), payment.productSubtotalCents(), payment.discountCents(), payment.shippingFeeCents(),
+                payment.currency(), payment.status(), payment.failureReason(), checkoutUrl,
                 invoice == null ? null : invoice.id(), invoice == null ? null : invoice.invoiceNumber(),
                 reward == null ? ("SUCCEEDED".equals(payment.status()) ? "PROCESSING" : "NOT_ELIGIBLE") : "JOINED",
-                "CREATED".equals(payment.status()) ? rewardQueryService.checkoutPreview(userId, payment.amountCents()) : null,
+                "CREATED".equals(payment.status()) ? rewardQueryService.checkoutPreviewForOrder(userId, payment.orderId()) : null,
                 reward
         );
     }

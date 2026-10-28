@@ -2,6 +2,7 @@ package com.aicyber.backend.order;
 
 import com.aicyber.backend.order.controller.OrderHistoryController;
 import com.aicyber.backend.payment.service.PaymentService;
+import com.aicyber.backend.payment.stripe.StripeCheckoutGateway;
 import com.aicyber.backend.order.service.SalesOrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -17,6 +19,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @Transactional
@@ -25,6 +29,7 @@ class OrderCancellationIntegrationTest {
     @Autowired OrderHistoryController history;
     @Autowired PaymentService payments;
     @Autowired SalesOrderService orders;
+    @MockitoBean StripeCheckoutGateway stripe;
 
     @Test
     void unconvertedRequestCanBeCancelledAndHiddenWithoutDeletingIt() {
@@ -51,6 +56,7 @@ class OrderCancellationIntegrationTest {
         history.cancel(auth(customer), requestId);
         assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM payments WHERE id = ?", String.class, payment.id()));
         assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM sales_orders WHERE id = ?", String.class, payment.orderId()));
+        assertEquals(0L, count("SELECT COUNT(*) FROM reward_commitments WHERE order_id = ? AND status <> 'VOID'", payment.orderId()));
         assertEquals(0, history.list(auth(customer)).size());
 
         UUID paidRequestId = request(customer);
@@ -74,6 +80,27 @@ class OrderCancellationIntegrationTest {
 
         assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM sales_orders WHERE id = ?", String.class, payment.orderId()));
         assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM build_requests WHERE id = ?", String.class, requestId));
+    }
+
+    @Test
+    void openStripeCheckoutIsExpiredBeforeTheOrderAndFounderPlaceAreReleased() {
+        UUID customer = user();
+        UUID requestId = request(customer);
+        address(requestId);
+        var payment = payments.createStripe(customer, "REQ-" + requestId, UUID.randomUUID().toString(),
+                OffsetDateTime.now().plusMinutes(30));
+        jdbc.update("UPDATE payments SET provider_checkout_session_id = 'cs_test_cancel' WHERE id = ?", payment.id());
+        when(stripe.retrieve("cs_test_cancel")).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_cancel", "https://checkout.stripe.test", "open", "unpaid", null));
+        when(stripe.expire("cs_test_cancel")).thenReturn(
+                new StripeCheckoutGateway.CheckoutSession("cs_test_cancel", null, "expired", "unpaid", null));
+
+        history.cancel(auth(customer), requestId);
+
+        verify(stripe).expire("cs_test_cancel");
+        assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM payments WHERE id = ?", String.class, payment.id()));
+        assertEquals("CANCELLED", jdbc.queryForObject("SELECT status FROM sales_orders WHERE id = ?", String.class, payment.orderId()));
+        assertEquals(0L, count("SELECT COUNT(*) FROM reward_commitments WHERE order_id = ? AND status <> 'VOID'", payment.orderId()));
     }
 
     private UsernamePasswordAuthenticationToken auth(UUID userId) {
@@ -108,5 +135,10 @@ class OrderCancellationIntegrationTest {
                     (build_request_id, recipient_name, phone, address_line_1, suburb, state, postcode)
                 VALUES (?, 'Cancellation Test User', '0400000000', '1 Test Street', 'Melbourne', 'VIC', '3000')
                 """, requestId);
+    }
+
+    private long count(String sql, Object... arguments) {
+        Long count = jdbc.queryForObject(sql, Long.class, arguments);
+        return count == null ? 0 : count;
     }
 }

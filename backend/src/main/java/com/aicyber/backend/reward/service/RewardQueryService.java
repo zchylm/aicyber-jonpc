@@ -42,10 +42,21 @@ public class RewardQueryService {
 
     public RewardCheckoutPreviewResponse checkoutPreview(UUID userId, long purchaseAmountCents) {
         if (purchaseAmountCents <= 0) {
-            return RewardCheckoutPreviewResponse.unavailable("This order is not eligible for Founder cashback.", 0);
+            return RewardCheckoutPreviewResponse.unavailable("This order is not eligible for the Founder discount.", 0);
         }
         return repository.findProgram(PROGRAM_CODE)
-                .map(program -> repository.checkoutPreview(program, userId, purchaseAmountCents))
+                .map(program -> repository.checkoutPreview(program, userId, purchaseAmountCents, purchaseAmountCents))
+                .orElseGet(() -> RewardCheckoutPreviewResponse.unavailable("The Founder release is unavailable.", 0));
+    }
+
+    public RewardCheckoutPreviewResponse checkoutPreviewForOrder(UUID userId, UUID orderId) {
+        RewardQueryRepository.OrderRewardAmounts amounts = repository.orderRewardAmounts(orderId);
+        if (amounts.eligibleSpendCents() <= 0) {
+            return RewardCheckoutPreviewResponse.unavailable("This order is not eligible for the Founder discount.", 0);
+        }
+        return repository.findProgram(PROGRAM_CODE)
+                .map(program -> repository.checkoutPreview(
+                        program, userId, amounts.totalCents(), amounts.eligibleSpendCents()))
                 .orElseGet(() -> RewardCheckoutPreviewResponse.unavailable("The Founder release is unavailable.", 0));
     }
 }

@@ -55,7 +55,7 @@ class InvoiceSecurityIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.invoiceNumber").value(paid.invoiceNumber()))
-                .andExpect(jsonPath("$.totalCents").value(234700));
+                .andExpect(jsonPath("$.totalCents").value(225465));
 
         mockMvc.perform(get("/api/invoices/{invoiceId}/pdf", paid.invoiceId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))

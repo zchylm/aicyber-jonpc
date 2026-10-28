@@ -81,7 +81,7 @@ class InfrastructureRequestIntegrationTest {
 
         reviews.accept(quote.quoteId(), customer);
         var checkout = payments.create(customer, submitted.requestReference(), "infrastructure-checkout");
-        assertEquals(3_850_000, checkout.amountCents());
+        assertEquals(3_852_500, checkout.amountCents());
         assertEquals("CREATED", checkout.status());
         assertNotNull(checkout.rewardPreview());
 

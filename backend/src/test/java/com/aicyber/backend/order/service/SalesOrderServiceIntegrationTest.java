@@ -23,7 +23,7 @@ class SalesOrderServiceIntegrationTest {
     private SalesOrderService service;
 
     @Test
-    void convertsLatestBuildRequestAndMovesThroughEligibilityStates() {
+    void convertsLatestBuildRequestAndMarksItPaid() {
         UUID userId = createUser();
         UUID buildRequestId = createBuildRequest(userId, 2_099);
 
@@ -38,9 +38,7 @@ class SalesOrderServiceIntegrationTest {
         assertEquals("PAID", paid.status());
         assertNotNull(paid.paidAt());
 
-        SalesOrder eligible = service.markRewardEligible(created.id());
-        assertEquals("REWARD_ELIGIBLE", eligible.status());
-        assertNotNull(eligible.rewardEligibleAt());
+        assertEquals(null, paid.rewardEligibleAt());
     }
 
     @Test

@@ -11,7 +11,7 @@ export const focusAreas = [
 export const navigationItems = [
   { label: "Systems", href: "#systems" },
   { label: "AI Build", href: "#ai-infrastructure" },
-  { label: "My Rewards", href: "#queue-rewards" },
+  { label: "Founder 5% Off", href: "#queue-rewards" },
   { label: "Customize", href: "#build" },
   { label: "Support", href: "#support" },
 ];
