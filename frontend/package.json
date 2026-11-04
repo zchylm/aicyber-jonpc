@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:seo": "node scripts/check-seo.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

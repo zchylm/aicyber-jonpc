@@ -51,6 +51,10 @@ jobs:
           VITE_JONPC_STRIPE_TEST_MODE: "false"
         run: npm run build
 
+      - name: Validate public SEO assets
+        working-directory: frontend
+        run: npm run check:seo
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
