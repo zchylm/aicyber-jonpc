@@ -63,7 +63,6 @@ function SiteSupport({ user }: { user: AuthUser | null }) {
           <address className="company-footer-block">
             <span>Contact</span>
             <a href="mailto:support@jonpc.com.au">support@jonpc.com.au</a>
-            <a href="tel:+61436365016">+61 436 365 016</a>
             <small>205 Kensington Rd, West Melbourne VIC 3003</small>
           </address>
         </div>

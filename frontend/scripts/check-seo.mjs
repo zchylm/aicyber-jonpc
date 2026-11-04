@@ -51,7 +51,7 @@ assert.equal(business.name, 'JON.PC');
 assert.equal(business.url, home);
 assert.equal(business.address.addressLocality, 'West Melbourne');
 assert.equal(business.address.postalCode, '3003');
-assert.equal(business.telephone, '+61436365016');
+assert.equal(business.email, 'support@jonpc.com.au');
 assert.equal(website.publisher['@id'], business['@id']);
 publicAsset(business.logo);
 assert.equal(business.image, meta('og:image'));

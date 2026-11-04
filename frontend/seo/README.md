@@ -45,7 +45,8 @@ already has Search Console access.
 ## Content accuracy
 
 The business entity is `ComputerStore`, a `LocalBusiness` subtype, with the
-confirmed legal name, contact details and West Melbourne address. No opening
+confirmed legal name, support email and West Melbourne address. The telephone
+number is withheld during the initial launch in both the footer and JSON-LD. No opening
 hours, ratings, reviews, social accounts or product price/stock data are invented.
 Keep this entity consistent with visible website details. Product schema needs
 its own page/data strategy before being added.
