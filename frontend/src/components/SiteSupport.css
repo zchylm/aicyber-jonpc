@@ -31,9 +31,9 @@
 .support-routes { position: relative; border-left: 1px solid var(--line); }
 .support-routes > button, .support-routes > a { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; min-height: 128px; width: 100%; padding: 25px 34px; color: var(--ink); background: rgba(5, 10, 10, .5); border: 0; border-bottom: 1px solid var(--line); font: inherit; text-align: left; cursor: pointer; transition: color 180ms ease, background-color 180ms ease, padding-left 180ms ease; }
 .support-routes > :last-child { border-bottom: 0; }
-.support-routes span { grid-column: 1; color: #70807b; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .07em; text-transform: uppercase; }
+.support-routes span { grid-column: 1; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .07em; text-transform: uppercase; }
 .support-routes strong { grid-column: 1; color: inherit; font-size: 21px; font-weight: 500; letter-spacing: -.025em; }
-.support-routes small { grid-column: 1; color: #8d9a96; font-size: 12px; }
+.support-routes small { grid-column: 1; color: var(--muted); font-size: 12px; }
 .support-routes b { grid-column: 2; grid-row: 1 / span 3; align-self: center; color: var(--lime); font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 400; }
 .support-routes > button:hover, .support-routes > button:focus-visible, .support-routes > a:hover, .support-routes > a:focus-visible { padding-left: 42px; color: var(--cyan); background: rgba(143, 232, 226, .055); }
 
@@ -41,17 +41,17 @@
 .company-footer-main { display: grid; grid-template-columns: minmax(300px, 1.3fr) minmax(190px, .75fr) minmax(220px, 1fr) minmax(250px, 1fr); gap: clamp(44px, 5vw, 86px); padding-bottom: 68px; }
 .company-footer-brand p { max-width: 380px; margin: 28px 0 0; color: #edf3f0; font-size: 17px; line-height: 1.6; }
 .company-footer-company { display: grid; gap: 8px; margin-top: 32px; }
-.company-footer-company strong { color: #cbd5d1; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 400; letter-spacing: .045em; line-height: 1.5; }
-.company-footer-company small { color: #91a09b; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .04em; }
+.company-footer-company strong { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 400; letter-spacing: .045em; line-height: 1.5; }
+.company-footer-company small { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .04em; }
 .company-footer-block { display: grid; align-content: start; gap: 15px; margin: 0; color: var(--ink); font-style: normal; }
 .company-footer-block span { margin-bottom: 7px; color: var(--lime); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; }
 .company-footer-block strong, .company-footer-block a, .company-footer-block button { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 400; letter-spacing: .02em; line-height: 1.55; }
-.company-footer-block small { color: #cbd5d1; font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.65; }
+.company-footer-block small { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.65; }
 .company-footer-block a:hover, .company-footer-block a:focus-visible { color: var(--cyan); }
 .company-footer-links button { width: fit-content; padding: 0 0 3px; color: #edf3f0; background: transparent; border: 0; border-bottom: 1px solid transparent; text-align: left; cursor: pointer; transition: color 160ms ease, border-color 160ms ease; }
 .company-footer-links button:hover, .company-footer-links button:focus-visible { color: var(--cyan); border-color: rgba(143, 232, 226, .55); }
-.company-footer-base { display: flex; justify-content: space-between; gap: 24px; padding-top: 26px; color: #91a09b; border-top: 1px solid var(--line); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .065em; text-transform: uppercase; }
-.company-footer-base a { color: #d7e0dd; }
+.company-footer-base { display: flex; justify-content: space-between; gap: 24px; padding-top: 26px; color: var(--muted); border-top: 1px solid var(--line); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .065em; text-transform: uppercase; }
+.company-footer-base a { color: var(--muted); }
 .company-footer-base a:hover, .company-footer-base a:focus-visible { color: var(--lime); }
 
 @media (max-width: 1024px) {

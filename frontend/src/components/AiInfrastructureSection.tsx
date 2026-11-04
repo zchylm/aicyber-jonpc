@@ -384,7 +384,7 @@ function AiInfrastructureSection() {
   return (
     <section className="ai-infrastructure" id="ai-infrastructure" aria-labelledby="ai-infrastructure-title">
       <header className="ai-infrastructure-hero">
-        <div><span className="section-kicker">JON. AI Infrastructure</span><h2 id="ai-infrastructure-title">Your AI infrastructure.<br /><em>Built to scale.</em></h2></div>
+        <div><span className="section-kicker">JON.PC / AI Infrastructure</span><h2 id="ai-infrastructure-title">AI solutions.<br /><em>Built to scale.</em></h2></div>
         <div className="ai-infrastructure-intro"><p>Configure the AI systems your business needs. JON.PC reviews, builds, integrates and deploys the approved project.</p><button className="button button-primary ai-infrastructure-cta" type="button" onClick={openBuilder}>{scaleId ? "Continue your infrastructure" : "Build your infrastructure"} <span aria-hidden="true">↗</span></button></div>
       </header>
 

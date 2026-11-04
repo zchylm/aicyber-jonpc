@@ -5,6 +5,7 @@ function HeroVisual() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const activeSlide = heroSlides[activeIndex];
+  const [categoryTitle, tagline] = activeSlide.title.split("\n");
 
   useEffect(() => {
     if (isPaused) return undefined;
@@ -33,7 +34,7 @@ function HeroVisual() {
       <div className="hero-carousel-overlay" aria-hidden="true" />
       <div className="hero-carousel-content" aria-live="polite">
         <span className="hero-slide-kicker">{activeSlide.kicker}</span>
-        <h1 id="hero-title">{activeSlide.title}</h1>
+        <h1 id="hero-title">{categoryTitle}<br /><em>{tagline}</em></h1>
         <p>{activeSlide.description}</p>
         <a className="button button-primary" href={activeSlide.cta.href}>{activeSlide.cta.label} <span aria-hidden="true">↗</span></a>
       </div>

@@ -10,7 +10,7 @@
 .shopping-bag-empty p { margin: 0; color: var(--muted); }
 .shopping-bag-empty button { display: flex; justify-content: space-between; padding: 10px 0; color: var(--cyan); background: transparent; border: 0; font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
 .shopping-bag-empty button span { color: var(--lime); }
-.shopping-bag-selection { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 0 13px; color: #c4cfcc; font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+.shopping-bag-selection { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 0 13px; color: var(--muted); font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
 .shopping-bag-selection button { padding: 0; color: var(--cyan); background: transparent; border: 0; font: inherit; cursor: pointer; }
 .shopping-bag-selection button:hover, .shopping-bag-selection button:focus-visible { color: var(--lime); }
 .shopping-bag-items { border-top: 1px solid var(--line); }
@@ -21,13 +21,13 @@
 .shopping-bag-select input:checked + span { background: var(--lime); border-color: var(--lime); box-shadow: inset 0 0 0 4px #0a1212; }
 .shopping-bag-select input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .shopping-bag-item-copy { display: grid; gap: 6px; }
-.shopping-bag-items article span, .shopping-bag-items article small, .shopping-bag-total span { color: #9caaa6; font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+.shopping-bag-items article span, .shopping-bag-items article small, .shopping-bag-total span { color: var(--muted); font: 10px "DM Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
 .shopping-bag-items article strong { color: var(--ink); font-size: 18px; font-weight: 500; }
 .shopping-bag-item-copy b { margin-top: 4px; color: #f4f7f5; font: 500 14px "DM Mono", monospace; }
 .shopping-bag-quantity { display: grid; grid-template-columns: 30px 28px 30px; align-items: center; align-self: center; border: 1px solid var(--line); }
 .shopping-bag-quantity button { height: 30px; color: var(--cyan); background: transparent; border: 0; cursor: pointer; }
 .shopping-bag-quantity span { color: var(--ink) !important; text-align: center; }
-.shopping-bag-remove { grid-column: 3; justify-self: end; padding: 0; color: #9caaa6; background: transparent; border: 0; font: 9px "DM Mono", monospace; text-transform: uppercase; cursor: pointer; }
+.shopping-bag-remove { grid-column: 3; justify-self: end; padding: 0; color: var(--muted); background: transparent; border: 0; font: 9px "DM Mono", monospace; text-transform: uppercase; cursor: pointer; }
 .shopping-bag-remove:hover { color: #ffb4b4; }
 .shopping-bag-total { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 25px 0; }
 .shopping-bag-total strong { color: var(--lime); font: 500 23px "DM Mono", monospace; }

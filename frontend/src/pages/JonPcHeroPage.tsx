@@ -42,7 +42,11 @@ function JonPcHeroPage() {
 
       <section className="hero" aria-labelledby="hero-title">
         <HeroVisual />
-
+        <nav className="hero-categories" aria-label="Shop by PC type">
+          <a href="#gaming-pcs"><span className="hero-category-label">Play</span><strong>Gaming PCs</strong><span className="hero-category-arrow" aria-hidden="true">↗</span></a>
+          <a href="#compact-ai-systems"><span className="hero-category-label">Work & AI</span><strong>Mini PCs</strong><span className="hero-category-arrow" aria-hidden="true">↗</span></a>
+          <a href="#build"><span className="hero-category-label">Make it yours</span><strong>Custom PCs</strong><span className="hero-category-arrow" aria-hidden="true">↗</span></a>
+        </nav>
       </section>
 
       <QueueRewardsSection user={user} />

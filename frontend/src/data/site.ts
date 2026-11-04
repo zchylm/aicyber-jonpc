@@ -9,10 +9,10 @@ export const focusAreas = [
 ];
 
 export const navigationItems = [
-  { label: "Systems", href: "#systems" },
-  { label: "AI Build", href: "#ai-infrastructure" },
-  { label: "Founder 5% Off", href: "#queue-rewards" },
-  { label: "Customize", href: "#build" },
+  { label: "Gaming PCs", href: "#gaming-pcs" },
+  { label: "Mini PCs", href: "#compact-ai-systems" },
+  { label: "Custom PCs", href: "#build" },
+  { label: "AI Solutions", href: "#ai-infrastructure" },
   { label: "Support", href: "#support" },
 ];
 

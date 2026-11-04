@@ -852,7 +852,8 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
     <section className="configurator-section" id="build" aria-labelledby="configurator-title">
       <div className="configurator-heading">
         <div>
-          <h2 id="configurator-title">Intelligent custom<br /><em>builds.</em></h2>
+          <span className="section-kicker">JON.PC / Custom PCs</span>
+          <h2 id="configurator-title">Custom PCs.<br /><em>Built around you.</em></h2>
         </div>
         <div className="configurator-intro"><p>Tell us how you work, play or create. JON. PC recommends a balanced starting point, then you customise the details.</p><button className="button button-primary configurator-hero-cta" type="button" onClick={openConfigurator}>{directionChosen ? "Continue your build" : "Customize your PC"} <span aria-hidden="true">↗</span></button></div>
       </div>
