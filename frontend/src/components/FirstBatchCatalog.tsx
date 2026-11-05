@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { PreviewSystem } from "../api/systems";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
-import strikeImage from "../assets/featured-systems/strike-5060.jpeg";
-import strikeTiImage from "../assets/featured-systems/strike-ti.jpeg";
-import stormImage from "../assets/featured-systems/storm-5070.jpeg";
-import stormTiImage from "../assets/featured-systems/storm-ti.jpeg";
+import strikeImage from "../assets/featured-systems/strike-5060-studio-v3.jpg";
+import strikeTiImage from "../assets/featured-systems/strike-ti-studio-v3.jpg";
+import stormImage from "../assets/featured-systems/storm-5070-studio-v3.jpg";
+import stormTiImage from "../assets/featured-systems/storm-ti-studio-v3.jpg";
 import MiniSystemsCatalog from "./MiniSystemsCatalog";
 import "./FirstBatchCatalog.css";
 
@@ -54,7 +54,7 @@ function FirstBatchCatalog({ systems }: { systems: PreviewSystem[] }) {
     <div className="systems-heading"><div><span className="section-kicker">JON.PC / Shop our PCs</span><h2 id="systems-title">Find your<br /><em>next PC.</em></h2></div><p>Gaming desktops and compact AI PCs.<br />Choose the system that fits your world.</p></div>
     <div className="first-batch-toolbar catalog-category-heading" id="gaming-pcs"><div><span>01 / Strike & Storm series</span><h3>Gaming PCs<span aria-hidden="true">.</span></h3><p>Built for play. Choose your level.</p></div><button type="button" onClick={() => { openComparePanel(); setAllSpecs(false); }} aria-haspopup="dialog">Compare gaming PCs <span aria-hidden="true">↗</span></button></div>
     <div className="first-batch-grid">{sorted.map((system, index) => <article className="first-batch-card" key={system.id}>
-      <div className={`first-batch-visual first-batch-visual-${index + 1}`}><img src={systemImages[index % systemImages.length]} alt={`${system.name} PC preview`} /><span className="first-batch-visual-label">JON. PC / 0{index + 1}</span></div>
+      <div className={`first-batch-visual first-batch-gaming-visual first-batch-visual-${index + 1}`}><img src={systemImages[index % systemImages.length]} alt={`${system.name} illustrative PC preview`} loading="lazy" width={1000} height={750} /></div>
       <div className="first-batch-card-body"><div className="first-batch-card-top"><span>{system.available ? "In stock" : "Unavailable"}</span></div><h3>{system.name.replace("JON PC ", "")}</h3><p>{system.recommendedFor}</p><div className="first-batch-card-bottom"><strong>{money(system.priceCents)} <small>incl. GST</small></strong><div className="first-batch-card-actions"><button type="button" onClick={() => showSystem(system)}>View system <span aria-hidden="true">↗</span></button><button type="button" className="first-batch-request" onClick={() => addToBag(system)} disabled={!system.saleEnabled || !system.available}>Add to cart <span aria-hidden="true">→</span></button></div></div></div>
     </article>)}</div>
     <MiniSystemsCatalog systems={miniSystems} onAddToBag={addToBag} onBuyNow={buyNow} />

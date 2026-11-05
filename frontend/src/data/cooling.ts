@@ -1,7 +1,8 @@
 import type { PerformanceOption } from "./performance";
-import coolingAir from "../assets/step07/cooling-air.jpeg";
-import coolingLiquid from "../assets/step07/cooling-liquid.jpeg";
-import coolingLiquidRed from "../assets/step07/cooling-liquid-red.jpeg";
+import coolingAir from "../assets/step07/original/cooling-tower-air.jpg";
+import coolingDualAir from "../assets/step07/original/cooling-dual-tower-air.jpg";
+import coolingLiquid from "../assets/step07/original/cooling-liquid-240.jpg";
+import coolingLiquidRed from "../assets/step07/original/cooling-liquid-360.jpg";
 
 export type CoolingOption = {
   id: string;
@@ -15,7 +16,7 @@ export type CoolingOption = {
 
 export const coolingOptions: CoolingOption[] = [
   { id: "tower-air", label: "Tower air cooling", detail: "Quiet, efficient and easy to maintain", price: 70, supportedCases: ["compact", "mid", "full"], recommendedFor: "Balanced everyday cooling", image: coolingAir },
-  { id: "dual-tower-air", label: "Dual-tower air cooling", detail: "More thermal headroom for long sessions", price: 110, supportedCases: ["mid", "full"], recommendedFor: "Higher sustained workloads", image: coolingAir },
+  { id: "dual-tower-air", label: "Dual-tower air cooling", detail: "More thermal headroom for long sessions", price: 110, supportedCases: ["mid", "full"], recommendedFor: "Higher sustained workloads", image: coolingDualAir },
   { id: "240-liquid", label: "240mm liquid cooling", detail: "Performance cooling with a clean internal layout", price: 150, supportedCases: ["compact", "mid", "full"], recommendedFor: "Performance-focused builds", image: coolingLiquid },
   { id: "360-liquid", label: "360mm liquid cooling", detail: "Maximum cooling surface for demanding systems", price: 200, supportedCases: ["mid", "full"], recommendedFor: "High-end sustained workloads", image: coolingLiquidRed },
 ];

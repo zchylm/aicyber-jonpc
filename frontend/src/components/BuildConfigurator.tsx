@@ -3,14 +3,16 @@ import { deleteSavedBuild, fetchConfiguratorCatalog, fetchConfiguratorCompatibil
 import { authTokenKey, type AuthUser } from "../api/auth";
 import { configuratorDirections, configuratorQuestions, type DirectionId } from "../data/configurator";
 import { getBudgetRange, type PerformanceSelection } from "../data/performance";
-import compactWhite from "../assets/step07/compact-white.jpeg";
-import fullBlack from "../assets/step07/full-black.jpeg";
-import fullWhite from "../assets/step07/full-white.jpeg";
-import midBlack from "../assets/recommendation-slides/custom-01.jpeg";
-import midWhite from "../assets/recommendation-slides/custom-02.jpeg";
-import coolingAir from "../assets/step07/cooling-air.jpeg";
-import coolingLiquid from "../assets/step07/cooling-liquid.jpeg";
-import coolingLiquidRed from "../assets/step07/cooling-liquid-red.jpeg";
+import compactBlack from "../assets/step07/original/case-compact-black.jpg";
+import compactWhite from "../assets/step07/original/case-compact-white.jpg";
+import fullBlack from "../assets/step07/original/case-full-black.jpg";
+import fullWhite from "../assets/step07/original/case-full-white.jpg";
+import midBlack from "../assets/step07/original/case-mid-black.jpg";
+import midWhite from "../assets/step07/original/case-mid-white.jpg";
+import coolingAir from "../assets/step07/original/cooling-tower-air.jpg";
+import coolingDualAir from "../assets/step07/original/cooling-dual-tower-air.jpg";
+import coolingLiquid from "../assets/step07/original/cooling-liquid-240.jpg";
+import coolingLiquidRed from "../assets/step07/original/cooling-liquid-360.jpg";
 import customBuildWorkshop from "../assets/custom-build-workshop.jpg";
 import LogicStrip from "./LogicStrip";
 
@@ -34,7 +36,7 @@ const caseColours: Record<CaseId, Array<{ id: string; label: string; hex: string
   compact: [
     { id: "no-preference", label: "No preference", hex: "#71807d", image: compactWhite },
     { id: "white", label: "White", hex: "#eef2f0", image: compactWhite },
-    { id: "black", label: "Black", hex: "#111718" },
+    { id: "black", label: "Black", hex: "#111718", image: compactBlack },
   ],
   mid: [
     { id: "no-preference", label: "No preference", hex: "#71807d", image: midBlack },
@@ -50,7 +52,7 @@ const caseColours: Record<CaseId, Array<{ id: string; label: string; hex: string
 
 const coolingImages: Record<string, string> = {
   "tower-air": coolingAir,
-  "dual-tower-air": coolingAir,
+  "dual-tower-air": coolingDualAir,
   "240-liquid": coolingLiquid,
   "360-liquid": coolingLiquidRed,
 };
@@ -1153,7 +1155,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
               <div className="configurator-block-heading">
                 <span className="section-kicker">Step 07 / Cooling + Case</span>
                 <h3>Make the system feel like yours.</h3>
-                <p>Choose thermal performance, then shape your own style. Every visible option stays matched to your platform.</p>
+                <p>Choose your cooling and case style. Illustrations show the type and finish; final models are confirmed with your quote.</p>
               </div>
 
               <div className="style-choice-grid">
@@ -1165,7 +1167,7 @@ function BuildConfigurator({ user }: BuildConfiguratorProps) {
                       const recommended = option.id === compatibleCoolingDefault;
                       return (
                         <button className={selected ? "cooling-choice cooling-choice-selected" : "cooling-choice"} type="button" key={option.id} onClick={() => chooseCooling(option.id)} aria-pressed={selected}>
-                          <img src={coolingImages[option.id] ?? coolingAir} alt="" />
+                          <img src={coolingImages[option.id] ?? coolingAir} alt="" width={320} height={320} />
                           <span><strong>{option.label}</strong><small>{option.detail}</small></span>
                           {recommended && <em>Recommended</em>}
                         </button>
