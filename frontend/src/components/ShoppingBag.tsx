@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { AuthUser } from "../api/auth";
 import { authTokenKey } from "../api/auth";
 import { prepareCartCheckout, type PreviewSystem } from "../api/systems";
@@ -7,13 +7,15 @@ import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import "./ShoppingBag.css";
 
 type BagItem = Pick<PreviewSystem, "id" | "sku" | "name" | "priceCents" | "available" | "saleEnabled"> & { quantity: number };
+type PendingCheckout = { items: BagItem[]; removeIds: string[] };
 
-const storageKey = "jonpc:shopping-bag:v1";
-const checkoutLinesKey = (reference: string) => `jonpc:shopping-bag-checkout:${reference}`;
+const bagStorageKey = (userId: string) => `jonpc:shopping-bag:v2:${userId}`;
+const checkoutLinesKey = (userId: string, reference: string) => `jonpc:shopping-bag-checkout:${userId}:${reference}`;
 
-function readBag(): BagItem[] {
+function readBag(user: AuthUser | null): BagItem[] {
+  if (!user) return [];
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as BagItem[];
+    const parsed = JSON.parse(window.localStorage.getItem(bagStorageKey(user.id)) ?? "[]") as BagItem[];
     return Array.isArray(parsed) ? parsed.filter((item) => item?.id && item.quantity > 0) : [];
   } catch {
     return [];
@@ -21,22 +23,30 @@ function readBag(): BagItem[] {
 }
 
 function ShoppingBag({ user }: { user: AuthUser | null }) {
-  const [items, setItems] = useState<BagItem[]>(readBag);
+  const resumeAfterLoginRef = useRef<PendingCheckout | null>(null);
+  return <AccountShoppingBag key={user?.id ?? "guest"} user={user} resumeAfterLoginRef={resumeAfterLoginRef} />;
+}
+
+function AccountShoppingBag({ user, resumeAfterLoginRef }: { user: AuthUser | null; resumeAfterLoginRef: RefObject<PendingCheckout | null> }) {
+  const [items, setItems] = useState<BagItem[]>(() => readBag(user));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [isOpen, setIsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const resumeAfterLogin = useRef<{ items: BagItem[]; removeIds: string[] } | null>(null);
   const { open, close, dismiss } = useHistoryPanel("shopping-bag", isOpen, setIsOpen);
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items]);
+    if (user) window.localStorage.setItem(bagStorageKey(user.id), JSON.stringify(items));
+  }, [items, user]);
 
   useEffect(() => {
     const add = (event: Event) => {
       const system = (event as CustomEvent<PreviewSystem>).detail;
       if (!system?.id || !system.saleEnabled || !system.available) return;
+      if (!user) {
+        open();
+        return;
+      }
       setItems((current) => {
         const existing = current.find((item) => item.id === system.id);
         if (existing) return current.map((item) => item.id === system.id ? { ...item, quantity: Math.min(10, item.quantity + 1), priceCents: system.priceCents, available: system.available } : item);
@@ -48,12 +58,11 @@ function ShoppingBag({ user }: { user: AuthUser | null }) {
     };
     window.addEventListener("jonpc:add-to-bag", add);
     return () => window.removeEventListener("jonpc:add-to-bag", add);
-  }, [open]);
+  }, [open, user]);
 
   const prepareCheckout = useCallback(async (checkoutItems: BagItem[], removeIds: string[]) => {
     const token = window.localStorage.getItem(authTokenKey);
-    if (!token) {
-      resumeAfterLogin.current = { items: checkoutItems, removeIds };
+    if (!token || !user) {
       window.dispatchEvent(new CustomEvent("jonpc:open-account"));
       return;
     }
@@ -61,7 +70,7 @@ function ShoppingBag({ user }: { user: AuthUser | null }) {
     setError(null);
     try {
       const prepared = await prepareCartCheckout(token, checkoutItems.map((item) => ({ systemId: item.id, quantity: item.quantity })));
-      window.localStorage.setItem(checkoutLinesKey(prepared.requestReference), JSON.stringify(removeIds));
+      window.localStorage.setItem(checkoutLinesKey(user.id, prepared.requestReference), JSON.stringify(removeIds));
       dismiss();
       window.dispatchEvent(new CustomEvent("jonpc:order-requested"));
       window.dispatchEvent(new CustomEvent("jonpc:open-checkout", { detail: { requestReference: prepared.requestReference } }));
@@ -70,17 +79,17 @@ function ShoppingBag({ user }: { user: AuthUser | null }) {
     } finally {
       setBusy(false);
     }
-  }, [dismiss]);
+  }, [dismiss, user]);
 
   const requestCheckout = useCallback((checkoutItems: BagItem[], removeIds: string[]) => {
     if (!checkoutItems.length) return;
     if (!user) {
-      resumeAfterLogin.current = { items: checkoutItems, removeIds };
+      resumeAfterLoginRef.current = { items: checkoutItems, removeIds };
       window.dispatchEvent(new CustomEvent("jonpc:open-account"));
       return;
     }
     void prepareCheckout(checkoutItems, removeIds);
-  }, [prepareCheckout, user]);
+  }, [prepareCheckout, resumeAfterLoginRef, user]);
 
   useEffect(() => {
     const buyNow = (event: Event) => {
@@ -95,8 +104,8 @@ function ShoppingBag({ user }: { user: AuthUser | null }) {
   useEffect(() => {
     const removePurchasedLines = (event: Event) => {
       const reference = (event as CustomEvent<{ requestReference?: string }>).detail?.requestReference;
-      if (!reference) return;
-      const key = checkoutLinesKey(reference);
+      if (!reference || !user) return;
+      const key = checkoutLinesKey(user.id, reference);
       try {
         const ids = JSON.parse(window.localStorage.getItem(key) ?? "[]") as string[];
         if (Array.isArray(ids) && ids.length) {
@@ -110,14 +119,14 @@ function ShoppingBag({ user }: { user: AuthUser | null }) {
     };
     window.addEventListener("jonpc:checkout-committed", removePurchasedLines);
     return () => window.removeEventListener("jonpc:checkout-committed", removePurchasedLines);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    if (!resumeAfterLogin.current || !user) return;
-    const pending = resumeAfterLogin.current;
-    resumeAfterLogin.current = null;
+    if (!resumeAfterLoginRef.current || !user) return;
+    const pending = resumeAfterLoginRef.current;
+    resumeAfterLoginRef.current = null;
     void prepareCheckout(pending.items, pending.removeIds);
-  }, [prepareCheckout, user]);
+  }, [prepareCheckout, resumeAfterLoginRef, user]);
 
   const selectedItems = items.filter((item) => selectedIds.has(item.id));
   const selectedQuantity = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -153,7 +162,8 @@ function ShoppingBag({ user }: { user: AuthUser | null }) {
         <button className="shopping-bag-close" type="button" onClick={close} aria-label="Close shopping bag">×</button>
         <span className="section-kicker">JON. PC / Shopping bag</span>
         <h2 id="shopping-bag-title">Choose what goes next.</h2>
-        {!items.length && <div className="shopping-bag-empty"><p>Your shopping bag is empty.</p><button type="button" onClick={() => { dismiss(); document.querySelector("#systems")?.scrollIntoView({ behavior: "smooth" }); }}>Explore systems <span>↓</span></button></div>}
+        {!user && <div className="shopping-bag-empty"><p>Sign in to add items and view your shopping bag.</p><button type="button" onClick={() => { dismiss(); window.dispatchEvent(new CustomEvent("jonpc:open-account")); }}>Sign in <span>↗</span></button></div>}
+        {user && !items.length && <div className="shopping-bag-empty"><p>Your shopping bag is empty.</p><button type="button" onClick={() => { dismiss(); document.querySelector("#systems")?.scrollIntoView({ behavior: "smooth" }); }}>Explore systems <span>↓</span></button></div>}
         {items.length > 0 && <>
           <div className="shopping-bag-selection"><span>Select systems to checkout</span>{items.length > 1 && <button type="button" onClick={() => setSelectedIds(selectedItems.length === items.length ? new Set() : new Set(items.map((item) => item.id)))}>{selectedItems.length === items.length ? "Clear" : "Select all"}</button>}</div>
           <div className="shopping-bag-items">{items.map((item) => <article key={item.id}>
