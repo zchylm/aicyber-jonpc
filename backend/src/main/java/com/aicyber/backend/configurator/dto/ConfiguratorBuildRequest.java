@@ -7,5 +7,5 @@ public record ConfiguratorBuildRequest(
         String location,
         String notes,
         boolean contact,
-        ConfiguratorQuoteRequest configuration
+        ConfiguratorSelection configuration
 ) { }

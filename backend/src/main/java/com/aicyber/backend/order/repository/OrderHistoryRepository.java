@@ -1,6 +1,6 @@
 package com.aicyber.backend.order.repository;
 
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
 import com.aicyber.backend.order.dto.OrderHistoryResponse;
 import com.aicyber.backend.order.dto.OrderSystemItemResponse;
 import com.aicyber.backend.order.dto.OrderFulfilmentResponse;
@@ -28,8 +28,12 @@ public class OrderHistoryRepository {
 
     public List<OrderHistoryResponse> findAllByUserId(UUID userId) {
         List<OrderHistoryResponse> orders = jdbcTemplate.query(
-                "SELECT b.id, b.request_reference, b.direction, b.estimated_price, b.recommended_baseline, " +
-                        "b.selected_adjustments, b.status, b.created_at, b.configuration_snapshot, " +
+                "SELECT b.id, b.request_reference, b.direction, " +
+                        "COALESCE(s.product_subtotal_cents, " +
+                        "(SELECT SUM(si.line_total_cents) FROM build_request_system_items si WHERE si.build_request_id = b.id), " +
+                        "CASE WHEN b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL AND b.estimated_price > 0 " +
+                        "THEN b.estimated_price * 100::bigint END)::bigint AS product_subtotal_cents, " +
+                        "b.status, b.created_at, b.configuration_snapshot, " +
                         "s.id AS sales_order_id, s.order_reference, s.status AS order_status, " +
                         "latest_payment.payment_reference, latest_payment.status AS payment_status, " +
                         "i.id AS invoice_id, i.invoice_number, i.issued_at AS invoice_issued_at, " +
@@ -53,8 +57,7 @@ public class OrderHistoryRepository {
                 (resultSet, rowNum) -> map(resultSet), userId
         );
         return orders.stream().map(order -> new OrderHistoryResponse(
-                order.id(), order.requestReference(), order.direction(), order.estimatedPrice(),
-                order.recommendedBaseline(), order.selectedAdjustments(), order.status(), order.createdAt(),
+                order.id(), order.requestReference(), order.direction(), order.productSubtotalCents(), order.status(), order.createdAt(),
                 order.configuration(), order.salesOrderId(), order.orderReference(), order.orderStatus(),
                 order.paymentReference(), order.paymentStatus(), order.invoiceId(), order.invoiceNumber(),
                 order.invoiceIssuedAt(), order.quoteId(), order.quoteStatus(), order.quoteTotalCents(),
@@ -68,12 +71,10 @@ public class OrderHistoryRepository {
                     resultSet.getObject("id", UUID.class),
                     resultSet.getString("request_reference"),
                     resultSet.getString("direction"),
-                    resultSet.getInt("estimated_price"),
-                    resultSet.getInt("recommended_baseline"),
-                    resultSet.getInt("selected_adjustments"),
+                    resultSet.getObject("product_subtotal_cents", Long.class),
                     resultSet.getString("status"),
                     resultSet.getObject("created_at", OffsetDateTime.class),
-                    objectMapper.readValue(resultSet.getString("configuration_snapshot"), ConfiguratorQuoteRequest.class),
+                    objectMapper.readValue(resultSet.getString("configuration_snapshot"), ConfiguratorSelection.class),
                     resultSet.getObject("sales_order_id", UUID.class),
                     resultSet.getString("order_reference"),
                     resultSet.getString("order_status"),

@@ -1,6 +1,7 @@
 package com.aicyber.backend.order.service;
 
 import com.aicyber.backend.order.model.SalesOrder;
+import com.aicyber.backend.order.repository.OrderHistoryRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,25 @@ class SalesOrderServiceIntegrationTest {
 
     @Autowired
     private SalesOrderService service;
+    @Autowired private OrderHistoryRepository history;
+
+    @Test
+    void legacySingleProductHistoryUsesAnExplicitSubtotalInCents() {
+        UUID userId = createUser();
+        createBuildRequest(userId, 2_099);
+        assertEquals(209_900L, history.findAllByUserId(userId).get(0).productSubtotalCents());
+    }
+
+    @Test
+    void missingLegacyProductAmountIsRejectedBeforeAnOrderIsInserted() {
+        UUID userId = createUser();
+        createBuildRequest(userId, 0);
+        var pending = history.findAllByUserId(userId).get(0);
+        assertEquals(null, pending.productSubtotalCents());
+        assertThrows(IllegalArgumentException.class, () -> service.createFromLatestBuildRequest(userId));
+        assertThrows(IllegalArgumentException.class, () -> service.createFromBuildRequest(userId, pending.requestReference()));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_orders WHERE user_id = ?", Integer.class, userId));
+    }
 
     @Test
     void convertsLatestBuildRequestAndMarksItPaid() {

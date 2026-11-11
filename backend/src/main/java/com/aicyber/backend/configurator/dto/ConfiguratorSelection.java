@@ -2,7 +2,7 @@ package com.aicyber.backend.configurator.dto;
 
 import java.util.Map;
 
-public record ConfiguratorQuoteRequest(
+public record ConfiguratorSelection(
         String direction,
         Map<String, String> answers,
         String recommendedCpuId,

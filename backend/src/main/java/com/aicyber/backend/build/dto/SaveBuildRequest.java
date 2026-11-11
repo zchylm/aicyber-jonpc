@@ -1,13 +1,10 @@
 package com.aicyber.backend.build.dto;
 
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
 
 public record SaveBuildRequest(
         String name,
         String direction,
         String budgetRange,
-        int estimatedPrice,
-        int recommendedBaseline,
-        int selectedAdjustments,
-        ConfiguratorQuoteRequest configuration
+        ConfiguratorSelection configuration
 ) { }

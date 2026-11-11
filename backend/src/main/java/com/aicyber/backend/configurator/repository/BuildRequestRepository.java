@@ -1,7 +1,6 @@
 package com.aicyber.backend.configurator.repository;
 
 import com.aicyber.backend.configurator.dto.ConfiguratorBuildRequest;
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteResponse;
 import com.aicyber.backend.configurator.service.BuildRequestStore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,15 +20,16 @@ public class BuildRequestRepository implements BuildRequestStore {
     }
 
     @Override
-    public UUID create(UUID userId, ConfiguratorBuildRequest request, ConfiguratorQuoteResponse quote, String reference) {
+    public UUID create(UUID userId, ConfiguratorBuildRequest request, String reference) {
         UUID id = UUID.randomUUID();
+        // Shared legacy amount columns stay zero until a custom quote is reviewed.
         jdbcTemplate.update(
                 "INSERT INTO build_requests (id, user_id, request_reference, name, email, phone, location, notes, " +
                         "contact_requested, direction, estimated_price, recommended_baseline, selected_adjustments, " +
-                        "configuration_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)",
+                        "configuration_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?::jsonb)",
                 id, userId, reference, request.name().trim(), request.email().trim(), nullable(request.phone()),
                 request.location().trim(), nullable(request.notes()), request.contact(), request.configuration().direction(),
-                quote.estimatedTotal(), quote.recommendedBaseline(), quote.selectedAdjustments(), toJson(request.configuration())
+                toJson(request.configuration())
         );
         return id;
     }

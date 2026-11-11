@@ -1,6 +1,6 @@
 package com.aicyber.backend.build.dto;
 
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -10,10 +10,7 @@ public record SavedBuildResponse(
         String name,
         String direction,
         String budgetRange,
-        int estimatedPrice,
-        int recommendedBaseline,
-        int selectedAdjustments,
-        ConfiguratorQuoteRequest configuration,
+        ConfiguratorSelection configuration,
         String status,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

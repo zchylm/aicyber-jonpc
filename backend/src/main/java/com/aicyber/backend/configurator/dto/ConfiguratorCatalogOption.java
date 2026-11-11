@@ -8,7 +8,6 @@ public record ConfiguratorCatalogOption(
         String label,
         String family,
         String detail,
-        int price,
         String platform,
         String chipset,
         Boolean wifi,

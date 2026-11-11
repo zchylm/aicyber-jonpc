@@ -23,7 +23,11 @@ public class SalesOrderRepository {
     public Optional<BuildRequestOrderSource> findLatestUnconvertedBuildRequest(UUID userId) {
         return jdbcTemplate.query(
                 "SELECT b.id, b.user_id, b.request_reference, " +
-                        "COALESCE(q.total_cents, (SELECT SUM(i.line_total_cents) FROM build_request_system_items i WHERE i.build_request_id = b.id), b.estimated_price * 100::bigint) AS price_cents " +
+                        "CASE WHEN q.id IS NOT NULL THEN q.total_cents " +
+                        "WHEN EXISTS (SELECT 1 FROM build_request_system_items i WHERE i.build_request_id = b.id) " +
+                        "THEN (SELECT SUM(i.line_total_cents) FROM build_request_system_items i WHERE i.build_request_id = b.id) " +
+                        "WHEN b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL " +
+                        "THEN b.estimated_price * 100::bigint END AS price_cents " +
                         "FROM build_requests b LEFT JOIN sales_orders s ON s.build_request_id = b.id " +
                         "LEFT JOIN custom_build_quotes q ON q.build_request_id = b.id AND q.status = 'ACCEPTED' " +
                         "WHERE b.user_id = ? AND b.status <> 'CANCELLED' AND s.id IS NULL " +
@@ -43,7 +47,11 @@ public class SalesOrderRepository {
     public Optional<BuildRequestOrderSource> findBuildRequest(UUID userId, String requestReference) {
         return jdbcTemplate.query(
                 "SELECT b.id, b.user_id, b.request_reference, " +
-                        "COALESCE(q.total_cents, (SELECT SUM(i.line_total_cents) FROM build_request_system_items i WHERE i.build_request_id = b.id), b.estimated_price * 100::bigint) AS price_cents " +
+                        "CASE WHEN q.id IS NOT NULL THEN q.total_cents " +
+                        "WHEN EXISTS (SELECT 1 FROM build_request_system_items i WHERE i.build_request_id = b.id) " +
+                        "THEN (SELECT SUM(i.line_total_cents) FROM build_request_system_items i WHERE i.build_request_id = b.id) " +
+                        "WHEN b.configuration_snapshot->'answers'->>'systemSku' IS NOT NULL " +
+                        "THEN b.estimated_price * 100::bigint END AS price_cents " +
                         "FROM build_requests b " +
                         "LEFT JOIN custom_build_quotes q ON q.build_request_id = b.id AND q.status = 'ACCEPTED' " +
                         "WHERE b.user_id = ? AND b.request_reference = ? AND b.status <> 'CANCELLED' " +
@@ -61,13 +69,15 @@ public class SalesOrderRepository {
     }
 
     public SalesOrder createFromBuildRequest(BuildRequestOrderSource source, String orderReference) {
+        if (source.productSubtotalCents() <= 0)
+            throw new IllegalArgumentException("A verified positive product amount is required before checkout");
         UUID orderId = UUID.randomUUID();
         String deliveryMethod = jdbcTemplate.query(
                 "SELECT delivery_method FROM build_delivery_details WHERE build_request_id = ?",
                 (resultSet, rowNumber) -> resultSet.getString("delivery_method"), source.id())
                 .stream().findFirst().orElse("PICKUP");
         long shippingFeeCents = "PICKUP".equals(deliveryMethod) ? 0 : MELBOURNE_METRO_SHIPPING_CENTS;
-        long totalCents = source.estimatedPriceCents() + shippingFeeCents;
+        long totalCents = source.productSubtotalCents() + shippingFeeCents;
         jdbcTemplate.update(
                 "INSERT INTO sales_orders " +
                         "(id, user_id, build_request_id, order_reference, amount_cents, product_subtotal_cents, shipping_fee_cents, currency, status) " +
@@ -78,7 +88,7 @@ public class SalesOrderRepository {
                 source.id(),
                 orderReference,
                 totalCents,
-                source.estimatedPriceCents(),
+                source.productSubtotalCents(),
                 shippingFeeCents
         );
         SalesOrder order = findByBuildRequestId(source.id()).orElseThrow();

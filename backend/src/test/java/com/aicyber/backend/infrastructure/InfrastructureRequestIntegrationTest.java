@@ -81,7 +81,7 @@ class InfrastructureRequestIntegrationTest {
 
         reviews.accept(quote.quoteId(), customer);
         var checkout = payments.create(customer, submitted.requestReference(), "infrastructure-checkout");
-        assertEquals(3_852_500, checkout.amountCents());
+        assertEquals(3_660_000, checkout.amountCents()); // Reviewed A$38,500 less 5%, plus A$25 delivery.
         assertEquals("CREATED", checkout.status());
         assertNotNull(checkout.rewardPreview());
 

@@ -9,10 +9,13 @@ import org.junit.jupiter.api.Test;
 class ConfiguratorCatalogTest {
 
     @Test
-    void exposesEveryConfiguratorCategoryAndStableBaseline() {
+    void exposesEveryConfiguratorCategoryWithoutPrices() {
         ConfiguratorCatalogResponse catalog = ConfiguratorCatalog.response();
 
-        assertEquals(650, catalog.systemBasePrice());
+        var payload = new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(catalog);
+        assertTrue(!payload.has("systemBasePrice"));
+        payload.get("options").elements().forEachRemaining(options ->
+                options.forEach(option -> assertTrue(!option.has("price"))));
         assertEquals(8, catalog.options().get("cpu").size());
         assertEquals(7, catalog.options().get("gpu").size());
         assertEquals(4, catalog.options().get("memory").size());

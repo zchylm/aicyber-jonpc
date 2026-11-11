@@ -152,7 +152,6 @@ export type CustomBuildReviewItem = {
   notes: string | null;
   direction: string;
   budgetRange: string;
-  estimatedPrice: number;
   configuration: { answers?: Record<string, string>; [key: string]: unknown };
   createdAt: string;
   quoteId: string | null;

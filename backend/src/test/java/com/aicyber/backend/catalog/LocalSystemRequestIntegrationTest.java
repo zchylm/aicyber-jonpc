@@ -1,7 +1,7 @@
 package com.aicyber.backend.catalog;
 
 import com.aicyber.backend.auth.repository.UserRepository;
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
 import com.aicyber.backend.order.repository.OrderHistoryRepository;
 import com.aicyber.backend.payment.service.MockPaymentWorkflowService;
 import org.junit.jupiter.api.Test;
@@ -42,7 +42,7 @@ class LocalSystemRequestIntegrationTest {
                 new LocalSystemRequestController.LocalSystemRequest(system.sku(), system.priceCents()));
         assertEquals(system.priceCents(), request.priceCents());
         assertEquals(system.sku(), request.sku());
-        ConfiguratorQuoteRequest snapshot = orders.findAllByUserId(userId).get(0).configuration();
+        ConfiguratorSelection snapshot = orders.findAllByUserId(userId).get(0).configuration();
         assertEquals(system.sku(), snapshot.answers().get("systemSku"));
         assertEquals(system.name(), snapshot.answers().get("systemName"));
         assertEquals(system.specifications().get("GPU"), snapshot.answers().get("GPU"));
@@ -55,7 +55,7 @@ class LocalSystemRequestIntegrationTest {
                 """, requestId);
 
         var checkout = payments.create(userId, request.requestReference(), UUID.randomUUID().toString());
-        assertEquals(system.priceCents() + 2_500, checkout.amountCents());
+        assertEquals(system.priceCents() - Math.round(system.priceCents() * 0.05) + 2_500, checkout.amountCents());
         assertNotNull(checkout.orderReference());
         var settled = payments.complete(userId, checkout.paymentId(), "SUCCEEDED");
         assertNotNull(settled.invoiceId());

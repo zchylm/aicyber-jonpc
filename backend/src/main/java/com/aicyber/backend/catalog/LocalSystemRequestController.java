@@ -2,7 +2,7 @@ package com.aicyber.backend.catalog;
 
 import com.aicyber.backend.auth.model.User;
 import com.aicyber.backend.auth.repository.UserRepository;
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -58,7 +58,7 @@ public class LocalSystemRequestController {
         answers.put("systemSku", system.sku());
         answers.put("systemId", system.id().toString());
         answers.put("systemName", system.name());
-        ConfiguratorQuoteRequest snapshot = new ConfiguratorQuoteRequest("gaming", answers,
+        ConfiguratorSelection snapshot = new ConfiguratorSelection("gaming", answers,
                 null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null);
         try {

@@ -1,6 +1,6 @@
 import type { RewardEntry } from "./rewards";
 
-export type ConfiguratorQuoteRequest = {
+export type ConfiguratorSelection = {
   direction: string;
   answers: Record<string, string>;
   recommendedCpuId: string;
@@ -22,12 +22,8 @@ export type ConfiguratorQuoteRequest = {
   caseColorId?: string;
 };
 
-export type ConfiguratorQuote = {
-  recommendedBaseline: number;
-  selectedAdjustments: number;
-  estimatedTotal: number;
+export type ConfiguratorValidation = {
   compatible: boolean;
-  budgetStatus: string;
   validation: string[];
 };
 
@@ -55,7 +51,6 @@ export type ConfiguratorCatalogOption = {
   label: string;
   family: string;
   detail: string;
-  price: number;
   platform?: "AM5" | "LGA1700" | string | null;
   chipset?: string | null;
   wifi?: boolean | null;
@@ -69,7 +64,6 @@ export type ConfiguratorCatalogOption = {
 };
 
 export type ConfiguratorCatalog = {
-  systemBasePrice: number;
   options: Record<string, ConfiguratorCatalogOption[]>;
 };
 
@@ -80,13 +74,12 @@ export type ConfiguratorBuildRequest = {
   location: string;
   notes: string;
   contact: boolean;
-  configuration: ConfiguratorQuoteRequest;
+  configuration: ConfiguratorSelection;
 };
 
 export type ConfiguratorBuildResponse = {
   requestReference: string;
   status: string;
-  quote: ConfiguratorQuote;
   message: string;
 };
 
@@ -95,10 +88,7 @@ export type SavedBuild = {
   name: string;
   direction: string;
   budgetRange: string | null;
-  estimatedPrice: number;
-  recommendedBaseline: number;
-  selectedAdjustments: number;
-  configuration: ConfiguratorQuoteRequest;
+  configuration: ConfiguratorSelection;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -108,12 +98,10 @@ export type OrderHistoryItem = {
   id: string;
   requestReference: string;
   direction: string;
-  estimatedPrice: number;
-  recommendedBaseline: number;
-  selectedAdjustments: number;
+  productSubtotalCents: number | null;
   status: string;
   createdAt: string;
-  configuration: ConfiguratorQuoteRequest;
+  configuration: ConfiguratorSelection;
   salesOrderId: string | null;
   orderReference: string | null;
   orderStatus: string | null;
@@ -146,11 +134,11 @@ export type OrderFulfilment = {
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
-export async function fetchConfiguratorQuote(
-  request: ConfiguratorQuoteRequest,
+export async function fetchConfiguratorValidation(
+  request: ConfiguratorSelection,
   signal?: AbortSignal,
-): Promise<ConfiguratorQuote> {
-  const response = await fetch(`${apiBaseUrl}/api/configurator/quote`, {
+): Promise<ConfiguratorValidation> {
+  const response = await fetch(`${apiBaseUrl}/api/configurator/validation`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -158,10 +146,10 @@ export async function fetchConfiguratorQuote(
   });
 
   if (!response.ok) {
-    throw new Error(`Configurator quote failed with status ${response.status}`);
+    throw new Error(`Configurator validation failed with status ${response.status}`);
   }
 
-  return response.json() as Promise<ConfiguratorQuote>;
+  return response.json() as Promise<ConfiguratorValidation>;
 }
 
 export async function fetchConfiguratorRecommendation(
@@ -234,10 +222,7 @@ export async function saveBuild(token: string, request: {
   name: string;
   direction: string;
   budgetRange: string;
-  estimatedPrice: number;
-  recommendedBaseline: number;
-  selectedAdjustments: number;
-  configuration: ConfiguratorQuoteRequest;
+  configuration: ConfiguratorSelection;
 }, buildId?: string): Promise<SavedBuild> {
   const path = buildId ? `/api/builds/${buildId}` : "/api/builds";
   const response = await fetch(`${apiBaseUrl}${path}`, {

@@ -3,7 +3,7 @@ package com.aicyber.backend.build.service;
 import com.aicyber.backend.build.dto.SaveBuildRequest;
 import com.aicyber.backend.build.dto.SavedBuildResponse;
 import com.aicyber.backend.build.repository.SavedBuildRepository;
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -41,11 +41,11 @@ class SavedBuildServiceTest {
     }
 
     private SaveBuildRequest request() {
-        ConfiguratorQuoteRequest configuration = new ConfiguratorQuoteRequest(
+        ConfiguratorSelection configuration = new ConfiguratorSelection(
                 "gaming", Map.of("budget", "$1,500-$2,000"),
                 "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air",
                 "ryzen-7-7700", "arc-b580", "32gb", "2tb", "b850-wifi", "650-bronze", "mid", "dual-tower-air", "black"
         );
-        return new SaveBuildRequest("Gaming / Arc B580", "gaming", "$1,500-$2,000", 1747, 1747, 0, configuration);
+        return new SaveBuildRequest("Gaming / Arc B580", "gaming", "$1,500-$2,000", configuration);
     }
 }

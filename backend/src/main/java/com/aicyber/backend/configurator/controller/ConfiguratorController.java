@@ -1,7 +1,7 @@
 package com.aicyber.backend.configurator.controller;
 
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteResponse;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
+import com.aicyber.backend.configurator.dto.ConfiguratorValidationResponse;
 import com.aicyber.backend.configurator.dto.ConfiguratorRecommendationRequest;
 import com.aicyber.backend.configurator.dto.ConfiguratorRecommendationResponse;
 import com.aicyber.backend.configurator.dto.ConfiguratorCompatibilityRequest;
@@ -11,7 +11,7 @@ import com.aicyber.backend.configurator.dto.ConfiguratorBuildResponse;
 import com.aicyber.backend.configurator.service.ConfiguratorCompatibilityService;
 import com.aicyber.backend.configurator.service.ConfiguratorRecommendationService;
 import com.aicyber.backend.configurator.service.ConfiguratorRequestService;
-import com.aicyber.backend.configurator.service.ConfiguratorQuoteService;
+import com.aicyber.backend.configurator.service.ConfiguratorValidationService;
 import com.aicyber.backend.auth.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -34,27 +34,27 @@ import org.springframework.security.core.Authentication;
         "https://jonpc.com.au",
         "https://www.jonpc.com.au"
 })
-public class ConfiguratorQuoteController {
+public class ConfiguratorController {
 
-    private final ConfiguratorQuoteService quoteService;
+    private final ConfiguratorValidationService validationService;
     private final ConfiguratorRecommendationService recommendationService;
     private final ConfiguratorCompatibilityService compatibilityService;
     private final ConfiguratorRequestService requestService;
     private final UserRepository users;
 
-    public ConfiguratorQuoteController(ConfiguratorQuoteService quoteService, ConfiguratorRecommendationService recommendationService, ConfiguratorCompatibilityService compatibilityService, ConfiguratorRequestService requestService, UserRepository users) {
-        this.quoteService = quoteService;
+    public ConfiguratorController(ConfiguratorValidationService validationService, ConfiguratorRecommendationService recommendationService, ConfiguratorCompatibilityService compatibilityService, ConfiguratorRequestService requestService, UserRepository users) {
+        this.validationService = validationService;
         this.recommendationService = recommendationService;
         this.compatibilityService = compatibilityService;
         this.requestService = requestService;
         this.users = users;
     }
 
-    @PostMapping("/quote")
+    @PostMapping("/validation")
     @ResponseStatus(HttpStatus.OK)
-    public ConfiguratorQuoteResponse quote(@RequestBody ConfiguratorQuoteRequest request) {
+    public ConfiguratorValidationResponse validate(@RequestBody ConfiguratorSelection request) {
         try {
-            return quoteService.quote(request);
+            return validationService.validate(request);
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
         }

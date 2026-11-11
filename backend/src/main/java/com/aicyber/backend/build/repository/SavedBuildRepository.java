@@ -27,11 +27,11 @@ public class SavedBuildRepository {
     public SavedBuildResponse create(UUID userId, SaveBuildRequest request) {
         validate(request);
         UUID id = UUID.randomUUID();
+        // Saved selections have no price; retain the shared legacy columns for schema compatibility.
         jdbcTemplate.update(
                 "INSERT INTO saved_builds (id, user_id, name, direction, budget_range, estimated_price, " +
-                        "recommended_baseline, selected_adjustments, configuration_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)",
-                id, userId, request.name().trim(), request.direction(), request.budgetRange(), request.estimatedPrice(),
-                request.recommendedBaseline(), request.selectedAdjustments(), toJson(request.configuration())
+                        "recommended_baseline, selected_adjustments, configuration_snapshot) VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?::jsonb)",
+                id, userId, request.name().trim(), request.direction(), request.budgetRange(), toJson(request.configuration())
         );
         return findById(userId, id);
     }
@@ -39,11 +39,10 @@ public class SavedBuildRepository {
     public SavedBuildResponse update(UUID userId, UUID id, SaveBuildRequest request) {
         validate(request);
         int updated = jdbcTemplate.update(
-                "UPDATE saved_builds SET name = ?, direction = ?, budget_range = ?, estimated_price = ?, " +
-                        "recommended_baseline = ?, selected_adjustments = ?, configuration_snapshot = ?::jsonb, " +
+                "UPDATE saved_builds SET name = ?, direction = ?, budget_range = ?, estimated_price = 0, " +
+                        "recommended_baseline = 0, selected_adjustments = 0, configuration_snapshot = ?::jsonb, " +
                         "updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status = 'ACTIVE'",
-                request.name().trim(), request.direction(), request.budgetRange(), request.estimatedPrice(),
-                request.recommendedBaseline(), request.selectedAdjustments(), toJson(request.configuration()), id, userId
+                request.name().trim(), request.direction(), request.budgetRange(), toJson(request.configuration()), id, userId
         );
         if (updated == 0) throw new IllegalArgumentException("Saved build was not found");
         return findById(userId, id);
@@ -51,7 +50,7 @@ public class SavedBuildRepository {
 
     public List<SavedBuildResponse> findAllByUserId(UUID userId) {
         return jdbcTemplate.query(
-                "SELECT id, name, direction, budget_range, estimated_price, recommended_baseline, selected_adjustments, " +
+                "SELECT id, name, direction, budget_range, " +
                         "configuration_snapshot, status, created_at, updated_at FROM saved_builds " +
                         "WHERE user_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC",
                 (resultSet, rowNum) -> map(resultSet), userId
@@ -65,7 +64,7 @@ public class SavedBuildRepository {
 
     private SavedBuildResponse findById(UUID userId, UUID id) {
         return jdbcTemplate.query(
-                "SELECT id, name, direction, budget_range, estimated_price, recommended_baseline, selected_adjustments, " +
+                "SELECT id, name, direction, budget_range, " +
                         "configuration_snapshot, status, created_at, updated_at FROM saved_builds WHERE id = ? AND user_id = ?",
                 (resultSet, rowNum) -> map(resultSet), id, userId
         ).stream().findFirst().orElseThrow(() -> new IllegalArgumentException("Saved build was not found"));
@@ -75,9 +74,8 @@ public class SavedBuildRepository {
         try {
             return new SavedBuildResponse(
                     resultSet.getObject("id", UUID.class), resultSet.getString("name"), resultSet.getString("direction"),
-                    resultSet.getString("budget_range"), resultSet.getInt("estimated_price"),
-                    resultSet.getInt("recommended_baseline"), resultSet.getInt("selected_adjustments"),
-                    objectMapper.readValue(resultSet.getString("configuration_snapshot"), com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest.class),
+                    resultSet.getString("budget_range"),
+                    objectMapper.readValue(resultSet.getString("configuration_snapshot"), com.aicyber.backend.configurator.dto.ConfiguratorSelection.class),
                     resultSet.getString("status"), resultSet.getObject("created_at", OffsetDateTime.class),
                     resultSet.getObject("updated_at", OffsetDateTime.class)
             );
@@ -98,6 +96,5 @@ public class SavedBuildRepository {
         if (request == null || request.configuration() == null) throw new IllegalArgumentException("Build configuration is required");
         if (request.name() == null || request.name().isBlank()) throw new IllegalArgumentException("Build name is required");
         if (request.name().trim().length() > 160) throw new IllegalArgumentException("Build name is too long");
-        if (request.estimatedPrice() < 0 || request.recommendedBaseline() < 0) throw new IllegalArgumentException("Build price is invalid");
     }
 }

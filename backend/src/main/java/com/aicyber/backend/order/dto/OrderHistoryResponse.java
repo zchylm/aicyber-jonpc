@@ -1,6 +1,6 @@
 package com.aicyber.backend.order.dto;
 
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteRequest;
+import com.aicyber.backend.configurator.dto.ConfiguratorSelection;
 import com.aicyber.backend.reward.dto.RewardEntryResponse;
 
 import java.time.OffsetDateTime;
@@ -11,12 +11,10 @@ public record OrderHistoryResponse(
         UUID id,
         String requestReference,
         String direction,
-        int estimatedPrice,
-        int recommendedBaseline,
-        int selectedAdjustments,
+        Long productSubtotalCents,
         String status,
         OffsetDateTime createdAt,
-        ConfiguratorQuoteRequest configuration,
+        ConfiguratorSelection configuration,
         UUID salesOrderId,
         String orderReference,
         String orderStatus,

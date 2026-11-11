@@ -57,7 +57,7 @@ class CustomBuildReviewIntegrationTest {
 
         reviews.accept(revised.quoteId(), customer);
         var payment = payments.createMockCheckout(customer, reference, UUID.randomUUID().toString());
-        assertEquals(262_400, payment.amountCents());
+        assertEquals(249_405, payment.amountCents()); // Accepted A$2,599 less 5%, plus A$25 delivery.
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> reviews.publish(requestId, reviewer, new CustomBuildReviewService.PublishQuote(269_900, null, null)));
     }

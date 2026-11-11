@@ -6,6 +6,6 @@ public record BuildRequestOrderSource(
         UUID id,
         UUID userId,
         String requestReference,
-        long estimatedPriceCents
+        long productSubtotalCents
 ) {
 }

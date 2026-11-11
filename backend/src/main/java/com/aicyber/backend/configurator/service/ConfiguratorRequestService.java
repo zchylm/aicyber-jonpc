@@ -2,7 +2,6 @@ package com.aicyber.backend.configurator.service;
 
 import com.aicyber.backend.configurator.dto.ConfiguratorBuildRequest;
 import com.aicyber.backend.configurator.dto.ConfiguratorBuildResponse;
-import com.aicyber.backend.configurator.dto.ConfiguratorQuoteResponse;
 import com.aicyber.backend.email.service.CustomerEmailService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,13 +12,13 @@ import java.util.UUID;
 @Service
 public class ConfiguratorRequestService {
 
-    private final ConfiguratorQuoteService quoteService;
+    private final ConfiguratorValidationService validationService;
     private final BuildRequestStore requestStore;
     private final CustomerEmailService customerEmails;
 
-    public ConfiguratorRequestService(ConfiguratorQuoteService quoteService, BuildRequestStore requestStore,
+    public ConfiguratorRequestService(ConfiguratorValidationService validationService, BuildRequestStore requestStore,
                                       CustomerEmailService customerEmails) {
-        this.quoteService = quoteService;
+        this.validationService = validationService;
         this.requestStore = requestStore;
         this.customerEmails = customerEmails;
     }
@@ -31,8 +30,8 @@ public class ConfiguratorRequestService {
     @Transactional
     public ConfiguratorBuildResponse submit(ConfiguratorBuildRequest request, UUID userId) {
         validateContactDetails(request);
-        ConfiguratorQuoteResponse quote = quoteService.quote(request.configuration());
-        if (!quote.compatible()) {
+        var validation = validationService.validate(request.configuration());
+        if (!validation.compatible()) {
             throw new IllegalArgumentException("Build request contains incompatible component selections");
         }
 
@@ -40,9 +39,9 @@ public class ConfiguratorRequestService {
                 Math.min(3, request.configuration().direction().length())).toUpperCase(Locale.ROOT);
         String reference = "JON-" + directionCode
                 + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
-        UUID requestId = requestStore.create(userId, request, quote, reference);
+        UUID requestId = requestStore.create(userId, request, reference);
         customerEmails.buildReceived(requestId, request, reference);
-        return new ConfiguratorBuildResponse(reference, "RECEIVED", quote,
+        return new ConfiguratorBuildResponse(reference, "RECEIVED",
                 "Your configuration has been received. A JON. PC specialist will confirm availability and the final quote.");
     }
 
