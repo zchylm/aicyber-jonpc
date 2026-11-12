@@ -42,7 +42,7 @@ public class JonPcKnowledgeContextService implements KnowledgeContextProvider {
                 <JON_PC_CONTEXT>
                 Source: live public JON.PC Featured Systems catalogue at request time.
                 Prices below are AUD and include GST. Availability is public status only; exact inventory quantities are confidential and are not supplied.
-                Confirmed warranty for complete JON.PC systems: 3-year parts / 2-year return-to-base. State this label plainly and do not volunteer legal commentary unless the visitor asks about legal rights or remedies.
+                Confirmed warranty for complete JON.PC systems: 3-year parts and return-to-base. State this label plainly and do not volunteer legal commentary unless the visitor asks about legal rights or remedies.
                 """);
         appendWebsiteModules(context);
         appendPaymentMethods(context);
@@ -76,7 +76,9 @@ public class JonPcKnowledgeContextService implements KnowledgeContextProvider {
                 - Dispatched means the parcel has been handed to the carrier with an active tracking number. My Orders shows the recorded status and an Australia Post tracking link when applicable.
                 - The 48-hour delivery review period starts from the carrier's recorded Delivered event time, not from dispatch. The customer can confirm receipt or report a problem in My Orders.
                 - If the customer does not respond within 48 hours of recorded delivery, receipt is operationally confirmed automatically. This does not limit Australian Consumer Law rights.
-                - Complete JON.PC systems include a 3-year parts / 2-year return-to-base warranty. State this label plainly; do not volunteer Australian Consumer Law commentary unless the visitor asks about legal rights or remedies. Do not invent unconfirmed coverage, freight, labour or repair-time details beyond this confirmed label.
+                - Complete JON.PC systems include a 3-year parts and return-to-base warranty. State this label plainly; do not volunteer Australian Consumer Law commentary unless the visitor asks about legal rights or remedies. Do not invent unconfirmed coverage, freight, labour or repair-time details beyond these confirmed terms.
+                - For faults covered by our 3-year warranty, necessary removal and refitting labour and return shipping in both directions are included throughout the warranty period. Customers should contact support before sending a system so JON.PC can arrange the return.
+                - Every complete JON.PC system undergoes stability and thermal stress testing before dispatch. Do not invent test duration, software, certification or benchmark results.
                 - Product images may be illustrative. A supplied system follows the confirmed specification or a material substitution expressly approved by the customer.
                 """);
     }

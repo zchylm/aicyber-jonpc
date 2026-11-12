@@ -9,7 +9,8 @@
 .first-batch-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .first-batch-card { min-width: 0; border: 1px solid var(--catalog-line); background: #0d1515; transition: border-color .2s, transform .2s; }
 .first-batch-card:hover { transform: translateY(-3px); border-color: rgba(156, 232, 222, .55); }
-.first-batch-visual { position: relative; height: 240px; overflow: hidden; background: #172221; }
+.first-batch-visual { display: block; position: relative; height: 240px; overflow: hidden; background: #172221; }
+.first-batch-visual:focus-visible { outline: 2px solid #c2ef87; outline-offset: -2px; }
 .first-batch-visual img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; transition: transform .3s ease; }
 .first-batch-card:hover .first-batch-visual img { transform: scale(1.035); }
 .first-batch-visual::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5, 13, 13, .55), transparent 30%, rgba(5, 13, 13, .14)); pointer-events: none; }

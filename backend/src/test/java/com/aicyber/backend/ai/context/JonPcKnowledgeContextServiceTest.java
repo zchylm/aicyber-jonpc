@@ -43,7 +43,9 @@ class JonPcKnowledgeContextServiceTest {
         assertTrue(context.contains("$2,399 AUD incl. GST"));
         assertTrue(context.contains("Availability: SOLD OUT"));
         assertTrue(context.contains("GPU: NVIDIA GeForce RTX 5060 Ti"));
-        assertTrue(context.contains("3-year parts / 2-year return-to-base"));
+        assertTrue(context.contains("3-year parts and return-to-base"));
+        assertTrue(context.contains("return shipping in both directions are included throughout the warranty period"));
+        assertTrue(context.contains("stability and thermal stress testing before dispatch"));
         assertTrue(context.contains("do not volunteer legal commentary unless the visitor asks"));
         assertTrue(context.contains("Do not invent unconfirmed coverage, freight, labour or repair-time details"));
         assertTrue(context.contains("Stripe Checkout is currently in Test Mode and does not create a real card charge."));
@@ -54,7 +56,7 @@ class JonPcKnowledgeContextServiceTest {
         assertTrue(context.contains("Guided Custom PCs start with customer goals and preferences"));
         assertTrue(context.contains("Current offer: 5.0% off the product subtotal"));
         assertTrue(context.contains("Fifty order places are available each Melbourne calendar month"));
-        assertTrue(context.contains("There is no later cashback payout"));
+        assertTrue(context.contains("The discount is fully applied at checkout, so no separate claim or payment is required."));
         assertTrue(context.contains("Desktop and Compact AI products use the same catalogue"));
         assertTrue(context.contains("Saved builds are editable custom configurations"));
         assertTrue(context.contains("Selected hardware checks passed. Infrastructure integration requires engineering review."));
@@ -62,7 +64,8 @@ class JonPcKnowledgeContextServiceTest {
         assertTrue(context.contains("does not replace engineering review"));
         assertFalse(context.contains("0 available"));
         assertFalse(context.contains("Internal draft warranty"));
-        assertFalse(context.contains("two-year return-to-base warranty in addition"));
+        assertFalse(context.contains("2-year return-to-base"));
+        assertFalse(context.contains("two-year return-to-base"));
         assertFalse(context.contains("Real online card payment is not currently available"));
         assertFalse(context.contains("Flagship"));
         assertFalse(context.contains("JON.PC guarantees complete data-centre construction"));

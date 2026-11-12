@@ -42,7 +42,7 @@ Refunds are returned to the original payment method where reasonably possible. A
 1. **Melbourne metro delivery:** A$25 including GST for an eligible complete-system order to a postcode in the published JON.PC Melbourne metro list. The list is based on Australia Post's Melbourne metropolitan service area and is checked at checkout.
 2. **West Melbourne pickup:** Free collection from 205 Kensington Road, West Melbourne VIC 3003 by appointment after JON.PC sends a ready-for-collection notice. Identification and the order reference may be required.
 3. **Outside the flat-rate area:** JON.PC will provide a delivery quote before taking payment. The A$25 rate must not be shown or charged for an ineligible postcode.
-4. **Dispatch commitment:** JON.PC will build, test and dispatch the system within 7–14 business days after cleared payment, unless the product page or accepted quote states a different timeframe.
+4. **Dispatch commitment:** JON.PC will build, test and dispatch the system within 7–14 business days after cleared payment, unless the product page or accepted quote states a different timeframe. Every complete system undergoes stability and thermal stress testing before dispatch.
 5. Carrier transit time begins after dispatch and is not part of the 7–14 business-day dispatch commitment. Tracking details will be provided when available.
 6. If JON.PC becomes aware of a material delay, it will contact the customer with an updated estimate and available options. The customer's ACL rights remain unaffected.
 7. Risk passes on delivery to the nominated address or collection by the customer or their authorised representative. Title passes after full cleared payment.
@@ -77,14 +77,14 @@ The production implementation uses the Australia Post Melbourne metro postcode s
 
 Approved refunds will be initiated promptly. Bank and card processing times are controlled by the relevant financial institution. JON.PC will provide confirmation when the refund has been initiated.
 
-## 6. Three-year parts / two-year return-to-base warranty and repairs
+## 6. Three-year parts and return-to-base warranty and repairs
 
-1. Complete JON.PC systems include a three-year parts warranty and a two-year return-to-base warranty from the recorded delivery date, in addition to the customer's ACL rights. ACL rights may continue beyond those periods depending on the product, price and circumstances.
+1. Complete JON.PC systems include a three-year parts and return-to-base warranty from the recorded delivery date, in addition to the customer's ACL rights. ACL rights may continue beyond this period depending on the product, price and circumstances.
 2. The warranty covers defects in materials, supplied components and workmanship under normal intended use.
 3. It does not cover accidental damage, liquid damage, misuse, unauthorised modification, malware, data loss, cosmetic wear, or damage caused by external power/network equipment, except where the law requires otherwise.
 4. Installing ordinary user-upgradeable components does not automatically void the whole warranty. JON.PC may decline coverage only where the modification or component caused or contributed to the problem.
 5. Before returning a data-bearing device, the customer should back up and remove sensitive data where possible. Repair may require data access, reset or replacement. JON.PC will handle personal information in accordance with its Privacy Policy.
-6. JON.PC will provide an assessment and available remedy. No-fee repair/replacement and reasonable freight support apply where required by the ACL or this warranty.
+6. JON.PC will provide an assessment and available remedy. For faults covered by the three-year warranty, necessary removal and refitting labour and return shipping in both directions are included throughout the warranty period. Customers should contact support before returning a system so JON.PC can arrange the return. No-fee repair/replacement and reasonable freight support also apply where required by the ACL.
 
 ## 7. Custom PC build terms
 
@@ -170,7 +170,7 @@ Before publication, management/legal/finance should approve:
 - [ ] 7–14 business-day dispatch wording and delay process
 - [ ] change-of-mind/cancellation rule for custom builds
 - [ ] quote validity period
-- [ ] three-year parts / two-year return-to-base warranty scope and return-freight process
+- [ ] three-year parts and return-to-base warranty scope and return-freight process
 - [ ] cashback accounting and tax treatment
 - [ ] treatment of cashback already paid before a later refund/chargeback
 - [ ] bank-transfer refund identity checks
@@ -182,7 +182,7 @@ Before publication, management/legal/finance should approve:
 The following points follow Australian Consumer Law or accurately describe the implemented checkout and may be published before the remaining commercial choices are approved:
 
 - prices are in AUD and include GST unless clearly stated otherwise;
-- consumer guarantees cannot be excluded by store terms or the three-year parts / two-year return-to-base warranty;
+- consumer guarantees cannot be excluded by store terms or the three-year parts and return-to-base warranty;
 - for a major product failure, the consumer may choose a refund or replacement; a non-major failure may first be repaired within a reasonable time;
 - reasonable proof of purchase may be requested, but original packaging is not required for a faulty-product claim;
 - reasonable return costs are reimbursed when a product is confirmed faulty, and large or difficult-to-return faulty goods are collected or transported at the seller's reasonable cost where the ACL requires it;

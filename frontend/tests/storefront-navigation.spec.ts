@@ -85,6 +85,30 @@ test('all eight View system controls retain the original detail dialogs and brow
   }
 });
 
+for (const width of [1440, 390]) {
+  test(`all eight product images link to their matching product pages at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await home(page);
+    for (let index = 0; index < 8; index++) {
+      const card = page.locator('.first-batch-card').nth(index);
+      const name = await card.locator('h3').innerText();
+      const href = await card.locator('h3 a').getAttribute('href');
+      const imageLink = card.getByRole('link').filter({ has: page.getByRole('img') });
+      await expect(imageLink).toHaveAttribute('href', href!);
+      if (width === 1440 && (index === 0 || index === 4)) {
+        await imageLink.focus();
+        await page.keyboard.press('Enter');
+      } else {
+        await imageLink.getByRole('img').click();
+      }
+      await expect(page).toHaveURL(new RegExp(`${href}$`));
+      await expect(page.locator('#product-title')).toHaveText(`${name}.`);
+      await page.goBack();
+      await expect(page.locator('.first-batch-card')).toHaveCount(8);
+    }
+  });
+}
+
 test('existing comparisons and guest cart remain available from the homepage', async ({ page }) => {
   await home(page);
   for (const [button, title] of [['Compare gaming PCs', 'Choose your graphics.'], ['Compare mini PCs', 'Choose your edge.']]) {

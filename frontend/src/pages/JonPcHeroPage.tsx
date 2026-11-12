@@ -11,6 +11,7 @@ import PaymentCheckout from "../components/PaymentCheckout";
 import PolicyPanel from "../components/PolicyPanel";
 import SiteSupport from "../components/SiteSupport";
 import ShoppingBag from "../components/ShoppingBag";
+import PurchaseAssurance from "../components/PurchaseAssurance";
 import { authTokenKey, type AuthUser } from "../api/auth";
 import { fetchSavedBuilds } from "../api/configurator";
 import { checkoutEnabled } from "../config/runtime";
@@ -120,6 +121,8 @@ function JonPcHeroPage() {
           <a href="#build"><span className="hero-category-label">Make it yours</span><strong>Custom PCs</strong><span className="hero-category-arrow" aria-hidden="true">↗</span></a>
         </nav>
       </section>
+
+      <PurchaseAssurance />
 
       <QueueRewardsSection user={user} />
 

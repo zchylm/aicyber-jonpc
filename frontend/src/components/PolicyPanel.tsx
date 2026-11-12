@@ -27,6 +27,7 @@ const policies: Record<PolicyId, Policy> = {
     intro: "Complete systems are prepared and dispatched after cleared payment.",
     sections: [
       { title: "Delivery", body: ["Melbourne metro delivery is A$25 including GST for eligible postcodes. We build, test and dispatch within 7–14 business days unless your accepted quote states otherwise.", "Carrier transit begins after dispatch and is not included in the 7–14 business-day commitment. Tracking is provided when available."] },
+      { title: "Before dispatch", body: ["Every complete JON.PC system undergoes stability and thermal stress testing before dispatch."] },
       { title: "Pickup", body: ["West Melbourne pickup from 205 Kensington Road is free and by appointment after we confirm your system is ready."] },
       { title: "Delivery check", body: ["After recorded delivery, you can confirm receipt or report a problem in My Orders. If no issue is reported, receipt is operationally confirmed after 48 hours. This does not limit your Australian Consumer Law rights."] },
     ],
@@ -43,12 +44,13 @@ const policies: Record<PolicyId, Policy> = {
   },
   warranty: {
     label: "Warranty & Repairs",
-    title: "Three-year parts. Two-year return-to-base.",
-    intro: "Complete JON. PC systems include a 3-year parts / 2-year return-to-base warranty in addition to your Australian Consumer Law rights.",
+    title: "Three-year warranty.",
+    intro: "Complete JON. PC systems include a 3-year parts and return-to-base warranty in addition to your Australian Consumer Law rights.",
     sections: [
       { title: "Covered", body: ["The warranty covers defects in supplied components, materials and workmanship under normal intended use."] },
+      { title: "Labour & return shipping", body: ["For faults covered by our 3-year warranty, necessary removal and refitting labour and return shipping in both directions are included throughout the warranty period. Contact support before sending your system so we can arrange the return."] },
       { title: "Not covered", body: ["Accidental or liquid damage, misuse, unauthorised modification, malware, data loss, cosmetic wear and damage caused by external equipment are not covered unless the law requires otherwise.", "Installing an ordinary user-upgradeable component does not automatically void the whole warranty; coverage may be declined only where the change caused or contributed to the fault."] },
-      { title: "Before repair", body: ["Back up and remove sensitive data where possible. Before a repair that may expose stored user data or use refurbished parts, we will provide any notice required by Australian Consumer Law.", "The JON. PC 3-year parts / 2-year return-to-base warranty is an additional promise. Australian Consumer Law rights may continue beyond those periods depending on the product and circumstances."] },
+      { title: "Before repair", body: ["Back up and remove sensitive data where possible. Before a repair that may expose stored user data or use refurbished parts, we will provide any notice required by Australian Consumer Law.", "The JON. PC 3-year parts and return-to-base warranty is an additional promise. Australian Consumer Law rights may continue beyond this period depending on the product and circumstances."] },
     ],
   },
   payment: {

@@ -3,6 +3,7 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 import type { AuthUser } from "../api/auth";
 import { fetchSystemPreviews } from "../api/systems";
+import { fetchRewardSummary, type RewardPublicSummary } from "../api/rewards";
 import type { SavedBuild } from "../api/configurator";
 import AuthPanel from "../components/AuthPanel";
 import ShoppingBag from "../components/ShoppingBag";
@@ -21,9 +22,15 @@ export function PublicPage({ page, systems: initialSystems }: StorefrontSnapshot
   const [systems, setSystems] = useState(initialSystems);
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState(false);
+  const [founderSummary, setFounderSummary] = useState<RewardPublicSummary | null>(null);
   const requestVersion = useRef(0);
   const refresh = useCallback(() => {
     const version = ++requestVersion.current;
+    if (page.kind === "product") {
+      void fetchRewardSummary().then(summary => {
+        if (version === requestVersion.current) setFounderSummary(summary);
+      }).catch(() => { if (version === requestVersion.current) setFounderSummary(null); });
+    }
     return fetchSystemPreviews().then(current => {
       if (version !== requestVersion.current) return;
       const known = current.filter(system => productPages[system.sku]);
@@ -55,7 +62,7 @@ export function PublicPage({ page, systems: initialSystems }: StorefrontSnapshot
     };
   }, [refresh]);
 
-  return <StorefrontView page={page} systems={systems} verified={verified} error={error} onRetry={() => { void refresh(); }} />;
+  return <StorefrontView page={page} systems={systems} verified={verified} error={error} founderSummary={founderSummary} onRetry={() => { void refresh(); }} />;
 }
 
 export function StorefrontCommerce() {

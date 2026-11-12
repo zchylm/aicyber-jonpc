@@ -4,7 +4,7 @@ const previewURL = process.env.JONPC_TEST_BASE_URL ?? 'http://127.0.0.1:5174';
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: 'storefront-navigation.spec.ts',
+  testMatch: ['storefront-navigation.spec.ts', 'storefront-purchase.spec.ts'],
   workers: 1,
   timeout: 60_000,
   expect: { timeout: 10_000 },
