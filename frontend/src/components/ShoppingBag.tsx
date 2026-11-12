@@ -163,7 +163,7 @@ function AccountShoppingBag({ user, resumeAfterLoginRef }: { user: AuthUser | nu
         <span className="section-kicker">JON. PC / Shopping bag</span>
         <h2 id="shopping-bag-title">Choose what goes next.</h2>
         {!user && <div className="shopping-bag-empty"><p>Sign in to add items and view your shopping bag.</p><button type="button" onClick={() => { dismiss(); window.dispatchEvent(new CustomEvent("jonpc:open-account")); }}>Sign in <span>↗</span></button></div>}
-        {user && !items.length && <div className="shopping-bag-empty"><p>Your shopping bag is empty.</p><button type="button" onClick={() => { dismiss(); document.querySelector("#systems")?.scrollIntoView({ behavior: "smooth" }); }}>Explore systems <span>↓</span></button></div>}
+        {user && !items.length && <div className="shopping-bag-empty"><p>Your shopping bag is empty.</p><button type="button" onClick={() => { dismiss(); const systems = document.querySelector("#systems"); if (systems) systems.scrollIntoView({ behavior: "smooth" }); else window.location.assign("/gaming-pcs/"); }}>Explore systems <span>↓</span></button></div>}
         {items.length > 0 && <>
           <div className="shopping-bag-selection"><span>Select systems to checkout</span>{items.length > 1 && <button type="button" onClick={() => setSelectedIds(selectedItems.length === items.length ? new Set() : new Set(items.map((item) => item.id)))}>{selectedItems.length === items.length ? "Clear" : "Select all"}</button>}</div>
           <div className="shopping-bag-items">{items.map((item) => <article key={item.id}>

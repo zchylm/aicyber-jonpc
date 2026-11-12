@@ -55,6 +55,16 @@ jobs:
         working-directory: frontend
         run: npm run check:seo
 
+      - name: Install storefront test browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Check existing storefront interactions
+        working-directory: frontend
+        env:
+          JONPC_TEST_BASE_URL: http://127.0.0.1:5174
+        run: npm run test:storefront
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:

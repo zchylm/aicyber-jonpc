@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && vite build --ssr src/storefront/render.tsx --outDir .prerender && node scripts/prerender-storefront.mjs",
     "check:seo": "node scripts/check-seo.mjs",
+    "test:storefront": "playwright test --config=playwright.storefront.config.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

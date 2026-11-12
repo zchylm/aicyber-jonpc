@@ -69,5 +69,39 @@ assert(!/^Disallow:\s*\/\s*$/m.test(robots), 'Homepage crawling must not be bloc
 assert(robots.includes(`Sitemap: ${home}sitemap.xml`));
 const sitemap = readFileSync(join(dist, 'sitemap.xml'), 'utf8');
 assert(sitemap.includes('http://www.sitemaps.org/schemas/sitemap/0.9'));
-assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), [home]);
-console.log('SEO checks passed: metadata, business identity, sharing assets, icons, robots and sitemap.');
+const pages = JSON.parse(readFileSync(join(dist, 'storefront-manifest.json'), 'utf8'));
+const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
+assert.deepEqual(urls, [home, ...pages.map(page => new URL(page.path, home).href)]);
+assert.equal(new Set(urls).size, urls.length, 'Sitemap URLs must be unique');
+const titles = new Set([title]);
+for (const page of pages) {
+  const document = readFileSync(join(dist, page.path, 'index.html'), 'utf8');
+  const url = new URL(page.path, home).href;
+  assert.equal((document.match(/<h1\b/g) ?? []).length, 1, `${page.path} needs one visible H1`);
+  assert(!/<meta[^>]*name="robots"[^>]*noindex/i.test(document));
+  assert.equal((document.match(/rel="canonical"/g) ?? []).length, 1);
+  assert(document.includes(`rel="canonical" href="${url}"`));
+  assert(document.includes(`property="og:url" content="${url}"`));
+  const pageTitle = document.match(/<title>([^<]+)<\/title>/)[1].replaceAll('&amp;', '&');
+  assert(!titles.has(pageTitle), `Duplicate title: ${pageTitle}`); titles.add(pageTitle);
+  const graph = JSON.parse(document.match(/<script id="storefront-schema"[^>]*>([\s\S]*?)<\/script>/)[1])['@graph'];
+  assert(graph.some(item => item['@type'] === 'BreadcrumbList'));
+  const snapshot = JSON.parse(document.match(/<script id="storefront-data"[^>]*>([\s\S]*?)<\/script>/)[1]);
+  const visible = document.split('<script id="storefront-data"')[0];
+  for (const [, src] of visible.matchAll(/<img[^>]+src="([^"]+)"/g)) publicAsset(new URL(src, home).href);
+  for (const [, asset] of document.matchAll(/(?:src|href)="([^"]*\/assets\/[^"]+)"/g)) publicAsset(new URL(asset, home).href);
+  if (page.page.kind === 'product') {
+    const product = graph.find(item => item['@type'] === 'Product');
+    const system = snapshot.systems.find(system => system.sku === page.page.sku);
+    assert.equal(product.sku, system.sku);
+    assert.equal(product.offers.url, url);
+    assert.equal(product.offers.priceCurrency, 'AUD');
+    assert.equal(product.offers.price, (system.priceCents / 100).toFixed(2));
+    assert.equal(product.offers.availability, `https://schema.org/${system.available && system.saleEnabled ? 'InStock' : 'OutOfStock'}`);
+    assert.equal(product.additionalProperty.length, Object.keys(system.specifications).length);
+    assert(visible.includes(system.sku), 'Product SKU must be present without JavaScript');
+    assert(visible.includes(new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(system.priceCents / 100)), 'Price must be present without JavaScript');
+    publicAsset(product.image[0]);
+  }
+}
+console.log(`SEO checks passed: homepage and ${pages.length} independent pages, visible HTML, unique metadata, product data, local assets and sitemap.`);
