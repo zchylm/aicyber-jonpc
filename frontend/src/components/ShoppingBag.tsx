@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { AuthUser } from "../api/auth";
 import { authTokenKey } from "../api/auth";
-import { prepareCartCheckout, type PreviewSystem } from "../api/systems";
+import { fetchSystemPreviews, prepareCartCheckout, type PreviewSystem } from "../api/systems";
 import { checkoutEnabled } from "../config/runtime";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import "./ShoppingBag.css";
@@ -38,6 +38,22 @@ function AccountShoppingBag({ user, resumeAfterLoginRef }: { user: AuthUser | nu
   useEffect(() => {
     if (user) window.localStorage.setItem(bagStorageKey(user.id), JSON.stringify(items));
   }, [items, user]);
+
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    let open = true;
+    void fetchSystemPreviews().then(systems => {
+      if (!open) return;
+      const byId = new Map(systems.map(system => [system.id, system]));
+      setItems(current => current.map(item => {
+        const system = byId.get(item.id);
+        return system
+          ? { ...item, name: system.name, priceCents: system.priceCents, available: system.available, saleEnabled: system.saleEnabled }
+          : { ...item, available: false, saleEnabled: false };
+      }));
+    }).catch(() => { /* Checkout verifies the price and stock on the server. */ });
+    return () => { open = false; };
+  }, [isOpen, user]);
 
   useEffect(() => {
     const add = (event: Event) => {
@@ -128,7 +144,8 @@ function AccountShoppingBag({ user, resumeAfterLoginRef }: { user: AuthUser | nu
     void prepareCheckout(pending.items, pending.removeIds);
   }, [prepareCheckout, resumeAfterLoginRef, user]);
 
-  const selectedItems = items.filter((item) => selectedIds.has(item.id));
+  const availableItems = items.filter(item => item.available && item.saleEnabled);
+  const selectedItems = availableItems.filter(item => selectedIds.has(item.id));
   const selectedQuantity = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
   const selectedTotal = selectedItems.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
 
@@ -165,13 +182,16 @@ function AccountShoppingBag({ user, resumeAfterLoginRef }: { user: AuthUser | nu
         {!user && <div className="shopping-bag-empty"><p>Sign in to add items and view your shopping bag.</p><button type="button" onClick={() => { dismiss(); window.dispatchEvent(new CustomEvent("jonpc:open-account")); }}>Sign in <span>↗</span></button></div>}
         {user && !items.length && <div className="shopping-bag-empty"><p>Your shopping bag is empty.</p><button type="button" onClick={() => { dismiss(); const systems = document.querySelector("#systems"); if (systems) systems.scrollIntoView({ behavior: "smooth" }); else window.location.assign("/gaming-pcs/"); }}>Explore systems <span>↓</span></button></div>}
         {items.length > 0 && <>
-          <div className="shopping-bag-selection"><span>Select systems to checkout</span>{items.length > 1 && <button type="button" onClick={() => setSelectedIds(selectedItems.length === items.length ? new Set() : new Set(items.map((item) => item.id)))}>{selectedItems.length === items.length ? "Clear" : "Select all"}</button>}</div>
-          <div className="shopping-bag-items">{items.map((item) => <article key={item.id}>
-            <label className="shopping-bag-select"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelection(item.id)} aria-label={`Select ${item.name} for checkout`} /><span aria-hidden="true" /></label>
-            <div className="shopping-bag-item-copy"><span>{item.sku}</span><strong>{item.name.replace("JON PC ", "")}</strong><b>{money(item.priceCents * item.quantity)} · incl. GST</b></div>
+          <div className="shopping-bag-selection"><span>Select systems to checkout</span>{availableItems.length > 1 && <button type="button" onClick={() => setSelectedIds(selectedItems.length === availableItems.length ? new Set() : new Set(availableItems.map(item => item.id)))}>{selectedItems.length === availableItems.length ? "Clear" : "Select all"}</button>}</div>
+          <div className="shopping-bag-items">{items.map((item) => {
+            const buyable = item.available && item.saleEnabled;
+            return <article key={item.id}>
+            <label className="shopping-bag-select"><input type="checkbox" checked={buyable && selectedIds.has(item.id)} disabled={!buyable} onChange={() => toggleSelection(item.id)} aria-label={`Select ${item.name} for checkout`} /><span aria-hidden="true" /></label>
+            <div className="shopping-bag-item-copy"><span>{item.sku}{!buyable && " · Unavailable"}</span><strong>{item.name.replace("JON PC ", "")}</strong><b>{money(item.priceCents * item.quantity)} · incl. GST</b></div>
             <div className="shopping-bag-quantity"><button type="button" aria-label={`Decrease ${item.name} quantity`} onClick={() => decreaseQuantity(item)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Increase ${item.name} quantity`} onClick={() => setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, quantity: Math.min(10, entry.quantity + 1) } : entry))}>+</button></div>
             <button className="shopping-bag-remove" type="button" onClick={() => removeItem(item.id)}>Remove</button>
-          </article>)}</div>
+            </article>;
+          })}</div>
           <div className="shopping-bag-total"><span>Selected total · incl. GST</span><strong>{selectedQuantity ? money(selectedTotal) : "—"}</strong></div>
           {error && <p className="shopping-bag-error" role="alert">{error}</p>}
           <button className="shopping-bag-checkout" type="button" onClick={() => requestCheckout(selectedItems, selectedItems.map((item) => item.id))} disabled={busy || !checkoutEnabled || !selectedQuantity}>{busy ? "Preparing…" : !checkoutEnabled ? "Checkout unavailable" : selectedQuantity ? `Checkout ${selectedQuantity} ${selectedQuantity === 1 ? "item" : "items"} · ${money(selectedTotal)}` : "Select items to checkout"}<span>↗</span></button>

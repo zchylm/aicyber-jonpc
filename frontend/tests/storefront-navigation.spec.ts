@@ -61,27 +61,24 @@ for (const width of [1440, 390]) {
   });
 }
 
-test('all eight View system controls retain the original detail dialogs and browser Back behavior', async ({ page }) => {
+test('Mini PC cards use a single details link for their fixed configurations', async ({ page }) => {
   await home(page);
-  for (let index = 0; index < 8; index++) {
-    const card = page.locator('.first-batch-card').nth(index);
+  for (let index = 0; index < 4; index++) {
+    const card = page.locator('.mini-system-card').nth(index);
     const name = await card.locator('h3').innerText();
-    const url = page.url();
-    const button = card.getByRole('button', { name: 'View system', exact: false });
-    await expect(button).toBeVisible();
-    await button.click();
-    const dialog = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name, exact: true }) });
-    await expect(dialog).toBeVisible();
-    expect(page.url()).toBe(url);
-    await expect(dialog.getByRole('button', { name: 'Buy now', exact: false })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Add to cart', exact: false })).toBeVisible();
-    await dialog.getByText('Full specifications', { exact: true }).click();
-    await expect(dialog.locator('.first-batch-full-specs > div').first()).toBeVisible();
-    if (index === 4) await expect(dialog.locator('.mini-system-detail-image img')).toHaveAttribute('src', /edge-mini-exploded/);
-    await expect(dialog.getByRole('link', { name: 'Open product page', exact: false })).toHaveAttribute('href', /^\/products\//);
-    if (index === 0) await page.goBack();
-    else await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-    await expect(dialog).toBeHidden();
+    const href = await card.locator('h3 a').getAttribute('href');
+    const link = card.getByRole('link', { name: 'View details', exact: true });
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute('href', href!);
+    await expect(card.getByRole('button')).toHaveCount(0);
+    await expect(card.locator('.first-batch-card-bottom')).not.toContainText('From');
+    await link.click();
+    await expect(page.locator('#product-title')).toHaveText(`${name}.`);
+    await expect(page.getByRole('heading', { name: 'Specifications' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'System RAM' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add to cart' })).toBeVisible();
+    await page.goBack();
+    await expect(page.locator('.mini-system-card')).toHaveCount(4);
   }
 });
 
@@ -109,29 +106,24 @@ for (const width of [1440, 390]) {
   });
 }
 
-test('existing comparisons and guest cart remain available from the homepage', async ({ page }) => {
+test('comparisons and the product-page guest cart are reachable from the homepage', async ({ page }) => {
   await home(page);
-  for (const [button, title] of [['Compare gaming PCs', 'Choose your graphics.'], ['Compare mini PCs', 'Choose your edge.']]) {
+  for (const [button, title] of [['Compare gaming PCs', 'Compare gaming PCs.'], ['Compare mini PCs', 'Choose your edge.']]) {
     await page.getByRole('button', { name: button, exact: false }).click();
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeHidden();
   }
-  const available = catalogue.find((system: { available: boolean; saleEnabled: boolean }) => system.available && system.saleEnabled);
-  if (available) {
-    const card = page.locator('.first-batch-card').filter({ has: page.getByRole('heading', { name: available.name.replace('JON PC ', ''), exact: true }) });
-    await card.getByRole('button', { name: 'View system', exact: false }).click();
-    await page.locator('.first-batch-dialog').getByRole('button', { name: 'Add to cart', exact: false }).click();
-  } else {
-    await page.getByRole('button', { name: 'Open shopping bag', exact: true }).click();
-  }
+  await page.route(url => url.pathname === '/api/systems/preview', route => route.fulfill({ json: catalogue.map((system: { sku: string }) => ({ ...system, available: true, saleEnabled: true })), headers: { 'access-control-allow-origin': '*' } }));
+  const strike = page.locator('.first-batch-card').first();
+  await strike.getByRole('link', { name: 'Choose configuration' }).click();
+  await page.getByRole('button', { name: 'Add to cart' }).click();
   await expect(page.getByText('Sign in to add items and view your shopping bag.', { exact: true })).toBeVisible();
 });
 
 test('separate product pages open explicitly, refresh correctly and never fall back to the homepage', async ({ page }) => {
   await home(page);
-  await page.locator('.first-batch-card').first().getByRole('button', { name: 'View system', exact: false }).click();
-  await page.getByRole('link', { name: 'Open product page', exact: false }).click();
+  await page.locator('.first-batch-card').first().getByRole('link', { name: 'Choose configuration' }).click();
   await expect(page.locator('#product-title')).toHaveText('Strike 5060.');
   await expect(page.locator('.hero')).toHaveCount(0);
   await page.reload();
@@ -211,4 +203,41 @@ test('incoming module links and explicit order/payment links keep their intended
   expect(new URL(page.url()).hash).toBe('#support');
   expect(new URL(page.url()).searchParams.get('stripe_payment')).toBe('QA-REFRESH');
   await expect(page.locator('.payment-modal')).toBeVisible();
+});
+
+test('gaming cards use orderable starting prices and compare four models by RAM', async ({ page }) => {
+  test.skip(!catalogue.some((system: { sku: string }) => system.sku.endsWith('-32GB')), 'Requires the RAM catalogue migration');
+  const allInStock = catalogue.map((system: { sku: string }) => ({ ...system, available: true, saleEnabled: true }));
+  await page.route(url => url.pathname === '/api/systems/preview', route => route.fulfill({ json: allInStock, headers: { 'access-control-allow-origin': '*' } }));
+  await home(page);
+  const gaming = page.locator('.first-batch-card:not(.mini-system-card)');
+  await expect(gaming).toHaveCount(4);
+  const skus = ['JON-STK-5060', 'JON-STK-5060TI', 'JON-STM-5070', 'JON-STM-5070TI'];
+  const format = (sku: string) => `A$${(allInStock.find((system: { sku: string }) => system.sku === sku).priceCents / 100).toLocaleString('en-AU')}`;
+  const menu = skus.map(format);
+  for (const [index, price] of menu.entries()) {
+    const card = gaming.nth(index);
+    await expect(card.locator('.first-batch-card-bottom strong')).toContainText(`From ${price}`);
+    await expect(card.getByRole('link', { name: 'Choose configuration' })).toHaveCount(1);
+    await expect(card.getByRole('button', { name: 'Add to cart' })).toHaveCount(0);
+  }
+  await page.getByRole('button', { name: /Compare gaming PCs/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('columnheader')).toHaveCount(5);
+  await expect(dialog.getByRole('row', { name: /^16GB RAM/ }).getByRole('cell')).toHaveText(menu.map((price, index) => price + (index === 0 ? 'Default' : '')));
+  await expect(dialog.getByRole('row', { name: /^32GB RAM/ }).getByRole('cell')).toHaveText(skus.map((sku, index) => format(`${sku}-32GB`) + (index ? 'Default' : '')));
+  await dialog.getByRole('link', { name: 'Configure Strike Ti 5060 Ti' }).click();
+  await expect(page).toHaveURL(/\/products\/strike-ti-5060-ti\/$/);
+  await expect(page.getByRole('radio', { name: /32GB DDR5/ })).toBeChecked();
+});
+
+test('a sold-out starting configuration cannot set the homepage price', async ({ page }) => {
+  test.skip(!catalogue.some((system: { sku: string }) => system.sku === 'JON-STK-5060-32GB'), 'Requires the RAM catalogue migration');
+  const stock = catalogue.map((system: { sku: string }) => ({ ...system, available: system.sku !== 'JON-STK-5060', saleEnabled: true }));
+  await page.route(url => url.pathname === '/api/systems/preview', route => route.fulfill({ json: stock, headers: { 'access-control-allow-origin': '*' } }));
+  await home(page);
+  const card = page.locator('.first-batch-card').filter({ has: page.getByRole('heading', { name: 'Strike 5060', exact: true }) });
+  const price = stock.find((system: { sku: string }) => system.sku === 'JON-STK-5060-32GB').priceCents;
+  await expect(card.locator('.first-batch-card-bottom strong')).toHaveText(`A$${(price / 100).toLocaleString('en-AU')} incl. GST`);
+  await expect(card).toContainText('In stock');
 });

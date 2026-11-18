@@ -1,5 +1,5 @@
 import type { PreviewSystem } from "../api/systems";
-import { productHref, productPages } from "../data/productPages";
+import { defaultProductOption, productHref, productModelSku, productModels, productName, productPages } from "../data/productPages";
 
 export const siteOrigin = "https://jonpc.com.au";
 export type StorefrontPage = { kind: "product"; sku: string } | { kind: "gaming" | "mini" | "custom" | "ai" };
@@ -12,8 +12,12 @@ export const collections = {
   ai: { path: "/ai-solutions/", label: "AI Solutions", eyebrow: "Compute with a purpose", description: "Plan local AI compute with JON.PC in West Melbourne, from compact PCs to tower and rack infrastructure. Submit your requirements for engineering review and a tailored quote." },
 };
 
+export function pageOptions(page: StorefrontPage, systems: PreviewSystem[]) {
+  return page.kind === "product" ? systems.filter(system => productModelSku(system.sku) === page.sku) : [];
+}
+
 export function pageProduct(page: StorefrontPage, systems: PreviewSystem[]) {
-  return page.kind === "product" ? systems.find(system => system.sku === page.sku) : undefined;
+  return page.kind === "product" ? defaultProductOption(page.sku, pageOptions(page, systems)) : undefined;
 }
 
 export function pageMetadata(page: StorefrontPage, systems: PreviewSystem[]) {
@@ -22,9 +26,9 @@ export function pageMetadata(page: StorefrontPage, systems: PreviewSystem[]) {
     return { path: collection.path, title: `${collection.label} Melbourne | JON.PC`, description: collection.description, image: "/social/jonpc-share.jpg", label: collection.label };
   }
   const system = pageProduct(page, systems);
-  if (!system || !productPages[system.sku]) throw new Error(`Missing public product: ${page.sku}`);
-  const name = system.name.replace("JON PC ", "");
-  return { path: productHref(system.sku), title: `${name} ${system.productRange === "Compact AI" ? "Mini PC" : "Gaming PC"} | JON.PC Melbourne`, description: `${name} from JON.PC in West Melbourne. ${system.recommendedFor ?? "Explore full system specifications"}. View specifications, current price and availability, and order online.`, image: productPages[system.sku].image, label: name };
+  if (!system || !productPages[page.sku]) throw new Error(`Missing public product: ${page.sku}`);
+  const name = productName(system.name);
+  return { path: productHref(page.sku), title: `${name} ${system.productRange === "Compact AI" ? "Mini PC" : "Gaming PC"} | JON.PC Melbourne`, description: `${name} from JON.PC in West Melbourne. ${system.recommendedFor ?? "Explore full system specifications"}. View specifications, current price and availability, and order online.`, image: productPages[page.sku].image, label: name };
 }
 
 export function pageStructuredData(page: StorefrontPage, systems: PreviewSystem[]) {
@@ -48,9 +52,9 @@ export function pageStructuredData(page: StorefrontPage, systems: PreviewSystem[
           itemCondition: "https://schema.org/NewCondition", seller: { "@id": siteOrigin + "/#business" } },
       }] : [{ "@type": page.kind === "gaming" || page.kind === "mini" ? "CollectionPage" : "WebPage", "@id": url,
         name: meta.label, url, description: meta.description,
-        ...(page.kind === "gaming" || page.kind === "mini" ? { mainEntity: { "@type": "ItemList", itemListElement: systems
-          .filter(system => (system.productRange === "Compact AI") === (page.kind === "mini"))
-          .map((system, index) => ({ "@type": "ListItem", position: index + 1, url: siteOrigin + productHref(system.sku), name: system.name })) } } : {}),
+        ...(page.kind === "gaming" || page.kind === "mini" ? { mainEntity: { "@type": "ItemList", itemListElement: [...productModels(systems)]
+          .filter(([, options]) => (options[0].productRange === "Compact AI") === (page.kind === "mini"))
+          .map(([sku, options], index) => ({ "@type": "ListItem", position: index + 1, url: siteOrigin + productHref(sku), name: productName(options[0].name) })) } } : {}),
       }]),
     ],
   };

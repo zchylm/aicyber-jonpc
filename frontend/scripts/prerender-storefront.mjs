@@ -37,4 +37,5 @@ await writeFile(join(dist, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"
 await writeFile(join(dist, 'storefront-manifest.json'), JSON.stringify(manifest, null, 2));
 await rm(join(dist, 'storefront.html'));
 await rm(resolve('.prerender'), { recursive: true });
-console.log(`Generated ${systems.length} product pages and ${manifest.length - systems.length} category/service pages from the public catalogue.`);
+const productCount = manifest.filter(entry => entry.page.kind === 'product').length;
+console.log(`Generated ${productCount} product pages and ${manifest.length - productCount} category/service pages from the public catalogue.`);

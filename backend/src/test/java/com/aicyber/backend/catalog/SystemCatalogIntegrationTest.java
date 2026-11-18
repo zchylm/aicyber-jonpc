@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -25,14 +26,10 @@ class SystemCatalogIntegrationTest {
     @Autowired JwtService jwt;
 
     @Test
-    void latestCatalogImportsTwelveSystemsWhileOnlyApprovedPreviewsArePublic() throws Exception {
-        mockMvc.perform(get("/api/systems/preview"))
+    void gamingMemoryVariantsHaveSeparatePublicPricesAndAdminStock() throws Exception {
+        var previews = mockMvc.perform(get("/api/systems/preview"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(8))
-                .andExpect(jsonPath("$[0].sku").value("JON-STK-5060"))
-                .andExpect(jsonPath("$[0].priceCents").value(254900))
-                .andExpect(jsonPath("$[1].specifications.GPU").value("NVIDIA GeForce RTX 5060 Ti 16GB GDDR7"))
-                .andExpect(jsonPath("$[3].priceCents").value(394900))
+                .andExpect(jsonPath("$.length()").value(12))
                 .andExpect(jsonPath("$[0].available").isBoolean())
                 .andExpect(jsonPath("$[0].saleEnabled").value(true))
                 .andExpect(jsonPath("$[0].availableQuantity").doesNotExist())
@@ -40,24 +37,28 @@ class SystemCatalogIntegrationTest {
                 .andExpect(jsonPath("$[0].onHandQuantity").doesNotExist())
                 .andExpect(jsonPath("$[0].reorderPoint").doesNotExist())
                 .andExpect(jsonPath("$[0].specifications.Warranty").doesNotExist());
-
-        mockMvc.perform(get("/api/admin/systems").header("Authorization", "Bearer " + userToken("ADMIN")))
+        var admin = mockMvc.perform(get("/api/admin/systems").header("Authorization", "Bearer " + userToken("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(16))
-                .andExpect(jsonPath("$[0].sku").value("S1"))
-                .andExpect(jsonPath("$[0].priceCents").value(2319900))
-                .andExpect(jsonPath("$[0].productRange").value("Premium"))
-                .andExpect(jsonPath("$[0].salesMode").value("STOCK_CHECK_REQUIRED"))
-                .andExpect(jsonPath("$[0].onHandQuantity").value(0))
-                .andExpect(jsonPath("$[8].sku").value("JON-STK-5060"))
-                .andExpect(jsonPath("$[8].plannedPreorderQuantity").value(5))
-                .andExpect(jsonPath("$[8].onHandQuantity").value(5))
-                .andExpect(jsonPath("$[8].sourceRevision").value("2026-09-16"));
+                .andExpect(jsonPath("$.length()").value(12));
+
+        String[] skus = {"JON-STK-5060", "JON-STK-5060TI", "JON-STM-5070", "JON-STM-5070TI"};
+        int[] prices16 = {209900, 249900, 269900, 349900};
+        int[] prices32 = {229900, 269900, 289900, 369900};
+        for (int i = 0; i < skus.length; i++) {
+            String base = "$[?(@.sku == '" + skus[i] + "')]";
+            String upgraded = "$[?(@.sku == '" + skus[i] + "-32GB')]";
+            previews.andExpect(jsonPath(base + ".priceCents", contains(prices16[i])))
+                    .andExpect(jsonPath(upgraded + ".priceCents", contains(prices32[i])))
+                    .andExpect(jsonPath(upgraded + ".specifications.Memory", contains("32GB DDR5 (2 × 16GB)")));
+            admin.andExpect(jsonPath(base + ".onHandQuantity", contains(5)))
+                    .andExpect(jsonPath(upgraded + ".onHandQuantity", contains(5)))
+                    .andExpect(jsonPath(upgraded + ".saleEnabled", contains(true)));
+        }
 
         Integer componentStock = jdbc.queryForObject("SELECT COALESCE(SUM(on_hand_quantity), 0) FROM inventory_balances", Integer.class);
         Integer systemStock = jdbc.queryForObject("SELECT COALESCE(SUM(on_hand_quantity), 0) FROM system_inventory_balances", Integer.class);
         org.junit.jupiter.api.Assertions.assertNotNull(componentStock);
-        org.junit.jupiter.api.Assertions.assertEquals(40, systemStock);
+        org.junit.jupiter.api.Assertions.assertEquals(60, systemStock);
         org.junit.jupiter.api.Assertions.assertEquals(8, jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM system_builds s
@@ -90,7 +91,7 @@ class SystemCatalogIntegrationTest {
                 .andExpect(jsonPath("$.onHandQuantity").value(0))
                 .andExpect(jsonPath("$.previewEnabled").value(false));
         mockMvc.perform(get("/api/systems/preview"))
-                .andExpect(jsonPath("$.length()").value(8));
+                .andExpect(jsonPath("$.length()").value(12));
     }
 
     @Test

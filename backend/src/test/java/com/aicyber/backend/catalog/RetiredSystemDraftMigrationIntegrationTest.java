@@ -25,7 +25,7 @@ class RetiredSystemDraftMigrationIntegrationTest {
     @Test
     void deletesOnlyUnusedImportedDraftsAndPreservesCurrentProducts() throws Exception {
         var current = currentProducts();
-        assertEquals(8, current.size());
+        assertEquals(12, current.size());
         draft();
         executeMigration();
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM system_builds WHERE id = ?", Integer.class, OLD_ID));

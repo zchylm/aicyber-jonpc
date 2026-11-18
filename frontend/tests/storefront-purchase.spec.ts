@@ -45,17 +45,22 @@ test('homepage assurance links open the existing policy and leave product cards 
   await expect(page.locator('.first-batch-card').first()).not.toContainText('Ryzen');
 });
 
-test('product overview shows CPU, accurate Founder saving, delivery and warranty', async ({ page }) => {
+test('product keeps specifications below the purchase area and shows the exact Founder price', async ({ page }) => {
   await page.goto('/products/strike-5060/');
   const product = catalogue.find((item: { sku: string }) => item.sku === 'JON-STK-5060');
   const saving = Math.floor((product.priceCents * 500 + 5000) / 10000);
-  await expect(page.locator('.storefront-key-specs')).toContainText(product.specifications.CPU);
-  await expect(page.locator('.storefront-key-specs')).toContainText(product.specifications.GPU);
-  await expect(page.locator('.storefront-saving s')).toHaveText(money(product.priceCents));
-  await expect(page.locator('.storefront-saving b')).toHaveText(`Save ${money(saving)} · 5% off`);
+  const specifications = page.getByRole('region', { name: 'Specifications' });
+  await expect(specifications).toContainText(product.specifications.CPU);
+  await expect(specifications).toContainText(product.specifications.GPU);
+  await expect(page.locator('.storefront-product-copy')).not.toContainText(product.specifications.CPU);
+  await expect(page.locator('.storefront-product-copy')).not.toContainText(product.specifications.GPU);
+  await expect(page.locator('.storefront-regular-price s')).toHaveText(money(product.priceCents));
+  await expect(page.locator('.storefront-founder-savings')).toHaveText(`Save ${money(saving)} · 5% off`);
   await expect(page.locator('.storefront-price strong')).toHaveText(money(product.priceCents - saving));
-  await expect(page.locator('.storefront-offer-note')).toContainText('remaining places at checkout');
-  await expect(page.locator('.storefront-check')).toContainText('A$25');
+  await expect(page.locator('.storefront-offer-note')).toContainText('Limited places at checkout');
+  const purchase = page.locator('.storefront-product-copy');
+  await expect(purchase).not.toContainText('Melbourne delivery');
+  await expect(purchase).not.toContainText('West Melbourne pickup');
   await expect(page.getByRole('button', { name: /3-year warranty/ })).toContainText('Parts, labour & return shipping');
   await page.locator('.storefront-product').screenshot({ path: '../output/assurance-simple/product-desktop.png' });
   await page.getByRole('button', { name: /3-year warranty/ }).click();
@@ -66,7 +71,7 @@ test('Founder preview uses checkout rounding at a half-cent boundary', async ({ 
   const products = catalogue.map((item: { sku: string }) => item.sku === 'JON-STK-5060' ? { ...item, priceCents: 254910 } : item);
   await page.route(url => url.pathname === '/api/systems/preview', route => route.fulfill({ json: products, headers: { 'access-control-allow-origin': '*' } }));
   await page.goto('/products/strike-5060/');
-  await expect(page.locator('.storefront-saving b')).toHaveText('Save $127.46 · 5% off');
+  await expect(page.locator('.storefront-founder-savings')).toHaveText('Save $127.46 · 5% off');
   await expect(page.locator('.storefront-price strong')).toHaveText('$2,421.64');
 });
 
@@ -77,7 +82,7 @@ for (const state of ['full', 'paused', 'failed']) {
       : route.fulfill({ json: { ...active, programStatus: state === 'paused' ? 'PAUSED' : 'CLOSED', remainingPositions: state === 'full' ? 0 : 50 }, headers: { 'access-control-allow-origin': '*' } }));
     await page.goto('/products/strike-5060/');
     await expect(page.locator('.storefront-product-actions').getByRole('button', { name: /Buy now/ })).toBeEnabled();
-    await expect(page.locator('.storefront-saving')).toHaveCount(0);
+    await expect(page.locator('.storefront-offer-note')).toHaveCount(0);
     await expect(page.locator('.storefront-price strong')).toHaveText(money(catalogue.find((item: { sku: string }) => item.sku === 'JON-STK-5060').priceCents));
   });
 }
@@ -85,7 +90,7 @@ for (const state of ['full', 'paused', 'failed']) {
 test('mobile quick purchase appears only after the original actions, moves chat clear and uses the existing sign-in flow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/products/strike-5060/');
-  await expect(page.locator('.storefront-saving')).toBeVisible();
+  await expect(page.locator('.storefront-offer-note')).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'Quick purchase' })).toHaveCount(0);
   await page.locator('.storefront-specifications').scrollIntoViewIfNeeded();
   const quick = page.getByRole('complementary', { name: 'Quick purchase' });
@@ -111,17 +116,18 @@ test('a slow promotion lookup leaves regular-price purchasing available', async 
   });
   await page.goto('/products/strike-5060/');
   await expect(page.locator('.storefront-product-actions').getByRole('button', { name: /Buy now/ })).toBeEnabled();
-  await expect(page.locator('.storefront-saving')).toHaveCount(0);
+  await expect(page.locator('.storefront-offer-note')).toHaveCount(0);
   await expect.poll(() => Boolean(finish)).toBe(true);
   finish!();
-  await expect(page.locator('.storefront-saving')).toBeVisible();
+  await expect(page.locator('.storefront-offer-note')).toBeVisible();
 });
 
 test('Mini PC overview retains processor details and the same discount rules', async ({ page }) => {
   await page.goto('/products/edge-mini/');
   const product = catalogue.find((item: { sku: string }) => item.sku === 'JON-EDGE-MINI');
   const saving = Math.floor((product.priceCents * 500 + 5000) / 10000);
-  await expect(page.locator('.storefront-key-specs')).toContainText(product.specifications.Processor);
+  await expect(page.getByRole('region', { name: 'Specifications' })).toContainText(product.specifications.Processor);
+  await expect(page.locator('.storefront-product-copy')).not.toContainText(product.specifications.Processor);
   await expect(page.locator('.storefront-price strong')).toHaveText(money(product.priceCents - saving));
   await expect(page.getByRole('button', { name: /3-year warranty/ })).toBeVisible();
 });
@@ -131,8 +137,8 @@ test('unavailable products never show Founder pricing or an enabled quick purcha
   await page.route(url => url.pathname === '/api/systems/preview', route => route.fulfill({ json: products, headers: { 'access-control-allow-origin': '*' } }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/products/strike-5060/');
-  await expect(page.locator('.storefront-check')).toContainText('A$25');
-  await expect(page.locator('.storefront-saving')).toHaveCount(0);
+  await expect(page.locator('.storefront-availability')).toHaveText('Currently unavailable');
+  await expect(page.locator('.storefront-offer-note')).toHaveCount(0);
   await expect(page.locator('.storefront-product-actions').getByRole('button', { name: /Buy now/ })).toBeDisabled();
   await page.locator('.storefront-specifications').scrollIntoViewIfNeeded();
   await expect(page.getByRole('complementary', { name: 'Quick purchase' }).getByRole('button')).toBeDisabled();
@@ -165,3 +171,90 @@ for (const width of [1440, 768, 390, 320]) {
     }
   });
 }
+
+test('Strike Ti shows the starting option, defaults to 32GB and adds the chosen SKU', async ({ page }) => {
+  const upgrade = catalogue.find(system => system.sku === 'JON-STK-5060TI-32GB');
+  test.skip(!upgrade, 'Requires the RAM catalogue migration');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/products/strike-ti-5060-ti/');
+  const memory = page.getByRole('group', { name: /System RAM/ });
+  const standard = catalogue.find(system => system.sku === 'JON-STK-5060TI')!;
+  const option16 = memory.getByRole('radio', { name: `16GB DDR5 ${money(standard.priceCents)}` });
+  const option32 = memory.getByRole('radio', { name: `32GB DDR5 ${money(upgrade!.priceCents)}` });
+  const founderPrice = (cents: number) => money(cents - Math.floor((cents * 500 + 5000) / 10000));
+  await expect(option32).toBeChecked();
+  await expect(memory).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.storefront-price strong')).toHaveText(founderPrice(upgrade!.priceCents));
+  await expect(page.locator('.storefront-regular-price s')).toHaveText(money(upgrade!.priceCents));
+  await expect(page.locator('.storefront-founder-savings')).toContainText(money(Math.floor((upgrade!.priceCents * 500 + 5000) / 10000)));
+  await expect(page.locator('.storefront-price-block')).toContainText('Includes Logitech MK120 wired keyboard and mouse');
+  await option32.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(option16).toBeChecked();
+  await expect(page.locator('.storefront-price strong')).toHaveText(founderPrice(standard.priceCents));
+  await expect(page.locator('.storefront-regular-price s')).toHaveText(money(standard.priceCents));
+  await expect(page.locator('.storefront-founder-savings')).toContainText(money(Math.floor((standard.priceCents * 500 + 5000) / 10000)));
+  await expect(page.getByRole('region', { name: 'Specifications' })).toContainText('16GB DDR5-6000');
+  await page.evaluate(() => window.addEventListener('jonpc:add-to-bag', event => {
+    document.body.dataset.selectedSystem = (event as CustomEvent<{ sku: string }>).detail.sku;
+  }));
+  await page.getByRole('button', { name: 'Add to cart' }).click();
+  await expect(page.locator('body')).toHaveAttribute('data-selected-system', 'JON-STK-5060TI');
+  await expect(page.getByRole('dialog')).toContainText('Sign in to add items');
+});
+
+test('an unavailable RAM option stays selected and cannot be purchased until the buyer chooses another', async ({ page }) => {
+  test.skip(!catalogue.some(system => system.sku === 'JON-STM-5070-32GB'), 'Requires the RAM catalogue migration');
+  const stock = catalogue.map(system => system.sku === 'JON-STM-5070-32GB' ? { ...system, available: false, saleEnabled: false } : system);
+  await page.route(url => url.pathname === '/api/systems/preview', route => route.fulfill({ json: stock, headers: { 'access-control-allow-origin': '*' } }));
+  await page.goto('/products/storm-5070/');
+  await expect(page.locator('.storefront-availability')).toHaveText('Currently unavailable');
+  await expect(page.getByRole('radio', { name: /32GB DDR5.*Unavailable/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Add to cart' })).toBeDisabled();
+  await page.locator('.storefront-memory-options label').filter({ hasText: '16GB DDR5' }).click();
+  await expect(page.getByRole('button', { name: 'Add to cart' })).toBeEnabled();
+});
+
+const checkoutStyleUser = {
+  id: 'checkout-style-customer',
+  email: 'checkout-style@example.test',
+  displayName: 'Checkout Style QA',
+  role: 'CUSTOMER',
+  emailVerified: true,
+};
+const checkoutCors = { 'access-control-allow-origin': '*' };
+
+test('checkout action is readable before hover on the mobile delivery form', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('jonpc.auth.token', 'checkout-style-token'));
+  await page.route(url => url.pathname === '/api/auth/me', route => route.fulfill({ json: checkoutStyleUser, headers: checkoutCors }));
+  await page.route(url => url.pathname === '/api/orders/delivery/STYLE-DELIVERY', route => route.fulfill({ status: 204, headers: checkoutCors }));
+  await page.goto('/products/strike-5060/');
+  await expect(page.getByRole('button', { name: 'Open account for Checkout Style QA' })).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('jonpc:open-checkout', { detail: { requestReference: 'STYLE-DELIVERY' } })));
+  const action = page.getByRole('button', { name: 'Continue to payment' });
+  await expect(action).toBeEnabled();
+  await expect(action).toHaveCSS('background-color', 'rgb(195, 239, 128)', { timeout: 4000 });
+  await expect(action).toHaveCSS('color', 'rgb(10, 17, 16)');
+  await action.focus();
+  await expect(action).toHaveCSS('outline-style', 'solid');
+});
+
+test('checkout action is readable before hover on the secure payment review', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('jonpc.auth.token', 'checkout-style-token'));
+  await page.route(url => url.pathname === '/api/auth/me', route => route.fulfill({ json: checkoutStyleUser, headers: checkoutCors }));
+  await page.route(url => url.pathname === '/api/payments/stripe/style-payment', route => route.fulfill({
+    headers: checkoutCors,
+    json: {
+      paymentId: 'style-payment', orderReference: 'STYLE-ORDER',
+      status: 'CREATED', checkoutUrl: 'https://checkout.example.test/preview',
+      amountCents: 258905, productSubtotalCents: 269900, discountCents: 13495, shippingFeeCents: 2500,
+    },
+  }));
+  await page.goto('/products/strike-5060/?stripe_result=cancelled&stripe_payment=style-payment');
+  const action = page.getByRole('button', { name: 'Return to secure payment' });
+  await expect(action).toBeEnabled();
+  await expect(action).toHaveCSS('background-color', 'rgb(195, 239, 128)', { timeout: 4000 });
+  await expect(action).toHaveCSS('color', 'rgb(10, 17, 16)');
+  await expect(page.getByRole('button', { name: 'View My Orders' })).toHaveCSS('color', 'rgb(211, 231, 227)');
+});

@@ -92,8 +92,8 @@ for (const page of pages) {
   for (const [, asset] of document.matchAll(/(?:src|href)="([^"]*\/assets\/[^"]+)"/g)) publicAsset(new URL(asset, home).href);
   if (page.page.kind === 'product') {
     const product = graph.find(item => item['@type'] === 'Product');
-    const system = snapshot.systems.find(system => system.sku === page.page.sku);
-    assert.equal(product.sku, system.sku);
+    assert([page.page.sku, `${page.page.sku}-32GB`].includes(product.sku), 'Structured product must belong to the page model');
+    const system = snapshot.systems.find(system => system.sku === product.sku);
     assert.equal(product.offers.url, url);
     assert.equal(product.offers.priceCurrency, 'AUD');
     assert.equal(product.offers.price, (system.priceCents / 100).toFixed(2));

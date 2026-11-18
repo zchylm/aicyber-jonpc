@@ -22,10 +22,11 @@
 .payment-assurance { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; margin-top: 20px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .035em; line-height: 1.45; text-transform: uppercase; }
 .payment-assurance span { display: flex; gap: 8px; align-items: baseline; }
 .payment-assurance i, .payment-success-kicker i { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
-.payment-primary { justify-content: space-between; width: 100%; min-height: 58px; margin-top: 25px; }
-.payment-primary:disabled { cursor: wait; opacity: .55; }
-.payment-secondary { width: 100%; margin-top: 12px; padding: 11px; color: var(--muted); background: transparent; border: 0; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
-.payment-secondary:hover, .payment-secondary:focus-visible { color: #ffaaaa; }
+.payment-primary { justify-content: space-between; width: 100%; min-height: 58px; margin-top: 25px; border: 1px solid var(--lime); font-weight: 500; cursor: pointer; }
+.payment-primary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.button-primary.payment-primary:disabled { opacity: .65; }
+.payment-secondary { width: 100%; min-height: 44px; margin-top: 12px; padding: 11px; color: var(--muted); background: transparent; border: 0; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+.payment-secondary:hover, .payment-secondary:focus-visible { color: var(--cyan); }
 .payment-methods { display: grid; gap: 12px; margin-top: 28px; }
 .payment-method { display: grid; grid-template-columns: 46px 1fr auto; gap: 15px; align-items: center; width: 100%; min-height: 82px; padding: 15px 18px; color: var(--ink); text-align: left; background: #070c0d; border: 1px solid var(--line); cursor: pointer; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
 .payment-method:hover, .payment-method:focus-visible { background: rgba(143, 232, 226, .045); border-color: var(--cyan); transform: translateY(-1px); }

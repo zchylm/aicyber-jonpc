@@ -28,7 +28,7 @@ public class SystemSaleAllocationService {
         if (items.isEmpty()) return;
         jdbc.update("DELETE FROM system_sale_reservations WHERE expires_at <= CURRENT_TIMESTAMP");
         for (CartOrderItem item : items) {
-            lockAndValidate(item, orderId);
+            lockAndValidate(item, orderId, false);
             jdbc.update("""
                     INSERT INTO system_sale_reservations (sales_order_id, system_build_id, quantity, expires_at)
                     VALUES (?, ?, ?, ?)
@@ -45,8 +45,8 @@ public class SystemSaleAllocationService {
     public void allocatePaidOrder(UUID orderId) {
         List<CartOrderItem> cartItems = cartItems(orderId);
         if (!cartItems.isEmpty()) {
-            reservePendingOrder(orderId);
             for (CartOrderItem item : cartItems) {
+                lockAndValidate(item, orderId, true);
                 jdbc.update("""
                         INSERT INTO system_sale_allocation_items (sales_order_id, system_build_id, quantity)
                         VALUES (?, ?, ?) ON CONFLICT DO NOTHING
@@ -96,7 +96,7 @@ public class SystemSaleAllocationService {
         ), orderId);
     }
 
-    private void lockAndValidate(CartOrderItem item, UUID orderId) {
+    private void lockAndValidate(CartOrderItem item, UUID orderId, boolean paymentConfirmed) {
         List<SystemState> states = jdbc.query("""
                 SELECT s.sale_enabled, v.display_price_cents,
                        COALESCE(b.on_hand_quantity, 0) AS on_hand_quantity
@@ -108,10 +108,10 @@ public class SystemSaleAllocationService {
                 """, (rs, row) -> new SystemState(
                 rs.getBoolean("sale_enabled"), rs.getLong("display_price_cents"), rs.getInt("on_hand_quantity")
         ), item.systemId());
-        if (states.isEmpty() || (!demoStoreEnabled && !states.get(0).saleEnabled()))
+        if (states.isEmpty() || (!paymentConfirmed && !demoStoreEnabled && !states.get(0).saleEnabled()))
             throw new IllegalStateException(item.name() + " is no longer available for checkout");
         SystemState state = states.get(0);
-        if (state.priceCents() != item.unitPriceCents())
+        if (!paymentConfirmed && state.priceCents() != item.unitPriceCents())
             throw new IllegalStateException(item.name() + " has changed price; review your shopping bag before payment");
         if (demoStoreEnabled) return;
         Integer reserved = jdbc.queryForObject("""

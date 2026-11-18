@@ -54,21 +54,22 @@ class CartCheckoutIntegrationTest {
     }
 
     @Test
-    void twoStockedSystemsBecomeOnePaidOrderWithTwoInvoiceLines() {
+    void memoryVariantsKeepTheirQuotedOrderPricesAndSeparateStockAfterRepricing() {
         UUID userId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO users (id, email, password_hash, display_name, email_verified_at)
                 VALUES (?, ?, 'hash', 'Cart Customer', CURRENT_TIMESTAMP)
                 """, userId, userId + "@example.com");
         UUID desktopId = system("JON-STK-5060");
-        UUID miniId = system("JON-EDGE-MINI");
+        UUID upgradeId = system("JON-STK-5060-32GB");
         enableStock(desktopId, 3);
-        enableStock(miniId, 3);
+        enableStock(upgradeId, 3);
 
         CartPreparationResponse prepared = cart.prepare(userId, new CartPreparationRequest(List.of(
                 new CartPreparationRequest.Item(desktopId, 1),
-                new CartPreparationRequest.Item(miniId, 2)
+                new CartPreparationRequest.Item(upgradeId, 2)
         )));
+        assertEquals(209900 + 2 * 229900, prepared.totalCents());
         UUID requestId = jdbc.queryForObject(
                 "SELECT id FROM build_requests WHERE request_reference = ?", UUID.class, prepared.requestReference());
         assertNotNull(requestId);
@@ -81,6 +82,11 @@ class CartCheckoutIntegrationTest {
         MockPaymentResponse created = payments.create(userId, prepared.requestReference(), UUID.randomUUID().toString());
         assertEquals(2, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM system_sale_reservations WHERE sales_order_id = ?", Integer.class, created.orderId()));
+        jdbc.update("""
+                INSERT INTO system_build_versions (id, system_build_id, version, display_price_cents, specifications)
+                SELECT ?, system_build_id, version + 1, 219900, specifications
+                FROM system_build_versions WHERE system_build_id = ? ORDER BY version DESC LIMIT 1
+                """, UUID.randomUUID(), desktopId);
         MockPaymentResponse paid = payments.complete(userId, created.paymentId(), "SUCCEEDED");
 
         SalesInvoice invoice = invoices.invoice(paid.invoiceId());
@@ -94,8 +100,9 @@ class CartCheckoutIntegrationTest {
                 .findFirst().orElseThrow().lineTotalCents());
         assertEquals(2, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM system_sale_allocation_items WHERE sales_order_id = ?", Integer.class, created.orderId()));
-        assertEquals(3, jdbc.queryForObject(
-                "SELECT SUM(quantity) FROM system_sale_allocation_items WHERE sales_order_id = ?", Integer.class, created.orderId()));
+        String allocation = "SELECT quantity FROM system_sale_allocation_items WHERE sales_order_id = ? AND system_build_id = ?";
+        assertEquals(1, jdbc.queryForObject(allocation, Integer.class, created.orderId(), desktopId));
+        assertEquals(2, jdbc.queryForObject(allocation, Integer.class, created.orderId(), upgradeId));
         assertEquals(0, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM system_sale_reservations WHERE sales_order_id = ?", Integer.class, created.orderId()));
         assertEquals(2, orderHistory.list(userId).get(0).items().size());

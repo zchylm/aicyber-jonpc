@@ -1,9 +1,13 @@
-.site-shell {
+.site-shell,
+.payment-backdrop {
   --ink: #f4f7f5;
   --muted: #d3e7e3;
   --line: rgba(208, 225, 220, .15);
   --cyan: #8fe8e2;
   --lime: #c3ef80;
+}
+
+.site-shell {
   position: relative;
   isolation: isolate;
   min-height: 100svh;
