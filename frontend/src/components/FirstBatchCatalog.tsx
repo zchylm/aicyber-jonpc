@@ -3,6 +3,7 @@ import type { PreviewSystem } from "../api/systems";
 import { defaultProductOption, gamingMemoryIntro, productHref, productModels, productName, productPages, productStartingPrice, systemRam } from "../data/productPages";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
 import MiniSystemsCatalog from "./MiniSystemsCatalog";
+import PcAdviceLink from "./PcAdviceLink";
 import "./FirstBatchCatalog.css";
 
 const sharedSpecOrder = ["CPU", "Storage", "Motherboard", "Cooler", "PSU", "Case", "Fans", "Networking", "OS"];
@@ -28,7 +29,10 @@ function FirstBatchCatalog({ systems }: { systems: PreviewSystem[] }) {
     <div className="systems-heading"><div><span className="section-kicker">JON.PC / Shop our PCs</span><h2 id="systems-title">Find your<br /><em>next PC.</em></h2></div><p>Gaming desktops and compact AI PCs.<br />Choose the system that fits your world.</p></div>
     <div className="first-batch-toolbar catalog-category-heading" id="gaming-pcs">
       <div><span>01 / Strike &amp; Storm series</span><h3>Gaming PCs<span aria-hidden="true">.</span></h3><p>{hasRamOptions ? gamingMemoryIntro : "Built for play. Choose your level."}</p></div>
-      <button type="button" onClick={() => { openComparePanel(); setAllSpecs(false); }} aria-haspopup="dialog">Compare gaming PCs <span aria-hidden="true">↗</span></button>
+      <div className="first-batch-tools">
+        <PcAdviceLink />
+        <button type="button" onClick={() => { openComparePanel(); setAllSpecs(false); }} aria-haspopup="dialog">Compare gaming PCs <span aria-hidden="true">↗</span></button>
+      </div>
     </div>
     <div className="first-batch-grid">{models.map(({ sku, starting, defaultOption }) => {
       const name = productName(defaultOption.name);

@@ -3,6 +3,7 @@ import type { PreviewSystem } from "../api/systems";
 import type { RewardPublicSummary } from "../api/rewards";
 import BrandLockup from "../components/BrandLockup";
 import CompanyFooter from "../components/CompanyFooter";
+import PcAdviceLink from "../components/PcAdviceLink";
 import { openPolicy } from "../components/policyEvents";
 import { gamingMemoryIntro, productHref, productModelSku, productModels, productName, productPages, productStartingPrice, systemRam } from "../data/productPages";
 import { navigationItems } from "../data/site";
@@ -88,6 +89,7 @@ export default function StorefrontView({ page, systems, verified = false, error 
               <button className="button button-primary" type="button" disabled={!canBuy} onClick={() => window.dispatchEvent(new CustomEvent("jonpc:buy-now", { detail: system }))}>Buy now <span aria-hidden="true">↗</span></button>
               <button className="button storefront-secondary" type="button" disabled={!canBuy} onClick={() => window.dispatchEvent(new CustomEvent("jonpc:add-to-bag", { detail: system }))}>Add to cart <span aria-hidden="true">→</span></button>
             </div>
+            <PcAdviceLink category={isMini ? "mini" : "gaming"} product={{ name: meta.label, ram }} />
             <button className="storefront-warranty" type="button" onClick={() => openPolicy("warranty")}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" /><path d="m8 12 3 3 5-6" /></svg>
               <span className="storefront-warranty-copy">
@@ -107,9 +109,12 @@ export default function StorefrontView({ page, systems, verified = false, error 
         </section>
         <section className="storefront-next"><div><span className="section-kicker">Find your fit</span><h2>Compare your options.</h2></div><a className="button storefront-secondary" href={collection!.path}>Explore {collection!.label} <span aria-hidden="true">↗</span></a></section>
       </> : page.kind === "gaming" || page.kind === "mini" ? <>
-        <section className="storefront-collection-heading"><span className="section-kicker">{collections[page.kind].eyebrow}</span><h1>{page.kind === "gaming" ? <>Gaming PCs.<br /><em>Find your level.</em></> : <>Mini PCs.<br /><em>More possibilities.</em></>}</h1><p>{page.kind === "gaming"
-          ? systems.some(item => systemRam(item.sku) === 32) ? gamingMemoryIntro : "Compare graphics, specifications and prices across our gaming PCs."
-          : "Compact systems for everyday work and local AI. Compare compute, memory and storage to find the right Edge for your desk."}</p></section>
+        <section className="storefront-collection-heading">
+          <div><span className="section-kicker">{collections[page.kind].eyebrow}</span><h1>{page.kind === "gaming" ? <>Gaming PCs.<br /><em>Find your level.</em></> : <>Mini PCs.<br /><em>More possibilities.</em></>}</h1><p>{page.kind === "gaming"
+            ? systems.some(item => systemRam(item.sku) === 32) ? gamingMemoryIntro : "Compare graphics, specifications and prices across our gaming PCs."
+            : "Compact systems for everyday work and local AI. Compare compute, memory and storage to find the right Edge for your desk."}</p></div>
+          <PcAdviceLink category={page.kind} />
+        </section>
         <section className="storefront-collection-grid" aria-label={meta.label}>{[...productModels(systems)]
           .filter(([, variants]) => (variants[0].productRange === "Compact AI") === (page.kind === "mini"))
           .map(([sku, variants]) => {

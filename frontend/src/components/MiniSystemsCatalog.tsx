@@ -6,6 +6,7 @@ import edgeMaxImage from "../assets/minipc/edge-max.jpg";
 import type { PreviewSystem } from "../api/systems";
 import { productHref } from "../data/productPages";
 import { useHistoryPanel } from "../hooks/useHistoryPanel";
+import PcAdviceLink from "./PcAdviceLink";
 
 const images: Record<string, string> = {
   "JON-EDGE-MINI": edgeMiniImage,
@@ -21,7 +22,13 @@ function MiniSystemsCatalog({ systems }: { systems: PreviewSystem[] }) {
   const { open: openComparePanel, close: closeComparePanel } = useHistoryPanel("mini-system-compare", compareOpen, setCompareOpen);
 
   return <div className="mini-systems-catalog" id="compact-ai-systems">
-    <div className="first-batch-toolbar first-batch-toolbar-mini catalog-category-heading"><div><span>02 / Edge series</span><h3>Mini PCs<span aria-hidden="true">.</span></h3><p>Compact PCs for work and local AI.</p></div><button type="button" onClick={openComparePanel} aria-haspopup="dialog">Compare mini PCs <span aria-hidden="true">↗</span></button></div>
+    <div className="first-batch-toolbar first-batch-toolbar-mini catalog-category-heading">
+      <div><span>02 / Edge series</span><h3>Mini PCs<span aria-hidden="true">.</span></h3><p>Compact PCs for work and local AI.</p></div>
+      <div className="first-batch-tools">
+        <PcAdviceLink category="mini" />
+        <button type="button" onClick={openComparePanel} aria-haspopup="dialog">Compare mini PCs <span aria-hidden="true">↗</span></button>
+      </div>
+    </div>
     <div className="first-batch-grid">{systems.map((system) => <article className="first-batch-card mini-system-card" key={system.id}>
       <a className="first-batch-visual mini-system-visual" href={productHref(system.sku)} aria-label={`View ${system.name} product page`}><img src={images[system.sku]} alt={`${system.name} JON.PC mini PC preview`} /></a>
       <div className="first-batch-card-body">

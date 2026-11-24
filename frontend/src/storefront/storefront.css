@@ -56,9 +56,9 @@
 .storefront-next { display: flex; justify-content: space-between; align-items: center; gap: 30px; margin-bottom: 76px; padding: 50px 0; border-top: 1px solid var(--line); }
 .storefront-next h2 { margin-bottom: 0; font-size: clamp(26px, 3vw, 36px); }
 .storefront-next > a { flex-shrink: 0; }
-.storefront-collection-heading { max-width: 890px; padding: 32px 0 56px; }
+.storefront-collection-heading { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 18px 32px; padding: 32px 0 56px; }
 .storefront-collection-heading h1, .storefront-service-hero h1 { margin: 20px 0 25px; font-size: clamp(48px, 6.2vw, 90px); font-weight: 500; letter-spacing: -.06em; line-height: 1.02; }
-.storefront-collection-heading p { max-width: 690px; color: #d3e7e3; font-size: 17px; line-height: 1.8; }
+.storefront-collection-heading p { max-width: 690px; margin-bottom: 0; color: #d3e7e3; font-size: 17px; line-height: 1.8; }
 .storefront-collection-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 76px; }
 .storefront-card { min-width: 0; border: 1px solid var(--line); background: #0d1515; }
 .storefront-card-image { display: block; overflow: hidden; background: #e4e8ed; }

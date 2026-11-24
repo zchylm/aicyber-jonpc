@@ -1,0 +1,131 @@
+.pc-advice-card {
+  --advice-line: 143, 232, 226;
+  --advice-wash: 125, 229, 215;
+  --advice-shine: 147, 236, 223;
+  --advice-surface: #101b1b;
+  --advice-icon: #a6efec;
+  --advice-detail: #bdd6d2;
+  --advice-accent: #c3ef80;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: min(100%, 320px);
+  padding: 13px 14px;
+  border: 1px solid rgba(var(--advice-line), .35);
+  border-radius: 11px;
+  background: radial-gradient(ellipse at top left, rgba(var(--advice-wash), .14), transparent 72%), var(--advice-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22), inset 0 1px rgba(var(--advice-shine), .12);
+  color: #f4f7f5;
+  text-decoration: none;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.pc-advice-card:hover, .pc-advice-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgb(var(--advice-line));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .32), inset 0 1px rgba(var(--advice-shine), .2);
+}
+
+.pc-advice-card:focus-visible { outline: 2px solid var(--advice-accent); outline-offset: 4px; }
+
+.pc-advice-icon {
+  display: grid;
+  width: 41px;
+  height: 41px;
+  place-items: center;
+  transform: rotate(-9deg);
+  border: 1px solid rgba(var(--advice-line), .35);
+  border-radius: 9px;
+  background: rgba(var(--advice-line), .1);
+  color: var(--advice-icon);
+  transition: transform .26s ease;
+}
+
+.pc-advice-icon > span {
+  position: relative;
+  width: 19px;
+  height: 13px;
+  overflow: hidden;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+}
+
+.pc-advice-icon > span::before {
+  position: absolute;
+  top: -8px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  transform: rotate(45deg);
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  content: "";
+}
+
+.pc-advice-card .pc-advice-copy { display: grid; gap: 3px; font: inherit; }
+.pc-advice-card .pc-advice-title, .pc-advice-card .pc-advice-detail {
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.pc-advice-card .pc-advice-title { color: #f4f7f5; font-size: 15px; font-weight: 700; line-height: 1.35; }
+.pc-advice-card .pc-advice-detail { color: var(--advice-detail); font-size: 12px; line-height: 1.4; }
+.pc-advice-card .pc-advice-arrow { color: var(--advice-accent); font: 18px/1 "DM Mono", monospace; transition: transform .22s ease; }
+
+.pc-advice-card-mini {
+  --advice-line: 177, 166, 234;
+  --advice-wash: 164, 151, 240;
+  --advice-shine: 197, 187, 251;
+  --advice-surface: #161824;
+  --advice-icon: #d6ccff;
+  --advice-detail: #cbc6df;
+  --advice-accent: #dcd4ff;
+}
+
+.pc-advice-card-mini .pc-advice-icon { border-radius: 50%; }
+
+.pc-advice-card-compact {
+  width: 100%;
+  gap: 11px;
+  margin-top: 12px;
+  padding: 8px 13px;
+  border-color: rgba(var(--advice-line), .22);
+  background: linear-gradient(100deg, rgba(var(--advice-line), .09), rgba(var(--advice-line), .025));
+  box-shadow: none;
+}
+.pc-advice-card-compact .pc-advice-icon { width: 33px; height: 33px; }
+.pc-advice-card-compact .pc-advice-title { font-size: 14px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pc-advice-card:is(:hover, :focus-visible) .pc-advice-icon { transform: translateY(-2px) rotate(-3deg); }
+  .pc-advice-card:is(:hover, :focus-visible) .pc-advice-arrow { transform: translate(3px, -2px); }
+  .pc-advice-card:active { transform: scale(.99); }
+
+  @supports (animation-timeline: view()) {
+    .pc-advice-card { view-timeline-name: --pc-advice-visibility; }
+    .pc-advice-card::after {
+      position: absolute;
+      inset: -1px;
+      border: 1px solid rgba(var(--advice-line), .65);
+      border-radius: inherit;
+      box-shadow: 0 0 18px rgba(var(--advice-line), .16);
+      pointer-events: none;
+      content: "";
+      animation: pc-advice-arrival 1s ease-in-out both;
+      animation-timeline: --pc-advice-visibility;
+      animation-range: entry;
+    }
+
+    @keyframes pc-advice-arrival {
+      0%, 100% { opacity: 0; }
+      55% { opacity: .8; }
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-advice-card, .pc-advice-icon, .pc-advice-card .pc-advice-arrow { transition: none; }
+  .pc-advice-card:hover, .pc-advice-card:focus-visible { transform: none; }
+}

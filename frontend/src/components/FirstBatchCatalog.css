@@ -6,6 +6,9 @@
 .first-batch-toolbar strong { color: #f4f7f4; font-size: clamp(22px, 2.4vw, 32px); font-weight: 500; letter-spacing: -.04em; }
 .first-batch-toolbar button, .first-batch-expand { padding: 8px 0; border: 0; border-bottom: 1px solid rgba(160, 235, 228, .3); background: transparent; color: #a6efec; cursor: pointer; font: 12px "DM Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
 .first-batch-toolbar button span { margin-left: 15px; color: #c2ef87; }
+.first-batch-toolbar > .first-batch-tools { display: flex; align-items: center; flex: 0 1 auto; gap: clamp(16px, 2.4vw, 38px); }
+@media (max-width: 910px) { .first-batch-toolbar:has(.first-batch-tools) { flex-wrap: wrap; } }
+@media (max-width: 620px) { .first-batch-toolbar > .first-batch-tools { width: 100%; flex-wrap: wrap; gap: 9px 18px; } }
 .first-batch-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .first-batch-card { min-width: 0; border: 1px solid var(--catalog-line); background: #0d1515; transition: border-color .2s, transform .2s; }
 .first-batch-card:hover { transform: translateY(-3px); border-color: rgba(156, 232, 222, .55); }
