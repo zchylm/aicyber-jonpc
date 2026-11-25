@@ -8,6 +8,7 @@ import com.aicyber.backend.reward.dto.RewardPublicSummaryResponse;
 import com.aicyber.backend.reward.service.RewardQueryService;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -78,6 +79,10 @@ public class JonPcKnowledgeContextService implements KnowledgeContextProvider {
                 - If the customer does not respond within 48 hours of recorded delivery, receipt is operationally confirmed automatically. This does not limit Australian Consumer Law rights.
                 - Complete JON.PC systems include a 3-year parts and return-to-base warranty. State this label plainly; do not volunteer Australian Consumer Law commentary unless the visitor asks about legal rights or remedies. Do not invent unconfirmed coverage, freight, labour or repair-time details beyond these confirmed terms.
                 - For faults covered by our 3-year warranty, necessary removal and refitting labour and return shipping in both directions are included throughout the warranty period. Customers should contact support before sending a system so JON.PC can arrange the return.
+                - Change-of-mind returns apply only if a specific voluntary policy is displayed for the product. Australian Consumer Law remedies apply separately.
+                - If a product fails an Australian Consumer Guarantee, the remedy depends on the nature of the fault. A major failure may entitle the customer to choose a refund or replacement. For a non-major failure, JON.PC may first repair it within a reasonable time. Ask the customer to contact support with their order reference for assessment.
+                - JON.PC may request reasonable proof of purchase. A faulty-product claim does not require original packaging. For confirmed faults, JON.PC reimburses reasonable return costs already paid. For large or difficult-to-return faulty products, JON.PC arranges collection or covers reasonable transport as required by law.
+                - Approved refunds are initiated promptly to the original payment method where reasonably possible. Processing time depends on the financial institution.
                 - Every complete JON.PC system undergoes stability and thermal stress testing before dispatch. Do not invent test duration, software, certification or benchmark results.
                 - Product images may be illustrative. A supplied system follows the confirmed specification or a material substitution expressly approved by the customer.
                 """);
@@ -131,7 +136,8 @@ public class JonPcKnowledgeContextService implements KnowledgeContextProvider {
             context.append("Description: ").append(system.description()).append('\n');
         }
         context
-                .append("Price: ").append(String.format(Locale.ROOT, "$%,d AUD incl. GST", system.priceCents() / 100)).append('\n')
+                .append("Price: ").append(String.format(Locale.ROOT, "$%,.2f AUD incl. GST",
+                        BigDecimal.valueOf(system.priceCents(), 2))).append('\n')
                 .append("Availability: ").append(system.available() ? "AVAILABLE" : "SOLD OUT").append('\n')
                 .append("Recommended for: ").append(system.recommendedFor()).append('\n')
                 .append("Estimated dispatch: ").append(system.dispatchEstimate()).append('\n')

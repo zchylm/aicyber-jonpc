@@ -32,7 +32,7 @@ class JonPcKnowledgeContextServiceTest {
         specifications.put("Warranty", "Internal draft warranty");
         when(catalog.previews()).thenReturn(List.of(new SystemProduct(
                 UUID.randomUUID(), "JON-STK-5060TI", "JON PC Strike Ti 5060 Ti",
-                "A stronger starting point for 1440p gaming.", 239_900,
+                "A stronger starting point for 1440p gaming.", 239_995,
                 8, 8, 1, 0, 2, "Strike/Storm", "PREORDER", "test", null, "1440p High settings",
                 "10–15 business days", specifications, "DRAFT", true, true
         )));
@@ -40,11 +40,13 @@ class JonPcKnowledgeContextServiceTest {
         String context = new JonPcKnowledgeContextService(catalog, rewards, testStripe(), bankTransfer()).currentContext();
 
         assertTrue(context.contains("JON PC Strike Ti 5060 Ti"));
-        assertTrue(context.contains("$2,399 AUD incl. GST"));
+        assertTrue(context.contains("$2,399.95 AUD incl. GST"));
         assertTrue(context.contains("Availability: SOLD OUT"));
         assertTrue(context.contains("GPU: NVIDIA GeForce RTX 5060 Ti"));
         assertTrue(context.contains("3-year parts and return-to-base"));
         assertTrue(context.contains("return shipping in both directions are included throughout the warranty period"));
+        assertTrue(context.contains("Change-of-mind returns apply only if a specific voluntary policy is displayed for the product"));
+        assertTrue(context.contains("A faulty-product claim does not require original packaging"));
         assertTrue(context.contains("stability and thermal stress testing before dispatch"));
         assertTrue(context.contains("do not volunteer legal commentary unless the visitor asks"));
         assertTrue(context.contains("Do not invent unconfirmed coverage, freight, labour or repair-time details"));
